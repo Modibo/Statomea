@@ -1,0 +1,19 @@
+{
+  "@@locale": "en",
+  "appTitle": "Statoméa",
+  "navProjects": "Projects",
+  "navCalculators": "Calculators",
+  "navLearn": "Learn",
+  "navValidation": "Validation",
+  "modeGuided": "Guided",
+  "modeExpert": "Expert",
+  "newProject": "New project",
+  "demos": "Demonstrations",
+  "deleteProject": "Delete project",
+  "deleteConfirm": "Permanently delete “{title}” and all its data from this device?",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "compute": "Compute",
+  "offlineNote": "All calculations and lessons work offline; no data leaves the device.",
+  "languageLabel": "Language"
+}

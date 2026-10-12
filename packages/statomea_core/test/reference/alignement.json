@@ -1,0 +1,201 @@
+{
+  "blast_version": "blastn: 2.17.0+",
+  "dna": {
+    "query": "ATATACGTCCGCTGAAGATACTAGGGCGGCCCATGGGGTGTAGATTGTTTTGGCCGCTGGACGATGCAATTCAAGGGATCTAAATAAATTCGTCGCCGGCTACACCGGTATGACGCCGTGATAGTGCGTTGTCGTGGCTTCCGGGAAGTCTTTGGGATCACAACCTTTTTTAGGGACAACGCTAATCAGTACCACTAGTGTCAAACTAGGGATTCGATAATGAAATATAAGCCACACATCCGGATAAATTGTAGCAGAGGGACAACATCTTAGGACATACGTGTTGGATACACTAACTCGCCCATTTACACCTACTCTTAATACTACTCGTGGCTGATGGCAGAGCCGTAACTTATTCCACTGACACTCACGCCTCCAGAGGGTTTTTTTAAATTTTCACAAACTCTTCCAGCGAAGAAGCGTTCTGGTTCTACAGAGGCTGGAAAGATAGAGTGACTACAAAATAATAAGCGGAATGCAATTATGTGCACACGAGAGAGCATAGCCTTACGCGAAGCACTCCAA",
+    "db_letters": 6256,
+    "db_seqs": 8,
+    "sw_plus": [20, 20, 18, 16, 21, 22, 18, 18],
+    "sw_minus": [19, 23, 844, 23, 198, 21, 18, 26],
+    "blast": [
+      {
+        "sseqid": "ref03",
+        "score": 844,
+        "bitscore": 762,
+        "evalue": 0,
+        "length": 526,
+        "nident": 490,
+        "gaps": 7,
+        "qstart": 1,
+        "qend": 525,
+        "sstart": 620,
+        "send": 101
+      },
+      {
+        "sseqid": "ref05",
+        "score": 198,
+        "bitscore": 179,
+        "evalue": 2.31e-48,
+        "length": 501,
+        "nident": 354,
+        "gaps": 21,
+        "qstart": 29,
+        "qend": 521,
+        "sstart": 593,
+        "send": 106
+      },
+      {
+        "sseqid": "ref08",
+        "score": 26,
+        "bitscore": 24.7,
+        "evalue": 0.11,
+        "length": 13,
+        "nident": 13,
+        "gaps": 0,
+        "qstart": 227,
+        "qend": 239,
+        "sstart": 358,
+        "send": 346
+      },
+      {
+        "sseqid": "ref06",
+        "score": 22,
+        "bitscore": 21.1,
+        "evalue": 1.4,
+        "length": 11,
+        "nident": 11,
+        "gaps": 0,
+        "qstart": 442,
+        "qend": 452,
+        "sstart": 561,
+        "send": 571
+      }
+    ],
+    "length_adjustment": null,
+    "eff_space": 3129360,
+    "lambda": 0.625,
+    "K": 0.41,
+    "H": 0.78
+  },
+  "protein": {
+    "query": "KVMNLGMCTKNPRVTEEDEFPSCNNVPIEPIRGLFYKLGRARMKGNVDKALYVITRTEQWTPWENIRIHSWSGMIRLEVNPYSSTPFSICNGNGFMEVKNAYIYFCRSPEFWEQQWGINMKIRFVWYFHLGVQVERCMKLPHAMLRLWYCEGTNNCKLWVSRKYWHIICMCFPASYGKGKVWRQQYQAQIGYCVAPKSFPDMYLACPEASEKIPGDVHKHPTFGPLAFINAYDWGNSQAM",
+    "db_letters": 1911,
+    "db_seqs": 6,
+    "sw": [35, 963, 31, 413, 38, 29],
+    "blast": [
+      {
+        "sseqid": "prot2",
+        "score": 963,
+        "bitscore": 375,
+        "evalue": 1.09e-136,
+        "length": 243,
+        "nident": 188,
+        "gaps": 6,
+        "qstart": 1,
+        "qend": 240,
+        "sstart": 21,
+        "send": 260
+      },
+      {
+        "sseqid": "prot4",
+        "score": 413,
+        "bitscore": 163,
+        "evalue": 2.17e-53,
+        "length": 239,
+        "nident": 114,
+        "gaps": 12,
+        "qstart": 7,
+        "qend": 239,
+        "sstart": 28,
+        "send": 260
+      },
+      {
+        "sseqid": "prot5",
+        "score": 38,
+        "bitscore": 19.2,
+        "evalue": 0.54,
+        "length": 20,
+        "nident": 6,
+        "gaps": 0,
+        "qstart": 111,
+        "qend": 130,
+        "sstart": 112,
+        "send": 131
+      },
+      {
+        "sseqid": "prot1",
+        "score": 35,
+        "bitscore": 18.1,
+        "evalue": 1.2,
+        "length": 11,
+        "nident": 4,
+        "gaps": 0,
+        "qstart": 149,
+        "qend": 159,
+        "sstart": 252,
+        "send": 262
+      },
+      {
+        "sseqid": "prot3",
+        "score": 31,
+        "bitscore": 16.5,
+        "evalue": 3.8,
+        "length": 49,
+        "nident": 11,
+        "gaps": 2,
+        "qstart": 157,
+        "qend": 203,
+        "sstart": 200,
+        "send": 248
+      },
+      {
+        "sseqid": "prot6",
+        "score": 29,
+        "bitscore": 15.8,
+        "evalue": 6.5,
+        "length": 20,
+        "nident": 8,
+        "gaps": 4,
+        "qstart": 148,
+        "qend": 165,
+        "sstart": 111,
+        "send": 128
+      }
+    ],
+    "length_adjustment": null,
+    "eff_space": 342867,
+    "lambda": 0.267,
+    "K": 0.041,
+    "H": 0.14
+  },
+  "blosum62": {
+    "letters": ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V", "B", "J", "Z", "X", "*"],
+    "matrix": [
+      [4, -1, -2, -2, 0, -1, -1, 0, -2, -1, -1, -1, -1, -2, -1, 1, 0, -3, -2, 0, -2, -1, -1, -1, -4],
+      [-1, 5, 0, -2, -3, 1, 0, -2, 0, -3, -2, 2, -1, -3, -2, -1, -1, -3, -2, -3, -1, -2, 0, -1, -4],
+      [-2, 0, 6, 1, -3, 0, 0, 0, 1, -3, -3, 0, -2, -3, -2, 1, 0, -4, -2, -3, 4, -3, 0, -1, -4],
+      [-2, -2, 1, 6, -3, 0, 2, -1, -1, -3, -4, -1, -3, -3, -1, 0, -1, -4, -3, -3, 4, -3, 1, -1, -4],
+      [0, -3, -3, -3, 9, -3, -4, -3, -3, -1, -1, -3, -1, -2, -3, -1, -1, -2, -2, -1, -3, -1, -3, -1, -4],
+      [-1, 1, 0, 0, -3, 5, 2, -2, 0, -3, -2, 1, 0, -3, -1, 0, -1, -2, -1, -2, 0, -2, 4, -1, -4],
+      [-1, 0, 0, 2, -4, 2, 5, -2, 0, -3, -3, 1, -2, -3, -1, 0, -1, -3, -2, -2, 1, -3, 4, -1, -4],
+      [0, -2, 0, -1, -3, -2, -2, 6, -2, -4, -4, -2, -3, -3, -2, 0, -2, -2, -3, -3, -1, -4, -2, -1, -4],
+      [-2, 0, 1, -1, -3, 0, 0, -2, 8, -3, -3, -1, -2, -1, -2, -1, -2, -2, 2, -3, 0, -3, 0, -1, -4],
+      [-1, -3, -3, -3, -1, -3, -3, -4, -3, 4, 2, -3, 1, 0, -3, -2, -1, -3, -1, 3, -3, 3, -3, -1, -4],
+      [-1, -2, -3, -4, -1, -2, -3, -4, -3, 2, 4, -2, 2, 0, -3, -2, -1, -2, -1, 1, -4, 3, -3, -1, -4],
+      [-1, 2, 0, -1, -3, 1, 1, -2, -1, -3, -2, 5, -1, -3, -1, 0, -1, -3, -2, -2, 0, -3, 1, -1, -4],
+      [-1, -1, -2, -3, -1, 0, -2, -3, -2, 1, 2, -1, 5, 0, -2, -1, -1, -1, -1, 1, -3, 2, -1, -1, -4],
+      [-2, -3, -3, -3, -2, -3, -3, -3, -1, 0, 0, -3, 0, 6, -4, -2, -2, 1, 3, -1, -3, 0, -3, -1, -4],
+      [-1, -2, -2, -1, -3, -1, -1, -2, -2, -3, -3, -1, -2, -4, 7, -1, -1, -4, -3, -2, -2, -3, -1, -1, -4],
+      [1, -1, 1, 0, -1, 0, 0, 0, -1, -2, -2, 0, -1, -2, -1, 4, 1, -3, -2, -2, 0, -2, 0, -1, -4],
+      [0, -1, 0, -1, -1, -1, -1, -2, -2, -1, -1, -1, -1, -2, -1, 1, 5, -2, -2, 0, -1, -1, -1, -1, -4],
+      [-3, -3, -4, -4, -2, -2, -3, -2, -2, -3, -2, -3, -1, 1, -4, -3, -2, 11, 2, -3, -4, -2, -2, -1, -4],
+      [-2, -2, -2, -3, -2, -1, -2, -3, 2, -1, -1, -2, -1, 3, -3, -2, -2, 2, 7, -1, -3, -1, -2, -1, -4],
+      [0, -3, -3, -3, -1, -2, -2, -3, -3, 3, 1, -2, 1, -1, -2, -2, 0, -3, -1, 4, -3, 2, -2, -1, -4],
+      [-2, -1, 4, 4, -3, 0, 1, -1, 0, -3, -4, 0, -3, -3, -2, 0, -1, -4, -3, -3, 4, -3, 0, -1, -4],
+      [-1, -2, -3, -3, -1, -2, -3, -4, -3, 3, 3, -3, 2, 0, -3, -2, -1, -2, -1, 2, -3, 3, -3, -1, -4],
+      [-1, 0, 0, 1, -3, 4, 4, -2, 0, -3, -3, 1, -1, -3, -1, 0, -1, -2, -2, -2, 0, -3, 4, -1, -4],
+      [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -4],
+      [-4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, 1]
+    ]
+  },
+  "_meta": {
+    "R": "R version 4.2.3 (2023-03-15)",
+    "generated": "2026-10-11",
+    "packages": [
+      "metafor 5.2.1",
+      "logistf 1.26.0",
+      "pROC 1.19.0.1",
+      "sandwich 3.1.0",
+      "car 3.1.3"
+    ]
+  }
+}

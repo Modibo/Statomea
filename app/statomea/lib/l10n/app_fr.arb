@@ -1,0 +1,20 @@
+{
+  "@@locale": "fr",
+  "appTitle": "Statoméa",
+  "navProjects": "Projets",
+  "navCalculators": "Calculs",
+  "navLearn": "Formation",
+  "navValidation": "Validation",
+  "modeGuided": "Guidé",
+  "modeExpert": "Expert",
+  "newProject": "Nouveau projet",
+  "demos": "Démonstrations",
+  "deleteProject": "Supprimer le projet",
+  "deleteConfirm": "Supprimer définitivement « {title} » et toutes ses données de cet appareil ?",
+  "@deleteConfirm": {"placeholders": {"title": {"type": "String"}}},
+  "cancel": "Annuler",
+  "delete": "Supprimer",
+  "compute": "Calculer",
+  "offlineNote": "Tous les calculs et les leçons fonctionnent hors connexion ; aucune donnée ne quitte l'appareil.",
+  "languageLabel": "Langue"
+}

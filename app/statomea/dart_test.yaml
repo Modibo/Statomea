@@ -1,0 +1,3 @@
+tags:
+  maquettes:
+    skip: "Maquettes : lancer explicitement avec --tags maquettes --update-goldens"
