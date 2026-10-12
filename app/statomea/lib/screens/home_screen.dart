@@ -63,8 +63,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final wide = c.maxWidth >= 900;
       final appBar = AppBar(
         title: Row(children: [
-          Icon(Icons.insights, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 8),
+          // Emblème du logo sur une pastille blanche (lisible aussi en thème sombre).
+          Semantics(
+            label: 'Logo Statoméa',
+            image: true,
+            child: Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+              child: Image.asset('assets/logo/statomea_embleme.png', height: 30, width: 30, excludeFromSemantics: true),
+            ),
+          ),
+          const SizedBox(width: 10),
           Text(t.appTitle, style: const TextStyle(fontWeight: FontWeight.w700)),
         ]),
         actions: [if (c.maxWidth >= 420) modeSwitch, langMenu],

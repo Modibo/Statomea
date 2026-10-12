@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo/statomea_logo.png" alt="Logo Statoméa" width="260"></p>
+
 # Statoméa
 
 Application de calcul statistique et de formation à la recherche biomédicale, en français, pour
