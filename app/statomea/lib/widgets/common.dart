@@ -228,10 +228,48 @@ void showError(BuildContext context, Object e) {
 }
 
 /// Gabarit de page à largeur de lecture limitée.
+/// Grille adaptative : autant de colonnes que la largeur en permet (largeur minimale [minItemWidth]) ; les éléments
+/// s'étirent pour remplir toute la ligne, y compris la dernière (une seule colonne pleine largeur sur téléphone). [equalHeights] : même hauteur
+/// pour les éléments d'une ligne (cartes) ; à éviter pour des éléments dépliables.
+class ResponsiveGrid extends StatelessWidget {
+  final List<Widget> children;
+  final double minItemWidth, spacing;
+  final bool equalHeights;
+  const ResponsiveGrid({super.key, required this.children, this.minItemWidth = 300, this.spacing = 12, this.equalHeights = true});
+
+  /// Nombre de colonnes pour une largeur donnée.
+  static int columnsFor(double width, double minItemWidth, double spacing) => ((width + spacing) / (minItemWidth + spacing)).floor().clamp(1, 6);
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final cols = columnsFor(box.maxWidth, minItemWidth, spacing);
+        // Une colonne (téléphone) : éléments empilés pleine largeur (pas d'étirement vertical dans une zone défilante).
+        if (cols == 1) {
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (var i = 0; i < children.length; i++) ...[if (i > 0) SizedBox(height: spacing), children[i]],
+          ]);
+        }
+        final rows = <Widget>[];
+        for (var i = 0; i < children.length; i += cols) {
+          // Dernière ligne incomplète : ses éléments se partagent toute la largeur (pas de case vide).
+          final n = (children.length - i).clamp(0, cols);
+          final row = Row(crossAxisAlignment: equalHeights ? CrossAxisAlignment.stretch : CrossAxisAlignment.start, children: [
+            for (var j = 0; j < n; j++) ...[
+              if (j > 0) SizedBox(width: spacing),
+              Expanded(child: children[i + j]),
+            ],
+          ]);
+          if (rows.isNotEmpty) rows.add(SizedBox(height: spacing));
+          rows.add(equalHeights ? IntrinsicHeight(child: row) : row);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows);
+      });
+}
+
 class PageBody extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
-  const PageBody({super.key, required this.children, this.maxWidth = 980});
+  const PageBody({super.key, required this.children, this.maxWidth = 1400});
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),

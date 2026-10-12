@@ -76,44 +76,54 @@ class ProjectsScreen extends StatelessWidget {
       const SizedBox(height: 12),
       if (user.isEmpty)
         Card(
+          margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Text(tr('Aucun projet. Créez-en un, ou ouvrez une démonstration ci-dessous pour voir le parcours complet.', 'No project. Create one, or open a demonstration below to see the full pathway.'),
                 style: Theme.of(context).textTheme.bodyMedium),
           ),
         ),
-      for (final p in user) _ProjectTile(p),
+      ResponsiveGrid(minItemWidth: 420, equalHeights: false, spacing: 8, children: [for (final p in user) _ProjectTile(p)]),
       const SizedBox(height: 20),
       Heading(t.demos, style: Theme.of(context).textTheme.titleLarge),
       const SizedBox(height: 8),
-      Wrap(spacing: 12, runSpacing: 12, children: [
+      ResponsiveGrid(minItemWidth: 300, children: [
         for (final (id, title, sub, icon) in demos)
-          SizedBox(
-            width: 300,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () async {
-                  final messenger = ScaffoldMessenger.of(context);
-                  messenger.showSnackBar(SnackBar(content: Text(tr('Calcul de la démonstration…', 'Computing the demonstration…')), duration: Duration(seconds: 1)));
-                  final p = await context.read<AppState>().openDemo(id);
-                  if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(project: p)));
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Icon(icon, size: 28, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(height: 8),
-                    Text(title, style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(sub, style: Theme.of(context).textTheme.bodySmall),
-                  ]),
-                ),
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                messenger.showSnackBar(SnackBar(content: Text(tr('Calcul de la démonstration…', 'Computing the demonstration…')), duration: Duration(seconds: 1)));
+                final p = await context.read<AppState>().openDemo(id);
+                if (context.mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(project: p)));
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer, borderRadius: BorderRadius.circular(12)),
+                    child: Icon(icon, size: 26, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text(sub, style: Theme.of(context).textTheme.bodySmall),
+                    ]),
+                  ),
+                ]),
               ),
             ),
           ),
       ]),
-      for (final p in state.projects.where((p) => p.demoNotice.isNotEmpty)) _ProjectTile(p),
+      const SizedBox(height: 12),
+      ResponsiveGrid(minItemWidth: 420, equalHeights: false, spacing: 8, children: [
+        for (final p in state.projects.where((p) => p.demoNotice.isNotEmpty)) _ProjectTile(p),
+      ]),
       const SizedBox(height: 20),
       Row(children: [
         Icon(Icons.cloud_off, size: 18, color: Theme.of(context).colorScheme.outline),
