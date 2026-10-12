@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../app_version.dart';
+import '../services/update/update_check.dart';
+import 'package:statomea_core/statomea_core.dart' show tr;
 import '../state/app_state.dart';
 import 'calculators_screen.dart';
 import 'learn_screen.dart';
@@ -16,8 +21,38 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int index = 0;
+  Timer? _updateTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Nouvelle version : au démarrage, puis toutes les 6 heures et au retour dans l'application.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => _check());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _updateTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    final state = context.read<AppState>();
+    if (!state.loaded) return;
+    final last = state.lastUpdateCheck;
+    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 30)) return;
+    await state.checkForUpdate();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,12 +65,13 @@ class _HomeScreenState extends State<HomeScreen> {
       (Icons.school_outlined, Icons.school, t.navLearn),
       (Icons.verified_outlined, Icons.verified, t.navValidation),
     ];
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final modeSwitch = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: SegmentedButton<bool>(
         segments: [
-          ButtonSegment(value: false, label: Text(t.modeGuided), icon: const Icon(Icons.assistant_outlined)),
-          ButtonSegment(value: true, label: Text(t.modeExpert), icon: const Icon(Icons.tune)),
+          ButtonSegment(value: false, label: Text(t.modeGuided), icon: Icon(Icons.lightbulb_rounded, color: dark ? Colors.amber.shade300 : Colors.amber.shade800)),
+          ButtonSegment(value: true, label: Text(t.modeExpert), icon: Icon(Icons.science_rounded, color: dark ? const Color(0xFF5FD3A6) : const Color(0xFF0B8A60))),
         ],
         selected: {state.expertMode},
         showSelectedIcon: false,
@@ -91,6 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
         bottom: c.maxWidth < 420 ? PreferredSize(preferredSize: const Size.fromHeight(48), child: Padding(padding: const EdgeInsets.only(bottom: 6), child: modeSwitch)) : null,
       );
       if (!state.loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      final upd = state.pendingUpdate;
+      Widget withBanner(Widget body) => upd == null ? body : Column(children: [_UpdateBanner(upd), Expanded(child: body)]);
       if (wide) {
         return Scaffold(
           appBar: appBar,
@@ -102,13 +140,13 @@ class _HomeScreenState extends State<HomeScreen> {
               destinations: [for (final (a, b, l) in dest) NavigationRailDestination(icon: Icon(a), selectedIcon: Icon(b), label: Text(l))],
             ),
             const VerticalDivider(width: 1),
-            Expanded(child: pages[index]),
+            Expanded(child: withBanner(pages[index])),
           ]),
         );
       }
       return Scaffold(
         appBar: appBar,
-        body: pages[index],
+        body: withBanner(pages[index]),
         bottomNavigationBar: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (i) => setState(() => index = i),
@@ -116,5 +154,35 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     });
+  }
+}
+
+/// Bandeau « nouvelle version » : recharger (web) ou télécharger l'APK (Android), ou écarter cette version.
+class _UpdateBanner extends StatelessWidget {
+  final UpdateInfo u;
+  const _UpdateBanner(this.u);
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      color: cs.primaryContainer,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
+            Icon(Icons.system_update_alt_rounded, color: cs.onPrimaryContainer),
+            Text(tr('Nouvelle version ${u.version} disponible (installée : $appVersion).', 'New version ${u.version} available (installed: $appVersion).'),
+                style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w600)),
+            TextButton(onPressed: () => context.read<AppState>().dismissUpdate(), child: Text(tr('Plus tard', 'Later'))),
+            FilledButton.icon(
+              onPressed: () => applyUpdate(u),
+              icon: Icon(u.url == null ? Icons.refresh_rounded : Icons.download_rounded),
+              label: Text(u.url == null ? tr('Recharger', 'Reload') : tr('Télécharger', 'Download')),
+            ),
+          ]),
+        ),
+      ),
+    );
   }
 }

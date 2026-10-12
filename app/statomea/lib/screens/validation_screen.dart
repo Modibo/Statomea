@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import 'package:provider/provider.dart';
+
+import '../app_version.dart';
+import '../services/update/update_check.dart';
+import '../state/app_state.dart';
 import '../widgets/common.dart';
 
 /// Statut de validation de chaque méthode (registre du moteur).
@@ -25,6 +30,8 @@ class ValidationScreen extends StatelessWidget {
       Banner2(Severity.info,
           tr('Validation logicielle ≠ validation clinique : un calcul exact peut être appliqué à une question mal posée. Le parcours en 10 étapes et l\'audit servent à le prévenir.', 'Software validation ≠ clinical validation: an exact calculation can be applied to a badly posed question. The 10-step pathway and the audit are there to prevent this.')),
       const SizedBox(height: 16),
+      const UpdateSettings(),
+      const SizedBox(height: 16),
       const DisclaimerFooter(),
     ]);
   }
@@ -47,4 +54,67 @@ class ValidationScreen extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Version installée et vérification des nouvelles versions (réglage, vérification à la demande).
+class UpdateSettings extends StatefulWidget {
+  const UpdateSettings({super.key});
+  @override
+  State<UpdateSettings> createState() => _UpdateSettingsState();
+}
+
+class _UpdateSettingsState extends State<UpdateSettings> {
+  bool busy = false;
+  String? message;
+
+  Future<void> checkNow() async {
+    setState(() => busy = true);
+    final u = await context.read<AppState>().checkForUpdate(manual: true);
+    if (!mounted) return;
+    setState(() {
+      busy = false;
+      message = u == null
+          ? tr('Statoméa $appVersion est à jour (ou le site n\'est pas joignable).', 'Statoméa $appVersion is up to date (or the site cannot be reached).')
+          : tr('Nouvelle version ${u.version} disponible.', 'New version ${u.version} available.');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final u = state.updateAvailable;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('Mises à jour', 'Updates'), style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(tr('Version installée : $appVersion (moteur $engineVersion).', 'Installed version: $appVersion (engine $engineVersion).')),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: state.checkUpdates,
+            onChanged: state.setCheckUpdates,
+            title: Text(tr('Vérifier les nouvelles versions', 'Check for new versions')),
+            subtitle: Text(tr('Lit seulement le numéro de version publié sur $statomeaSite ; aucune donnée n\'est envoyée.',
+                'Only reads the version number published on $statomeaSite; no data is sent.')),
+          ),
+          Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            OutlinedButton.icon(
+              onPressed: busy ? null : checkNow,
+              icon: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.sync_rounded),
+              label: Text(tr('Vérifier maintenant', 'Check now')),
+            ),
+            if (u != null)
+              FilledButton.icon(
+                onPressed: () => applyUpdate(u),
+                icon: Icon(u.url == null ? Icons.refresh_rounded : Icons.download_rounded),
+                label: Text(u.url == null ? tr('Recharger (${u.version})', 'Reload (${u.version})') : tr('Télécharger ${u.version}', 'Download ${u.version}')),
+              ),
+          ]),
+          if (message != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(message!, style: Theme.of(context).textTheme.bodySmall)),
+        ]),
+      ),
+    );
+  }
 }

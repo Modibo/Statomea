@@ -5,13 +5,23 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:statomea_core/statomea_core.dart';
 
 import '../services/storage.dart';
+import '../services/update/update_check.dart';
 
 /// État applicatif : projets (stockés localement), mode d'affichage, langue,
 /// leçons. Le moteur statistique est appelé par les écrans ; l'état ne fait
 /// qu'enregistrer les résultats dans le journal du projet.
 class AppState extends ChangeNotifier {
   final ProjectStorage storage;
-  AppState(this.storage);
+
+  /// Lecture de la version publiée (remplaçable dans les tests).
+  final Future<UpdateInfo?> Function() updateFetcher;
+  AppState(this.storage, {Future<UpdateInfo?> Function()? updateFetcher}) : updateFetcher = updateFetcher ?? fetchUpdate;
+
+  /// Vérification des nouvelles versions (réglable) ; version disponible et version écartée par l'utilisateur.
+  bool checkUpdates = true;
+  UpdateInfo? updateAvailable;
+  String? dismissedUpdate;
+  DateTime? lastUpdateCheck;
 
   final List<Project> projects = [];
   bool expertMode = false;
@@ -28,7 +38,35 @@ class AppState extends ChangeNotifier {
     expertMode = await storage.readBool('expertMode') ?? false;
     localeCode = await storage.readString('locale') ?? 'fr';
     setLang(localeCode == 'en' ? Lang.en : Lang.fr);
+    checkUpdates = await storage.readBool('checkUpdates') ?? true;
+    dismissedUpdate = await storage.readString('dismissedUpdate');
     loaded = true;
+    notifyListeners();
+  }
+
+  /// Interroge la version publiée ([manual] : même si le réglage est désactivé). Renvoie la version trouvée.
+  Future<UpdateInfo?> checkForUpdate({bool manual = false}) async {
+    if (!checkUpdates && !manual) return null;
+    final u = await updateFetcher();
+    lastUpdateCheck = DateTime.now();
+    updateAvailable = u;
+    notifyListeners();
+    return u;
+  }
+
+  /// Bandeau à afficher : une version plus récente, que l'utilisateur n'a pas écartée.
+  UpdateInfo? get pendingUpdate => updateAvailable != null && updateAvailable!.version != dismissedUpdate ? updateAvailable : null;
+
+  void dismissUpdate() {
+    dismissedUpdate = updateAvailable?.version;
+    if (dismissedUpdate != null) storage.writeString('dismissedUpdate', dismissedUpdate!);
+    notifyListeners();
+  }
+
+  void setCheckUpdates(bool v) {
+    checkUpdates = v;
+    storage.writeBool('checkUpdates', v);
+    if (!v) updateAvailable = null;
     notifyListeners();
   }
 
