@@ -139,3 +139,15 @@ Depuis le Mac : `bash deploy/publish-web.sh` (construit l'application et met à 
 de déploiement). Sur le VPS, première installation :
 `git clone --branch web --single-branch https://github.com/Modibo/Statomea.git /opt/statomea && bash /opt/statomea/install.sh` ;
 mises à jour : `cd /opt/statomea && git pull && bash install.sh`.
+
+## Avertissement
+
+**Outil d'aide et de formation — pas un dispositif médical.** Statoméa aide à formuler la question de recherche, à
+choisir, vérifier et interpréter une analyse statistique. Il ne remplace ni le jugement du chercheur, ni la relecture par
+un méthodologiste ou un statisticien, ni la validation clinique. Les démonstrations reposent sur des données simulées ou
+publiées et ne décrivent aucune population réelle. Vérifiez tout résultat avant une publication ou une décision.
+
+## Conception
+
+Conçu par le **Dr. Modibo Mouctar COULIBALY** — PharmD, CLMS, PhD · Maître de Recherche, Hôpital Sominé DOLO de Mopti
+(Mali).

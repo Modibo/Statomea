@@ -17,7 +17,7 @@ final _words = RegExp(
 /// Fragments français trouvés dans [text] (hors [allowed]).
 List<String> leaks(String text, Set<String> allowed) {
   // Noms propres et notations mathématiques communs aux deux langues.
-  var t = text.replaceAll(RegExp(r'\bet al\b\.?'), ' ').replaceAll('Cramér', 'Cramer').replaceAll('Statoméa', 'Statomea').replaceAll('û', 'u');
+  var t = text.replaceAll(RegExp(r'\bet al\b\.?'), ' ').replaceAll('Cramér', 'Cramer').replaceAll('Statoméa', 'Statomea').replaceAll('Sominé', 'Somine').replaceAll('û', 'u');
   // Les clés JSON (identifiants techniques comme « est ») ne sont pas du texte.
   t = t.replaceAll(RegExp(r'"[A-Za-z_0-9]+":'), ' ');
   final sorted = allowed.where((a) => a.trim().isNotEmpty).toList()..sort((a, b) => b.length.compareTo(a.length));

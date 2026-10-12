@@ -133,6 +133,8 @@ class ProjectsScreen extends StatelessWidget {
       const SizedBox(height: 6),
       Text(tr('Utilisez de préférence des données anonymisées : pas de nom, de date de naissance complète ni d\'identifiant direct.', 'Preferably use anonymized data: no name, full date of birth or direct identifier.'),
           style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 16),
+      const DisclaimerFooter(),
     ]);
   }
 }

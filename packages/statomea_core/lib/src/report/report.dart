@@ -8,6 +8,7 @@ library;
 
 import 'dart:convert';
 
+import '../about.dart';
 import '../i18n.dart';
 import '../advisor/registry.dart';
 import '../audit/audit.dart';
@@ -237,8 +238,9 @@ String projectReportHtml(Project p, {AuditReport? audit, String generatedAt = ''
     ])));
     b.writeln('</section>');
   }
-  b.writeln(tr("<footer><p>Statoméa sépare le moteur de calcul déterministe des interprétations, qui sont des propositions à relire. Aucun résultat n'a été produit par une IA générative.</p></footer></body></html>",
-      '<footer><p>Statoméa separates the deterministic computation engine from the interpretations, which are proposals to be reread. No result was produced by generative AI.</p></footer></body></html>'));
+  b.writeln(tr("<footer><p>Statoméa sépare le moteur de calcul déterministe des interprétations, qui sont des propositions à relire. Aucun résultat n'a été produit par une IA générative.</p>",
+      '<footer><p>Statoméa separates the deterministic computation engine from the interpretations, which are proposals to be reread. No result was produced by generative AI.</p>'));
+  b.writeln('<p><b>&#9888; ${_h(disclaimerTitle)} — ${_h(disclaimerLead)}</b> ${_h(disclaimerText)}</p><p>${_h(designedBy)}</p></footer></body></html>');
   return b.toString();
 }
 

@@ -281,3 +281,42 @@ class PageBody extends StatelessWidget {
         ),
       );
 }
+
+/// Avertissement d'usage et mention de conception (écran d'accueil, validation).
+class DisclaimerFooter extends StatelessWidget {
+  const DisclaimerFooter({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final warn = theme.brightness == Brightness.dark ? Colors.amber.shade300 : Colors.amber.shade900;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: warn.withValues(alpha: 0.6))),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.warning_amber_rounded, color: warn),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(TextSpan(children: [
+                TextSpan(text: '$disclaimerTitle — $disclaimerLead ', style: TextStyle(fontWeight: FontWeight.w700, color: warn)),
+                TextSpan(text: disclaimerText),
+              ]), style: theme.textTheme.bodySmall),
+            ),
+          ]),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Row(children: [
+        Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
+          child: Image.asset('assets/logo/statomea_embleme.png', width: 22, height: 22, excludeFromSemantics: true),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(designedBy, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600))),
+      ]),
+    ]);
+  }
+}

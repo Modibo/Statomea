@@ -24,6 +24,8 @@ class ValidationScreen extends StatelessWidget {
       const SizedBox(height: 12),
       Banner2(Severity.info,
           tr('Validation logicielle ≠ validation clinique : un calcul exact peut être appliqué à une question mal posée. Le parcours en 10 étapes et l\'audit servent à le prévenir.', 'Software validation ≠ clinical validation: an exact calculation can be applied to a badly posed question. The 10-step pathway and the audit are there to prevent this.')),
+      const SizedBox(height: 16),
+      const DisclaimerFooter(),
     ]);
   }
 

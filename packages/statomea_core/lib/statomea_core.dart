@@ -3,6 +3,7 @@ library;
 
 export 'src/version.dart';
 export 'src/i18n.dart';
+export 'src/about.dart';
 export 'src/math/special.dart';
 export 'src/math/distributions.dart';
 export 'src/math/matrix.dart';

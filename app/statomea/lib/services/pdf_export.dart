@@ -146,6 +146,21 @@ Future<Uint8List> buildProjectPdf(Project p, {AuditReport? audit, required Strin
       ])),
     ]);
   }
+  // Avertissement et conception, en fin de rapport.
+  body.addAll([
+    pw.SizedBox(height: 14),
+    pw.Container(
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.amber700, width: 0.8)),
+      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Text('$disclaimerTitle — $disclaimerLead', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 3),
+        pw.Text(disclaimerText, style: const pw.TextStyle(fontSize: 8)),
+        pw.SizedBox(height: 4),
+        pw.Text(designedBy, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+      ]),
+    ),
+  ]);
   doc.addPage(pw.MultiPage(
     // La limite par défaut (20 pages) faisait échouer l'export des projets riches (démonstration 5).
     maxPages: 500,

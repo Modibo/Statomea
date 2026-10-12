@@ -97,6 +97,8 @@ void main() {
     final html = projectReportHtml(p, audit: audit, generatedAt: 'test');
     expect(html, contains('Randomisation mendélienne : βY selon βX'));
     expect(html, contains('Pléiotropie directionnelle détectée'));
+    expect(html, contains('pas un dispositif médical.'));
+    expect(html, contains('Conçu par le Dr. Modibo Mouctar COULIBALY'));
   });
 
   test('suppression complète d\'un projet', () async {
