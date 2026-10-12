@@ -129,3 +129,11 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 Polices Noto Sans et Noto Sans Math : SIL Open Font License 1.1 (`app/statomea/assets/fonts/OFL.txt`).
 Les grilles TRIPOD+AI, PROBAST+AI et PRISMA 2020 sont des paraphrases pédagogiques ; se référer aux
 publications originales citées dans l'application.
+
+## Déploiement web
+
+Version web servie sur https://statomea.komodi-labo.org (VPS partagé, façade Caddy de NexoLab).
+Depuis le Mac : `bash deploy/publish-web.sh` (construit l'application et met à jour la branche `web` : site + fichiers
+de déploiement). Sur le VPS, première installation :
+`git clone --branch web --single-branch https://github.com/Modibo/Statomea.git /opt/statomea && bash /opt/statomea/install.sh` ;
+mises à jour : `cd /opt/statomea && git pull && bash install.sh`.
