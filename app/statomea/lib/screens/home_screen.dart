@@ -42,22 +42,33 @@ class _HomeScreenState extends State<HomeScreen> {
         onSelectionChanged: (s) => state.setExpert(s.first),
       ),
     );
-    final langMenu = PopupMenuButton<String>(
-      tooltip: t.languageLabel,
-      icon: const Icon(Icons.translate),
-      onSelected: (code) {
-        state.setLocale(code);
-        // Les textes passent par tr() : reconstruire tout l'arbre, routes ouvertes comprises.
-        void rebuild(Element e) {
-          e.markNeedsBuild();
-          e.visitChildren(rebuild);
-        }
-        WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
-      },
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'fr', child: Text('Français')),
-        PopupMenuItem(value: 'en', child: Text('English')),
-      ],
+    void switchLang(String code) {
+      if (code == state.localeCode) return;
+      state.setLocale(code);
+      // Les textes passent par tr() : reconstruire tout l'arbre, routes ouvertes comprises.
+      void rebuild(Element e) {
+        e.markNeedsBuild();
+        e.visitChildren(rebuild);
+      }
+      WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
+    }
+
+    // Sélecteur de langue FR | EN : la langue active est mise en évidence, un appui suffit pour basculer.
+    final langMenu = Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Tooltip(
+        message: t.languageLabel,
+        child: SegmentedButton<String>(
+          style: const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4))),
+          segments: const [
+            ButtonSegment(value: 'fr', label: Text('FR', semanticsLabel: 'Français')),
+            ButtonSegment(value: 'en', label: Text('EN', semanticsLabel: 'English')),
+          ],
+          selected: {state.localeCode},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => switchLang(s.first),
+        ),
+      ),
     );
     return LayoutBuilder(builder: (context, c) {
       final wide = c.maxWidth >= 900;
@@ -74,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Text(t.appTitle, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Flexible(child: Text(t.appTitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
         ]),
         actions: [if (c.maxWidth >= 420) modeSwitch, langMenu],
         bottom: c.maxWidth < 420 ? PreferredSize(preferredSize: const Size.fromHeight(48), child: Padding(padding: const EdgeInsets.only(bottom: 6), child: modeSwitch)) : null,

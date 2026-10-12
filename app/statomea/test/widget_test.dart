@@ -21,4 +21,22 @@ void main() {
     expect(find.textContaining('pas un dispositif médical', findRichText: true), findsOneWidget);
     expect(find.textContaining('Conçu par le Dr. Modibo Mouctar COULIBALY'), findsOneWidget);
   });
+
+  testWidgets('sélecteur de langue FR | EN : un appui bascule l\'interface', (tester) async {
+    final state = AppState(MemoryStorage());
+    await state.load();
+    await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: const StatomeaApp()));
+    await tester.pumpAndSettle();
+    expect(find.text('FR'), findsOneWidget);
+    expect(find.text('EN'), findsOneWidget);
+    expect(find.text('Démonstrations'), findsOneWidget);
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+    expect(state.localeCode, 'en');
+    expect(find.text('Demonstrations'), findsOneWidget);
+    await tester.tap(find.text('FR'));
+    await tester.pumpAndSettle();
+    expect(state.localeCode, 'fr');
+    expect(find.text('Démonstrations'), findsOneWidget);
+  });
 }
