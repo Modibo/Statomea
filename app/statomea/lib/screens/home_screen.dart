@@ -29,9 +29,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Nouvelle version : au démarrage, puis toutes les 6 heures et au retour dans l'application.
+    // Nouvelle version : au démarrage, toutes les 10 minutes tant que l'application est ouverte, et à chaque retour
+    // sur l'onglet ou l'application (une page restée ouverte voit ainsi passer une mise à jour).
     WidgetsBinding.instance.addPostFrameCallback((_) => _check());
-    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => _check());
+    _updateTimer = Timer.periodic(const Duration(minutes: 10), (_) => _check());
   }
 
   @override
@@ -50,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final state = context.read<AppState>();
     if (!state.loaded) return;
     final last = state.lastUpdateCheck;
-    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 30)) return;
+    if (last != null && DateTime.now().difference(last) < const Duration(minutes: 1)) return;
     await state.checkForUpdate();
   }
 
