@@ -77,7 +77,7 @@ cd /tmp/statomea_build/app/statomea && flutter build apk --release
 
 L'APK obtenu (`build/app/outputs/flutter-apk/app-release.apk`) est signé avec la clé de débogage : il s'installe sur un
 appareil ou un émulateur (`adb install`) mais ne peut pas être publié sur Google Play sans une clé de publication.
-Le paquet publié n'a aucune permission Internet. La version 1.16.0 (génomique et démonstration 4 comprises) est rangée dans `dist/` (hors dépôt), à côté de 1.10.0 ; empreinte SHA-256 de `statomea-1.16.0.apk` : `fe58141690b6da322ef72ed28f488c11f24f702ce970b65448bd6ac94290cd9d`.
+Depuis la 1.36.5, l'APK a la seule permission Internet, pour lire le numéro de version publié (`android.json`) et signaler une mise à jour ; désactivable dans l'écran Validation, aucune donnée de l'utilisateur n'est envoyée. Dernier APK : https://statomea.komodi-labo.org/telecharger/statomea.apk (1.36.5, code 41, SHA-256 `ba0afdd02cecf7e5df77283da7d749b92a71b3b8943a776af398fa8a9eb1efe5`) ; copies dans `dist/` (hors dépôt). L'APK est signé avec la clé de débogage du poste de construction : les mises à jour doivent être construites sur ce même poste.
 
 iOS (poste avec Xcode complet) :
 
@@ -138,7 +138,7 @@ Version web servie sur https://statomea.komodi-labo.org (VPS partagé, façade C
 Depuis le Mac : `bash deploy/publish-web.sh` (construit l'application et met à jour la branche `web` : site + fichiers
 de déploiement). Sur le VPS, première installation :
 `git clone --branch web --single-branch https://github.com/Modibo/Statomea.git /opt/statomea && bash /opt/statomea/install.sh` ;
-mises à jour : `cd /opt/statomea && git pull && bash install.sh`.
+mises à jour : `cd /opt/statomea && git fetch -q && git reset -q --hard origin/web && bash install.sh` (la branche `web` est un instantané republié à chaque version, avec l'APK si `BUILD_APK=1`).
 
 ## Avertissement
 

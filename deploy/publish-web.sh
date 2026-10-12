@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Publication de la version web (depuis le Mac) : construit l'application Flutter et met à jour la branche « web »
-# (site/ + fichiers de déploiement), puis la pousse. Sur le VPS : cd /opt/statomea && git pull && bash install.sh
+# (site/ + fichiers de déploiement), puis la pousse. Sur le VPS : cd /opt/statomea && git fetch -q && git reset -q --hard origin/web && bash install.sh
 # BUILD_APK=1 : construit aussi l'APK Android de la même version (dans /tmp : Gradle échoue dans OneDrive), le publie
 # sous site/telecharger/statomea.apk et écrit site/android.json, que l'application Android lit pour signaler la mise
 # à jour. Sans BUILD_APK, l'APK et android.json déjà publiés sont conservés.
@@ -38,11 +38,15 @@ cat > "$WT/README.md" <<MD
 Branche générée par \`deploy/publish-web.sh\` depuis \`main\` : ne pas modifier à la main.
 
 Installation sur le VPS : \`git clone --branch web --single-branch https://github.com/Modibo/Statomea.git /opt/statomea && bash /opt/statomea/install.sh\`
-Mise à jour : \`cd /opt/statomea && git pull && bash install.sh\`
+Mise à jour : \`cd /opt/statomea && git fetch -q && git reset -q --hard origin/web && bash install.sh\`
 MD
 cd "$WT"
+# Instantané unique (sans historique) : chaque APK pèserait sinon ~75 Mo de plus dans le dépôt et dans chaque mise à
+# jour du VPS, qui se fait donc par « git fetch && git reset --hard origin/web » (et non git pull).
+git checkout -q --orphan web-publication
 git add -A
-if git diff --cached --quiet; then echo "Rien de nouveau à publier."; else git commit -q -m "Version web $VERSION"; fi
-git push -q -u origin web
+git commit -q -m "Version web $VERSION"
+git branch -M web-publication web
+git push -q -f -u origin web
 cd "$ROOT" && git worktree remove --force "$WT"
 echo "Branche web publiée : version $VERSION"

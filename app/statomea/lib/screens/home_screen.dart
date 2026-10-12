@@ -123,8 +123,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(width: 10),
           Flexible(child: Text(t.appTitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
         ]),
-        actions: [if (c.maxWidth >= 420) modeSwitch, langMenu],
-        bottom: c.maxWidth < 420 ? PreferredSize(preferredSize: const Size.fromHeight(48), child: Padding(padding: const EdgeInsets.only(bottom: 6), child: modeSwitch)) : null,
+        actions: [if (c.maxWidth >= 600) modeSwitch, langMenu],
+        bottom: c.maxWidth < 600 ? PreferredSize(preferredSize: const Size.fromHeight(48), child: Padding(padding: const EdgeInsets.only(bottom: 6), child: modeSwitch)) : null,
       );
       if (!state.loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
       final upd = state.pendingUpdate;
