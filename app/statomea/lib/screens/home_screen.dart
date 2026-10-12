@@ -89,20 +89,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       WidgetsBinding.instance.rootElement?.visitChildren(rebuild);
     }
 
-    // Sélecteur de langue FR | EN : la langue active est mise en évidence, un appui suffit pour basculer.
+    // Bouton de langue unique : affiche la langue active (FR ou EN) ; un appui bascule vers l'autre.
+    final isFr = state.localeCode != 'en';
     final langMenu = Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: Tooltip(
-        message: t.languageLabel,
-        child: SegmentedButton<String>(
-          style: const ButtonStyle(padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4))),
-          segments: const [
-            ButtonSegment(value: 'fr', label: Text('FR', semanticsLabel: 'Français')),
-            ButtonSegment(value: 'en', label: Text('EN', semanticsLabel: 'English')),
-          ],
-          selected: {state.localeCode},
-          showSelectedIcon: false,
-          onSelectionChanged: (s) => switchLang(s.first),
+      child: Semantics(
+        button: true,
+        label: isFr ? 'Langue : français. Passer en anglais' : 'Language: English. Switch to French',
+        excludeSemantics: true,
+        child: Tooltip(
+          message: isFr ? 'Passer en anglais (English)' : 'Switch to French (Français)',
+          child: OutlinedButton.icon(
+            onPressed: () => switchLang(isFr ? 'en' : 'fr'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48), padding: const EdgeInsets.symmetric(horizontal: 12), shape: const StadiumBorder()),
+            icon: const Icon(Icons.language_rounded, size: 20),
+            label: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              transitionBuilder: (child, a) => ScaleTransition(scale: a, child: child),
+              child: Text(isFr ? 'FR' : 'EN', key: ValueKey(isFr), style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            ),
+          ),
         ),
       ),
     );
