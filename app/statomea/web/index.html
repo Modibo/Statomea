@@ -32,8 +32,35 @@
   <meta name="theme-color" content="#0B2A5E">
   <title>Statoméa</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Téléchargement anticipé du code de l'application, en parallèle de l'amorçage. -->
+  <link rel="preload" href="main.dart.js" as="script">
+  <style>
+    /* Écran de démarrage : visible immédiatement (HTML et CSS seuls), retiré par l'application à sa première image. */
+    html, body { margin: 0; height: 100%; background: #ffffff; }
+    #splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+      background: #ffffff; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; transition: opacity .25s ease; z-index: 10; }
+    #splash img { width: 96px; height: 96px; }
+    #splash .name { font-size: 26px; font-weight: 700; color: #0B2A5E; letter-spacing: .2px; }
+    #splash .tag { font-size: 14px; color: #4a5a72; text-align: center; padding: 0 24px; }
+    #splash .bar { width: 160px; height: 4px; border-radius: 4px; background: #e3e9f2; overflow: hidden; margin-top: 6px; }
+    #splash .bar::after { content: ""; display: block; width: 40%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #1677C9, #0B8A60);
+      animation: statomea-load 1.1s ease-in-out infinite; }
+    @keyframes statomea-load { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+    @media (prefers-color-scheme: dark) {
+      html, body, #splash { background: #11151c; }
+      #splash .name { color: #e8eefb; } #splash .tag { color: #a9b6c9; } #splash .bar { background: #263041; }
+      #splash img { background: #ffffff; border-radius: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) { #splash .bar::after { animation: none; width: 100%; } }
+  </style>
 </head>
 <body>
+  <div id="splash" role="status" aria-live="polite">
+    <img src="icons/Icon-192.png" alt="">
+    <div class="name">Statoméa</div>
+    <div class="tag">Statistique biomédicale et formation à la recherche · chargement…</div>
+    <div class="bar"></div>
+  </div>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

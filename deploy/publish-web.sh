@@ -24,12 +24,17 @@ if [ "${BUILD_APK:-0}" = "1" ]; then
   B=/tmp/statomea_build
   mkdir -p "$B"
   rsync -a --delete --exclude build --exclude .dart_tool --exclude android/.gradle "$ROOT/app" "$ROOT/packages" "$B/"
-  (cd "$B/app/statomea" && flutter build apk --release)
-  mkdir -p "$WT/site/telecharger"
-  cp "$B/app/statomea/build/app/outputs/flutter-apk/app-release.apk" "$WT/site/telecharger/statomea.apk"
-  mkdir -p "$ROOT/dist" && cp "$WT/site/telecharger/statomea.apk" "$ROOT/dist/statomea-$VERSION.apk"
-  printf '{"version":"%s","url":"telecharger/statomea.apk"}\n' "$VERSION" > "$WT/site/android.json"
-  echo "APK $VERSION publié ($(du -h "$WT/site/telecharger/statomea.apk" | cut -f1))."
+  # Un APK par architecture (arm64 : quasi tous les téléphones récents ; armv7 : anciens 32 bits) : ~30 Mo au lieu
+  # de ~75 Mo pour l'APK universel. statomea.apk reste le lien générique (lien symbolique vers arm64).
+  (cd "$B/app/statomea" && flutter build apk --release --split-per-abi)
+  rm -rf "$WT/site/telecharger" && mkdir -p "$WT/site/telecharger" "$ROOT/dist"
+  for abi in arm64-v8a armeabi-v7a; do
+    cp "$B/app/statomea/build/app/outputs/flutter-apk/app-$abi-release.apk" "$WT/site/telecharger/statomea-$abi.apk"
+    cp "$WT/site/telecharger/statomea-$abi.apk" "$ROOT/dist/statomea-$VERSION-$abi.apk"
+  done
+  (cd "$WT/site/telecharger" && ln -s statomea-arm64-v8a.apk statomea.apk)
+  printf '{"version":"%s","url":"telecharger/statomea.apk","urls":{"arm64-v8a":"telecharger/statomea-arm64-v8a.apk","armeabi-v7a":"telecharger/statomea-armeabi-v7a.apk"}}\n' "$VERSION" > "$WT/site/android.json"
+  echo "APK $VERSION publiés : $(cd "$WT/site/telecharger" && du -hL statomea-*.apk | tr '\n' ' ')"
 fi
 cp "$ROOT/deploy/docker-compose.yml" "$ROOT/deploy/Caddyfile.static" "$ROOT/deploy/caddy-site.conf" "$ROOT/deploy/install.sh" "$WT/"
 cat > "$WT/README.md" <<MD

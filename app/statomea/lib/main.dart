@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'l10n/gen/app_localizations.dart';
 import 'screens/home_screen.dart';
+import 'services/splash.dart';
 import 'services/storage.dart';
 import 'state/app_state.dart';
 
@@ -13,6 +15,14 @@ Future<void> main() async {
   final state = AppState(PrefsStorage());
   await state.load();
   runApp(ChangeNotifierProvider.value(value: state, child: const StatomeaApp()));
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    hideSplash();
+    // Police des symboles mathématiques (≤ ≥ √ → …), chargée après la première image : le texte est remis en page
+    // automatiquement quand elle arrive (secours de NotoSans dans le thème).
+    FontLoader('NotoSansMath')
+      ..addFont(rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'))
+      ..load();
+  });
 }
 
 const seed = Color(0xFF1F4E79);

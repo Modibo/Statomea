@@ -31,3 +31,5 @@ Future<void> reloadFresh() async {
 Future<void> openExternal(String url) async {
   web.window.open(url, '_blank');
 }
+
+String? androidAbi() => null;

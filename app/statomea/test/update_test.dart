@@ -22,6 +22,19 @@ void main() {
     expect(compareVersions('1.36.4', '1.36.5'), lessThan(0));
   });
 
+  test('android.json : APK de l\'architecture du téléphone, sinon lien générique ; page HTML ignorée', () {
+    const j = '{"version":"9.9.9","url":"telecharger/statomea.apk","urls":{"arm64-v8a":"telecharger/statomea-arm64-v8a.apk","armeabi-v7a":"telecharger/statomea-armeabi-v7a.apk"}}';
+    expect(parseUpdate(j, current: '1.0.0', abi: 'arm64-v8a')!.url, '$statomeaSite/telecharger/statomea-arm64-v8a.apk');
+    expect(parseUpdate(j, current: '1.0.0', abi: 'armeabi-v7a')!.url, '$statomeaSite/telecharger/statomea-armeabi-v7a.apk');
+    expect(parseUpdate(j, current: '1.0.0', abi: 'x86_64')!.url, '$statomeaSite/telecharger/statomea.apk');
+    expect(parseUpdate(j, current: '9.9.9'), isNull);
+    // Ancien format (sans « urls ») et version web (sans lien).
+    expect(parseUpdate('{"version":"9.9.9","url":"telecharger/statomea.apk"}', current: '1.0.0', abi: 'arm64-v8a')!.url, '$statomeaSite/telecharger/statomea.apk');
+    expect(parseUpdate('{"app_name":"statomea","version":"9.9.9"}', current: '1.0.0')!.url, isNull);
+    // Repli monopage du serveur (android.json absent → index.html).
+    expect(parseUpdate('<!DOCTYPE html><html></html>', current: '1.0.0'), isNull);
+  });
+
   Future<AppState> mount(WidgetTester t, {String? published, bool enabled = true, String? url}) async {
     var calls = 0;
     final state = AppState(MemoryStorage(), updateFetcher: () async {

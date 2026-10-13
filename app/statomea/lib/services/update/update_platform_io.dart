@@ -21,6 +21,15 @@ Future<String?> getText(String url) async {
 
 Future<void> reloadFresh() async {}
 
+/// Architecture Android de l'appareil, d'après la version de la VM Dart (« … on "android_arm64" »).
+String? androidAbi() {
+  final v = Platform.version;
+  if (v.contains('android_arm64')) return 'arm64-v8a';
+  if (v.contains('android_arm')) return 'armeabi-v7a';
+  if (v.contains('android_x64')) return 'x86_64';
+  return null;
+}
+
 Future<void> openExternal(String url) async {
   await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 }

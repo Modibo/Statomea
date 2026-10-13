@@ -39,11 +39,18 @@ Future<UpdateInfo?> fetchUpdate({String current = appVersion}) async {
     return null;
   }
   if (body == null) return null;
+  return parseUpdate(body, current: current, abi: kIsWeb ? null : platform.androidAbi());
+}
+
+/// Lit version.json (web) ou android.json (Android) : version plus récente que [current], et lien de l'APK adapté à
+/// l'architecture [abi] (« urls »), sinon lien générique (« url »). Null si rien de plus récent ou contenu illisible.
+UpdateInfo? parseUpdate(String body, {String current = appVersion, String? abi}) {
   try {
     final j = jsonDecode(body) as Map<String, dynamic>;
     final v = j['version'] as String?;
     if (v == null || compareVersions(v, current) <= 0) return null;
-    final url = j['url'] as String?;
+    final urls = (j['urls'] as Map<String, dynamic>?)?.cast<String, String>();
+    final url = (urls == null || abi == null ? null : urls[abi]) ?? j['url'] as String?;
     return UpdateInfo(v, url: url == null ? null : (url.startsWith('http') ? url : '$statomeaSite/$url'));
   } catch (_) {
     return null;
