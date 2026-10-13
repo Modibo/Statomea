@@ -60,19 +60,35 @@ class ProjectsScreen extends StatelessWidget {
               'Mendelian randomization on 28 published variants: IVW, MR-Egger, median and mode, leave-one-out, multivariable.'),
           Icons.call_split),
     ];
-    return PageBody(children: [
-      Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
-        Heading(t.navProjects),
-        const SizedBox(width: 8),
-        FilledButton.icon(onPressed: () => _create(context), icon: const Icon(Icons.add), label: Text(t.newProject)),
-        OutlinedButton.icon(
-            onPressed: () => _pickAndImport(context),
-            icon: const Icon(Icons.file_open_outlined),
-            label: Text(tr('Importer un projet', 'Import a project'))),
-      ]),
+    // En-tête : titre et description ; actions « Nouveau projet » (principale) et « Importer » côte à côte, à droite
+    // du titre sur grand écran, en dessous et à parts égales sur téléphone.
+    ButtonStyle big(BuildContext c) => const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(64, 48)));
+    Widget fit(String s) => FittedBox(fit: BoxFit.scaleDown, child: Text(s, maxLines: 1));
+    final newBtn = FilledButton.icon(style: big(context), onPressed: () => _create(context), icon: const Icon(Icons.add_rounded), label: fit(t.newProject));
+    // Libellé court sur téléphone (« Importer »), complet sur grand écran ; l'info-bulle garde le libellé complet.
+    Widget importBtn({bool short = false}) => Tooltip(
+          message: tr('Importer un projet', 'Import a project'),
+          child: OutlinedButton.icon(
+              style: big(context), onPressed: () => _pickAndImport(context), icon: const Icon(Icons.file_open_outlined),
+              label: fit(short ? tr('Importer', 'Import') : tr('Importer un projet', 'Import a project'))),
+        );
+    final title = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Heading(t.navProjects),
       const SizedBox(height: 4),
       Text(tr('De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée — en 10 étapes.', 'From the research question to a justified, verifiable and correctly interpreted analysis — in 10 steps.'),
           style: Theme.of(context).textTheme.bodyMedium),
+    ]);
+    return PageBody(children: [
+      LayoutBuilder(builder: (context, c) {
+        if (c.maxWidth >= 640) {
+          return Row(children: [Expanded(child: title), const SizedBox(width: 16), newBtn, const SizedBox(width: 10), importBtn()]);
+        }
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          title,
+          const SizedBox(height: 14),
+          Row(children: [Expanded(child: newBtn), const SizedBox(width: 10), Expanded(child: importBtn(short: true))]),
+        ]);
+      }),
       const SizedBox(height: 12),
       if (user.isEmpty)
         Card(

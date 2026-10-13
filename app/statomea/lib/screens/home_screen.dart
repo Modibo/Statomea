@@ -67,18 +67,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       (Icons.verified_outlined, Icons.verified, t.navValidation),
     ];
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final modeSwitch = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: SegmentedButton<bool>(
-        segments: [
-          ButtonSegment(value: false, label: Text(t.modeGuided), icon: Icon(Icons.lightbulb_rounded, color: dark ? Colors.amber.shade300 : Colors.amber.shade800)),
-          ButtonSegment(value: true, label: Text(t.modeExpert), icon: Icon(Icons.science_rounded, color: dark ? const Color(0xFF5FD3A6) : const Color(0xFF0B8A60))),
-        ],
-        selected: {state.expertMode},
-        showSelectedIcon: false,
-        onSelectionChanged: (s) => state.setExpert(s.first),
-      ),
-    );
+    // Sélecteur Guidé / Expert : dans la barre sur grand écran ; sur téléphone, sous la barre et sur toute la largeur.
+    Widget modeSwitch({bool expanded = false}) => SegmentedButton<bool>(
+          expandedInsets: expanded ? EdgeInsets.zero : null,
+          segments: [
+            ButtonSegment(value: false, label: Text(t.modeGuided), icon: Icon(Icons.lightbulb_rounded, color: dark ? Colors.amber.shade300 : Colors.amber.shade800)),
+            ButtonSegment(value: true, label: Text(t.modeExpert), icon: Icon(Icons.science_rounded, color: dark ? const Color(0xFF5FD3A6) : const Color(0xFF0B8A60))),
+          ],
+          selected: {state.expertMode},
+          showSelectedIcon: false,
+          onSelectionChanged: (s) => state.setExpert(s.first),
+        );
     void switchLang(String code) {
       if (code == state.localeCode) return;
       state.setLocale(code);
@@ -93,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Bouton de langue unique : affiche la langue active (FR ou EN) ; un appui bascule vers l'autre.
     final isFr = state.localeCode != 'en';
     final langMenu = Padding(
-      padding: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.only(right: 12),
       child: Semantics(
         button: true,
         label: isFr ? 'Langue : français. Passer en anglais' : 'Language: English. Switch to French',
@@ -102,7 +101,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           message: isFr ? 'Passer en anglais (English)' : 'Switch to French (Français)',
           child: OutlinedButton.icon(
             onPressed: () => switchLang(isFr ? 'en' : 'fr'),
-            style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48), padding: const EdgeInsets.symmetric(horizontal: 12), shape: const StadiumBorder()),
+            // Même hauteur visuelle (40) que le sélecteur Guidé / Expert ; zone tactile portée à 48 (padded).
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size(64, 40), tapTargetSize: MaterialTapTargetSize.padded, padding: const EdgeInsets.symmetric(horizontal: 12), shape: const StadiumBorder()),
             icon: const Icon(Icons.language_rounded, size: 20),
             label: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
@@ -130,8 +131,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(width: 10),
           Flexible(child: Text(t.appTitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
         ]),
-        actions: [if (c.maxWidth >= 600) modeSwitch, langMenu],
-        bottom: c.maxWidth < 600 ? PreferredSize(preferredSize: const Size.fromHeight(48), child: Padding(padding: const EdgeInsets.only(bottom: 6), child: modeSwitch)) : null,
+        titleSpacing: 16,
+        actions: [if (c.maxWidth >= 600) ...[modeSwitch(), const SizedBox(width: 12)], langMenu],
+        bottom: c.maxWidth < 600
+            ? PreferredSize(preferredSize: const Size.fromHeight(56), child: Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: modeSwitch(expanded: true)))
+            : null,
       );
       if (!state.loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));
       final upd = state.pendingUpdate;
