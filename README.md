@@ -134,7 +134,7 @@ publications originales citées dans l'application.
 
 ## Déploiement web
 
-Version web servie sur https://statomea.komodi-labo.org (VPS partagé, façade Caddy de NexoLab).
+Site https://statomea.komodi-labo.org (VPS partagé, façade Caddy de NexoLab) : page d'accueil à la racine (`deploy/landing/`, HTML et CSS seuls, captures de `docs/maquettes/`), application web sous `/app/`, APK sous `/telecharger/`.
 Depuis le Mac : `bash deploy/publish-web.sh` (construit l'application et met à jour la branche `web` : site + fichiers
 de déploiement). Sur le VPS, première installation :
 `git clone --branch web --single-branch https://github.com/Modibo/Statomea.git /opt/statomea && bash /opt/statomea/install.sh` ;

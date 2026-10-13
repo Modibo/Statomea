@@ -56,7 +56,7 @@ const sizes = {'mobile': Size(390, 844), 'ordinateur': Size(1366, 860)};
 
 void main() {
   late AppState state;
-  late Project demoAghbs, demoMeta, demoPred;
+  late Project demoAghbs, demoMeta, demoPred, demoGwas, demoMr;
 
   setUpAll(() async {
     await _loadFonts();
@@ -65,14 +65,24 @@ void main() {
     demoAghbs = buildDemoAghbs(File('assets/demos/aghbs_simule.csv').readAsStringSync());
     demoMeta = buildDemoMeta(File('assets/demos/bcg_colditz1994.csv').readAsStringSync());
     demoPred = buildDemoPrediction(File('assets/demos/cardiometabolique_simule.csv').readAsStringSync(), bootstrap: 60);
+    demoGwas = buildDemoGwas(File('assets/demos/gwas_simule.bed').readAsBytesSync(), File('assets/demos/gwas_simule.bim').readAsStringSync(),
+        File('assets/demos/gwas_simule.fam').readAsStringSync(), File('assets/demos/gwas_covariables_simule.csv').readAsStringSync());
+    demoMr = buildDemoMr(File('assets/demos/mr_ldl_chd.csv').readAsStringSync());
     state.projects.addAll([demoMeta, demoAghbs]);
   });
 
-  Future<void> shot(WidgetTester t, String name, Size size, Widget home, {Future<void> Function()? before, double scroll = 0}) async {
+  Future<void> shot(WidgetTester t, String name, Size size, Widget home, {Future<void> Function()? before, double scroll = 0, String? target, double after = 0}) async {
     await t.binding.setSurfaceSize(size);
     t.view.physicalSize = size;
     t.view.devicePixelRatio = 1;
     await t.pumpWidget(_app(state, home));
+    await t.pumpAndSettle();
+    // Images (logo) : décodage réel avant la capture, sinon le cadre reste vide.
+    await t.runAsync(() async {
+      for (final e in find.byType(Image).evaluate()) {
+        await precacheImage((e.widget as Image).image, e);
+      }
+    });
     await t.pumpAndSettle();
     if (before != null) await before();
     if (scroll != 0) {
@@ -83,6 +93,23 @@ void main() {
       candidates.sort((a, b) => area(b).compareTo(area(a)));
       await t.dragFrom(t.getCenter(find.byElementPredicate((e) => e == candidates.first)), Offset(0, -scroll));
       await t.pumpAndSettle();
+    }
+    if (target != null) {
+      // Défilement jusqu'à un repère (titre de figure), puis d'un peu plus pour montrer la figure.
+      final vertical = find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down);
+      final candidates = vertical.evaluate().toList();
+      double area(Element e) => (e.size?.width ?? 0) * (e.size?.height ?? 0);
+      candidates.sort((a, b) => area(b).compareTo(area(a)));
+      final main = find.byElementPredicate((e) => e == candidates.first);
+      await t.scrollUntilVisible(find.text(target).first, 250, scrollable: main);
+      await t.pumpAndSettle();
+      // Titre de la figure aligné près du haut de l'écran, la figure en dessous.
+      await t.runAsync(() => Scrollable.ensureVisible(find.text(target).first.evaluate().first, alignment: 0.02));
+      await t.pumpAndSettle();
+      if (after != 0) {
+        await t.dragFrom(t.getCenter(main), Offset(0, -after));
+        await t.pumpAndSettle();
+      }
     }
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
   }
@@ -100,5 +127,7 @@ void main() {
           await t.pumpAndSettle();
         }, scroll: 350));
     testWidgets('$tag — leçon', (t) => shot(t, '$tag-08-lecon', size, LessonScreen(state.lessons.firstWhere((l) => l.id == 'or_rr'))));
+    testWidgets('$tag — GWAS', (t) => shot(t, '$tag-09-gwas', size, ProjectScreen(project: demoGwas, initialStep: PStep.interpretation), target: 'Manhattan plot'));
+    testWidgets('$tag — causalité', (t) => shot(t, '$tag-10-causalite', size, ProjectScreen(project: demoMr, initialStep: PStep.interpretation), target: 'Randomisation mendélienne'));
   }
 }

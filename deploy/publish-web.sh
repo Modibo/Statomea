@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PATH="$HOME/development/flutter/bin:$PATH"
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
-  (cd "$ROOT/app/statomea" && flutter build web --release --no-web-resources-cdn)
+  (cd "$ROOT/app/statomea" && flutter build web --release --no-web-resources-cdn --base-href /app/)
 fi
 VERSION=$(grep -o '"version":"[^"]*"' "$ROOT/app/statomea/build/web/version.json" | cut -d'"' -f4)
 WT=$(mktemp -d)
@@ -19,7 +19,13 @@ if git rev-parse -q --verify origin/web >/dev/null; then
 else
   git worktree add -q --orphan -b web "$WT" 2>/dev/null || { git worktree add -q --detach "$WT"; (cd "$WT" && git checkout -q --orphan web && git rm -rfq .); }
 fi
-rsync -a --delete --exclude '*.symbols' --exclude 'telecharger/' --exclude 'android.json' "$ROOT/app/statomea/build/web/" "$WT/site/"
+# Page d'accueil à la racine, application sous /app/ (APK et android.json conservés s'ils ne sont pas reconstruits).
+mkdir -p "$WT/site/app"
+rsync -a --delete --exclude 'app/' --exclude 'telecharger/' --exclude 'android.json' "$ROOT/deploy/landing/" "$WT/site/"
+rsync -a --delete --exclude '*.symbols' "$ROOT/app/statomea/build/web/" "$WT/site/app/"
+# Copie à la racine : les pages 1.36.x ouvertes à l'ancienne adresse (racine) y lisent la version et proposent
+# « Recharger », qui mène à la page d'accueil.
+cp "$WT/site/app/version.json" "$WT/site/version.json"
 if [ "${BUILD_APK:-0}" = "1" ]; then
   B=/tmp/statomea_build
   mkdir -p "$B"

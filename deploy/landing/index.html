@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statoméa — statistique biomédicale et formation à la recherche</title>
+<meta name="description" content="Statoméa guide de la question de recherche à une analyse statistique justifiée, vérifiable et correctement interprétée. 51 méthodes validées contre R, hors connexion, en français et en anglais.">
+<meta name="theme-color" content="#0B2A5E">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:title" content="Statoméa">
+<meta property="og:description" content="De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée.">
+<meta property="og:image" content="statomea-logo.png">
+<style>
+  :root {
+    --navy: #0B2A5E; --blue: #1677C9; --green: #0B8A60; --amber: #B4610A;
+    --bg: #ffffff; --soft: #f3f6fb; --ink: #14213a; --muted: #4a5a72; --line: #dfe6f0; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --navy: #9cc0ff; --blue: #6fb2ff; --green: #5fd3a6; --amber: #f2b45c;
+      --bg: #10141b; --soft: #161c26; --ink: #e8eefb; --muted: #a9b6c9; --line: #2a3445; --card: #161c26; }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  a { color: var(--blue); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  header.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 14px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 750; font-size: 20px; }
+  .brand img { width: 36px; height: 36px; background: #fff; border-radius: 9px; padding: 2px; }
+  nav.links { display: flex; gap: 18px; margin-left: auto; }
+  nav.links a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav.links a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 999px; font-weight: 650; text-decoration: none; border: 1px solid transparent; cursor: pointer; font-size: 15px; }
+  .btn.primary { background: var(--navy); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { background: #2f6fd6; } }
+  .btn.ghost { border-color: var(--line); color: var(--ink); background: var(--card); }
+  .btn.lang { min-height: 40px; padding: 0 14px; border-color: var(--line); background: var(--card); color: var(--ink); font-weight: 700; }
+  .hero { padding: 56px 0 36px; background: linear-gradient(180deg, var(--soft), var(--bg)); }
+  .hero .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+  h1 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.12; margin: 0 0 16px; color: var(--navy); }
+  .lead { font-size: 18px; color: var(--muted); margin: 0 0 24px; max-width: 620px; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; }
+  .facts span::before { content: "✓ "; color: var(--green); font-weight: 700; }
+  .phone { justify-self: center; width: min(300px, 80vw); border-radius: 34px; padding: 10px; background: #0d1626; box-shadow: 0 24px 60px rgba(11,42,94,.25); }
+  .phone img { display: block; width: 100%; border-radius: 26px; }
+  section { padding: 56px 0; }
+  section.alt { background: var(--soft); }
+  h2 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 8px; color: var(--navy); }
+  .sub { color: var(--muted); margin: 0 0 28px; max-width: 760px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .stat b { display: block; font-size: 30px; color: var(--navy); line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .card h3 { margin: 10px 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .card p.small { font-size: 13px; color: var(--green); min-height: 1em; }
+  .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue); font-size: 22px; }
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  ol.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 14px; }
+  ol.steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; margin-right: 8px; }
+  @media (prefers-color-scheme: dark) { ol.steps li::before { background: #2f6fd6; } }
+  .shots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+  .shots figure { margin: 0; }
+  .shots img { width: 100%; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
+  .shots figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .demos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .demo { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .demo b { display: block; margin-bottom: 4px; }
+  .demo span { color: var(--muted); font-size: 14px; }
+  .dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dl .card { display: flex; flex-direction: column; gap: 10px; }
+  .dl .card .btn { margin-top: auto; align-self: flex-start; }
+  .warn { border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent); border-radius: 16px; padding: 18px 20px; background: color-mix(in srgb, var(--amber) 7%, var(--card)); }
+  .warn b { color: var(--amber); }
+  .credit { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
+  .credit img { width: 44px; height: 44px; background: #fff; border-radius: 10px; padding: 3px; }
+  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+  @media (max-width: 980px) {
+    .hero .grid { grid-template-columns: 1fr; } .phone { width: min(280px, 78vw); }
+    .cards, .dl { grid-template-columns: repeat(2, 1fr); } .demos { grid-template-columns: repeat(2, 1fr); }
+    ol.steps { grid-template-columns: repeat(2, 1fr); } .shots { grid-template-columns: repeat(3, 1fr); }
+    .stats { grid-template-columns: repeat(2, 1fr); } nav.links { display: none; }
+  }
+  @media (max-width: 600px) {
+    .cards, .dl, .demos { grid-template-columns: 1fr; } .shots { grid-template-columns: repeat(2, 1fr); }
+    .hero { padding-top: 32px; } .bar .open { display: none; } .ctas .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="#"><img src="statomea-embleme.png" alt="">Statoméa</a>
+    <nav class="links">
+      <a href="#parcours" data-fr="Parcours" data-en="Pathway">Parcours</a>
+      <a href="#fonctions" data-fr="Fonctionnalités" data-en="Features">Fonctionnalités</a>
+      <a href="#demos" data-fr="Démonstrations" data-en="Demonstrations">Démonstrations</a>
+      <a href="#telecharger" data-fr="Télécharger" data-en="Download">Télécharger</a>
+    </nav>
+    <button class="btn lang" id="lang" type="button" aria-label="Passer en anglais">🌐 FR</button>
+    <a class="btn primary open" href="app/" data-fr="Ouvrir Statoméa" data-en="Open Statoméa">Ouvrir Statoméa</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <span class="eyebrow" data-fr="Statistique biomédicale · formation à la recherche" data-en="Biomedical statistics · research training">Statistique biomédicale · formation à la recherche</span>
+      <h1 data-fr="De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée." data-en="From the research question to a justified, verifiable and correctly interpreted analysis.">De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée.</h1>
+      <p class="lead" data-fr="Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : formuler la question, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire." data-en="Statoméa guides researchers, laboratory scientists and students in 10 steps: frame the question, check the data, choose the right method, compute, then have the interpretation reviewed by an adversarial audit.">Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : formuler la question, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire.</p>
+      <div class="ctas">
+        <a class="btn primary" href="app/" data-fr="Ouvrir l'application" data-en="Open the app">Ouvrir l'application</a>
+        <a class="btn ghost" href="#telecharger" data-fr="Télécharger pour Android" data-en="Download for Android">Télécharger pour Android</a>
+      </div>
+      <div class="facts">
+        <span data-fr="Gratuit" data-en="Free">Gratuit</span>
+        <span data-fr="Hors connexion" data-en="Works offline">Hors connexion</span>
+        <span data-fr="Aucune donnée ne quitte l'appareil" data-en="No data leaves the device">Aucune donnée ne quitte l'appareil</span>
+        <span data-fr="Français et anglais" data-en="French and English">Français et anglais</span>
+      </div>
+    </div>
+    <div class="phone"><img src="captures/mobile-01-accueil.png" alt="Écran d'accueil de Statoméa sur téléphone" width="390" height="844"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>51</b><span data-fr="méthodes validées contre R" data-en="methods validated against R">méthodes validées contre R</span></div>
+      <div class="stat"><b>449</b><span data-fr="tests du moteur, tolérances écrites" data-en="engine tests, written tolerances">tests du moteur, tolérances écrites</span></div>
+      <div class="stat"><b>21</b><span data-fr="leçons avec exercices corrigés" data-en="lessons with corrected exercises">leçons avec exercices corrigés</span></div>
+      <div class="stat"><b>7</b><span data-fr="démonstrations complètes" data-en="complete demonstrations">démonstrations complètes</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="parcours">
+  <div class="wrap">
+    <h2 data-fr="Un parcours en 10 étapes" data-en="A 10-step pathway">Un parcours en 10 étapes</h2>
+    <p class="sub" data-fr="Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables." data-en="Each step conditions the next: the method follows from the question and the study design, never from variable names.">Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables.</p>
+    <ol class="steps">
+      <li data-fr="Question biomédicale" data-en="Biomedical question">Question biomédicale</li>
+      <li data-fr="Plan d'étude" data-en="Study design">Plan d'étude</li>
+      <li data-fr="Plan d'analyse" data-en="Analysis plan">Plan d'analyse</li>
+      <li data-fr="Contrôle des données" data-en="Data control">Contrôle des données</li>
+      <li data-fr="Choix de la méthode" data-en="Choice of method">Choix de la méthode</li>
+      <li data-fr="Calcul" data-en="Computation">Calcul</li>
+      <li data-fr="Diagnostics" data-en="Diagnostics">Diagnostics</li>
+      <li data-fr="Interprétation" data-en="Interpretation">Interprétation</li>
+      <li data-fr="Audit contradictoire" data-en="Adversarial audit">Audit contradictoire</li>
+      <li data-fr="Rapport PDF / HTML" data-en="PDF / HTML report">Rapport PDF / HTML</li>
+    </ol>
+  </div>
+</section>
+
+<section id="fonctions">
+  <div class="wrap">
+    <h2 data-fr="Ce que fait Statoméa" data-en="What Statoméa does">Ce que fait Statoméa</h2>
+    <p class="sub" data-fr="Un moteur de calcul déterministe, séparé des interprétations, validé méthode par méthode contre R et des logiciels de référence." data-en="A deterministic computation engine, separate from the interpretations, validated method by method against R and reference software.">Un moteur de calcul déterministe, séparé des interprétations, validé méthode par méthode contre R et des logiciels de référence.</p>
+    <div class="cards">
+      <div class="card"><div class="ic">∑</div><h3 data-fr="Analyses fondamentales et régressions" data-en="Core analyses and regressions">Analyses fondamentales et régressions</h3><p data-fr="Proportions exactes, tests, linéaire, logistique, Poisson robuste, Firth, survie et Cox." data-en="Exact proportions, tests, linear, logistic, robust Poisson, Firth, survival and Cox.">Proportions exactes, tests, linéaire, logistique, Poisson robuste, Firth, survie et Cox.</p></div>
+      <div class="card"><div class="ic">▤</div><h3 data-fr="Métaanalyse" data-en="Meta-analysis">Métaanalyse</h3><p data-fr="Effets fixes et aléatoires (REML, Hartung-Knapp), forest plot, méta-régression, métaanalyse diagnostique." data-en="Fixed and random effects (REML, Hartung-Knapp), forest plot, meta-regression, diagnostic meta-analysis.">Effets fixes et aléatoires (REML, Hartung-Knapp), forest plot, méta-régression, métaanalyse diagnostique.</p></div>
+      <div class="card"><div class="ic">◔</div><h3 data-fr="Modèles de prédiction" data-en="Prediction models">Modèles de prédiction</h3><p data-fr="Développement, validation interne par bootstrap, calibration, courbe de décision, validation externe." data-en="Development, bootstrap internal validation, calibration, decision curve, external validation.">Développement, validation interne par bootstrap, calibration, courbe de décision, validation externe.</p></div>
+      <div class="card"><div class="ic">🧬</div><h3 data-fr="Génomique et GWAS" data-en="Genomics and GWAS">Génomique et GWAS</h3><p data-fr="VCF/PLINK, contrôle de qualité, parenté, ACP, modèles mixtes, régression LD score, scores polygéniques, RNA-seq, alignement." data-en="VCF/PLINK, quality control, relatedness, PCA, mixed models, LD score regression, polygenic scores, RNA-seq, alignment.">VCF/PLINK, contrôle de qualité, parenté, ACP, modèles mixtes, régression LD score, scores polygéniques, RNA-seq, alignement.</p></div>
+      <div class="card"><div class="ic">⇢</div><h3 data-fr="Causalité" data-en="Causality">Causalité</h3><p data-fr="Randomisation mendélienne (IVW, MR-Egger, médiane, mode, multivariée), test de Steiger et MR inverse." data-en="Mendelian randomization (IVW, MR-Egger, median, mode, multivariable), Steiger test and reverse MR.">Randomisation mendélienne (IVW, MR-Egger, médiane, mode, multivariée), test de Steiger et MR inverse.</p></div>
+      <div class="card"><div class="ic">⚖</div><h3 data-fr="Audit contradictoire et formation" data-en="Adversarial audit and training">Audit contradictoire et formation</h3><p data-fr="Repère dans vos textes les conclusions causales abusives, OR lus comme des risques, p mal interprétées ; 21 leçons." data-en="Spots unjustified causal claims, ORs read as risks and misread p-values in your text; 21 lessons.">Repère dans vos textes les conclusions causales abusives, OR lus comme des risques, p mal interprétées ; 21 leçons.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2 data-fr="Aperçu" data-en="Preview">Aperçu</h2>
+    <p class="sub" data-fr="Captures de l'application réelle, sur téléphone." data-en="Screenshots of the real app, on a phone.">Captures de l'application réelle, sur téléphone.</p>
+    <div class="shots">
+      <figure><img loading="lazy" src="captures/mobile-05-forest.png" alt="Forest plot" width="390" height="844"><figcaption data-fr="Métaanalyse" data-en="Meta-analysis">Métaanalyse</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-09-gwas.png" alt="Manhattan plot" width="390" height="844"><figcaption data-fr="GWAS" data-en="GWAS">GWAS</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-10-causalite.png" alt="Randomisation mendélienne" width="390" height="844"><figcaption data-fr="Causalité" data-en="Causality">Causalité</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-07-audit.png" alt="Audit" width="390" height="844"><figcaption data-fr="Audit" data-en="Audit">Audit</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-08-lecon.png" alt="Leçon" width="390" height="844"><figcaption data-fr="Leçon" data-en="Lesson">Leçon</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="demos">
+  <div class="wrap">
+    <h2 data-fr="Sept démonstrations complètes" data-en="Seven complete demonstrations">Sept démonstrations complètes</h2>
+    <p class="sub" data-fr="De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger." data-en="From the question to the report, with a deliberately flawed draft that the audit must correct.">De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger.</p>
+    <div class="demos">
+      <div class="demo"><b data-fr="AgHBs et événements rares" data-en="HBsAg and rare events">AgHBs et événements rares</b><span data-fr="Proportions exactes, séparation, Firth" data-en="Exact proportions, separation, Firth">Proportions exactes, séparation, Firth</span></div>
+      <div class="demo"><b data-fr="Métaanalyse du BCG" data-en="BCG meta-analysis">Métaanalyse du BCG</b><span data-fr="13 essais publiés, REML, forest plot" data-en="13 published trials, REML, forest plot">13 essais publiés, REML, forest plot</span></div>
+      <div class="demo"><b data-fr="Risque cardiométabolique" data-en="Cardiometabolic risk">Risque cardiométabolique</b><span data-fr="Développement, bootstrap, calibration" data-en="Development, bootstrap, calibration">Développement, bootstrap, calibration</span></div>
+      <div class="demo"><b data-fr="Tuberculose résistante" data-en="Resistant tuberculosis">Tuberculose résistante</b><span data-fr="Génotypage, kappa, alignement" data-en="Genotyping, kappa, alignment">Génotypage, kappa, alignement</span></div>
+      <div class="demo"><b data-fr="Étude pangénomique" data-en="Genome-wide study">Étude pangénomique</b><span data-fr="QC, parenté, ACP, Manhattan" data-en="QC, relatedness, PCA, Manhattan">QC, parenté, ACP, Manhattan</span></div>
+      <div class="demo"><b data-fr="Polygénie ou confusion ?" data-en="Polygenicity or confounding?">Polygénie ou confusion ?</b><span data-fr="Régression LD score, corrélation génétique" data-en="LD score regression, genetic correlation">Régression LD score, corrélation génétique</span></div>
+      <div class="demo"><b data-fr="Causalité : LDL, HDL et cœur" data-en="Causality: LDL, HDL and the heart">Causalité : LDL, HDL et cœur</b><span data-fr="Randomisation mendélienne sur 28 variants publiés" data-en="Mendelian randomization on 28 published variants">Randomisation mendélienne sur 28 variants publiés</span></div>
+      <div class="demo"><b data-fr="Et vos propres données" data-en="And your own data">Et vos propres données</b><span data-fr="CSV, VCF, PLINK, FASTA, statistiques résumées" data-en="CSV, VCF, PLINK, FASTA, summary statistics">CSV, VCF, PLINK, FASTA, statistiques résumées</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="telecharger">
+  <div class="wrap">
+    <h2 data-fr="Utiliser Statoméa" data-en="Use Statoméa">Utiliser Statoméa</h2>
+    <p class="sub" data-fr="Les mêmes fonctions partout ; l'application prévient quand une nouvelle version est disponible." data-en="The same features everywhere; the app tells you when a new version is available.">Les mêmes fonctions partout ; l'application prévient quand une nouvelle version est disponible.</p>
+    <div class="dl">
+      <div class="card"><div class="ic">🌐</div><h3 data-fr="Dans le navigateur" data-en="In the browser">Dans le navigateur</h3><p data-fr="Ordinateur, tablette ou téléphone, sans installation. Sur iPhone : Partager → Sur l'écran d'accueil." data-en="Computer, tablet or phone, no installation. On iPhone: Share → Add to Home Screen.">Ordinateur, tablette ou téléphone, sans installation. Sur iPhone : Partager → Sur l'écran d'accueil.</p><p class="small" id="webv"></p><a class="btn primary" href="app/" data-fr="Ouvrir l'application" data-en="Open the app">Ouvrir l'application</a></div>
+      <div class="card"><div class="ic">🤖</div><h3 data-fr="Android (la plupart des téléphones)" data-en="Android (most phones)">Android (la plupart des téléphones)</h3><p data-fr="APK arm64, environ 30 Mo. Autoriser l'installation depuis cette source si Android le demande." data-en="arm64 APK, about 30 MB. Allow installation from this source if Android asks.">APK arm64, environ 30 Mo. Autoriser l'installation depuis cette source si Android le demande.</p><p class="small" id="apkv"></p><a class="btn primary" href="telecharger/statomea-arm64-v8a.apk" data-fr="Télécharger l'APK" data-en="Download the APK">Télécharger l'APK</a></div>
+      <div class="card"><div class="ic">📱</div><h3 data-fr="Anciens téléphones Android (32 bits)" data-en="Older Android phones (32-bit)">Anciens téléphones Android (32 bits)</h3><p data-fr="APK armv7, environ 28 Mo, si l'APK arm64 ne s'installe pas." data-en="armv7 APK, about 28 MB, if the arm64 APK does not install.">APK armv7, environ 28 Mo, si l'APK arm64 ne s'installe pas.</p><p class="small"></p><a class="btn ghost" href="telecharger/statomea-armeabi-v7a.apk" data-fr="Télécharger l'APK 32 bits" data-en="Download the 32-bit APK">Télécharger l'APK 32 bits</a></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="warn">
+      <b data-fr="⚠ Avertissement — Outil d'aide et de formation — pas un dispositif médical." data-en="⚠ Disclaimer — Support and training tool — not a medical device.">⚠ Avertissement — Outil d'aide et de formation — pas un dispositif médical.</b>
+      <span data-fr="Statoméa aide à formuler la question de recherche, à choisir, vérifier et interpréter une analyse statistique. Il ne remplace ni le jugement du chercheur, ni la relecture par un méthodologiste ou un statisticien, ni la validation clinique. Les démonstrations reposent sur des données simulées ou publiées et ne décrivent aucune population réelle. Vérifiez tout résultat avant une publication ou une décision." data-en="Statoméa helps to formulate the research question and to choose, check and interpret a statistical analysis. It replaces neither the researcher's judgement, nor review by a methodologist or a statistician, nor clinical validation. The demonstrations rely on simulated or published data and describe no real population. Check every result before a publication or a decision.">Statoméa aide à formuler la question de recherche, à choisir, vérifier et interpréter une analyse statistique. Il ne remplace ni le jugement du chercheur, ni la relecture par un méthodologiste ou un statisticien, ni la validation clinique. Les démonstrations reposent sur des données simulées ou publiées et ne décrivent aucune population réelle. Vérifiez tout résultat avant une publication ou une décision.</span>
+    </div>
+    <div class="credit">
+      <img src="statomea-embleme.png" alt="">
+      <div data-fr="Conçu par le Dr. Modibo Mouctar COULIBALY — PharmD, CLMS, PhD · Maître de Recherche, Hôpital Sominé DOLO de Mopti (Mali)" data-en="Designed by Dr. Modibo Mouctar COULIBALY — PharmD, CLMS, PhD · Senior Researcher, Sominé DOLO Hospital, Mopti (Mali)"><b>Conçu par le Dr. Modibo Mouctar COULIBALY</b> — PharmD, CLMS, PhD · Maître de Recherche, Hôpital Sominé DOLO de Mopti (Mali)</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Statoméa <span id="footv"></span></span>
+    <span><a href="https://github.com/Modibo/Statomea" data-fr="Code source et rapport de validation" data-en="Source code and validation report">Code source et rapport de validation</a></span>
+  </div>
+</footer>
+
+<script>
+  // Ancienne application servie à la racine (avant /app/) : son service worker pourrait encore répondre ; on le retire.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { if (new URL(r.scope).pathname === '/') { r.unregister(); if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))); } }));
+  }
+  // Langue : FR par défaut, EN si choisi (mémorisé) ou si le navigateur est en anglais.
+  const btn = document.getElementById('lang');
+  let lang = localStorage.getItem('statomea.landing.lang') || ((navigator.language || 'fr').startsWith('en') ? 'en' : 'fr');
+  function apply() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-fr]').forEach(e => { e.textContent = e.dataset[lang]; });
+    btn.textContent = '🌐 ' + lang.toUpperCase();
+    btn.setAttribute('aria-label', lang === 'fr' ? 'Passer en anglais' : 'Switch to French');
+    document.title = lang === 'fr' ? 'Statoméa — statistique biomédicale et formation à la recherche' : 'Statoméa — biomedical statistics and research training';
+    showVersions();
+  }
+  btn.addEventListener('click', () => { lang = lang === 'fr' ? 'en' : 'fr'; try { localStorage.setItem('statomea.landing.lang', lang); } catch (_) {} apply(); });
+  // Versions publiées (lues sur le serveur).
+  let webV = null, apkV = null;
+  function showVersions() {
+    const t = (fr, en) => lang === 'fr' ? fr : en;
+    if (webV) { document.getElementById('webv').textContent = t('Version en ligne : ', 'Online version: ') + webV; document.getElementById('footv').textContent = webV; }
+    if (apkV) document.getElementById('apkv').textContent = t('Version : ', 'Version: ') + apkV;
+  }
+  fetch('app/version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { if (j) { webV = j.version; showVersions(); } }).catch(() => {});
+  fetch('android.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { if (j) { apkV = j.version; showVersions(); } }).catch(() => {});
+  apply();
+</script>
+</body>
+</html>
