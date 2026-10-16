@@ -88,17 +88,20 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     'poisson_robust' => 'poisson',
     'firth_logistic' => 'firth',
     'cox' => 'cox',
+    'fine_gray' => 'fine_gray',
     _ => 'linear',
   };
   String? outcome, event;
-  String? status; // Cox : variable de statut
+  String? status; // Cox et Fine-Gray : variable de statut
+  String? censor; // Fine-Gray : modalité de censure (les autres modalités sont des événements concurrents)
   bool efron = true;
   bool mi = false;
   final miM = TextEditingController(text: '20');
   List<TermSpec> terms = [];
   List<(String, String)> interactions = [];
 
-  bool get binary => model != 'linear' && model != 'cox';
+  bool get surv => model == 'cox' || model == 'fine_gray';
+  bool get binary => model != 'linear' && !surv;
 
   @override
   Widget build(BuildContext context) {
@@ -111,8 +114,8 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     final design = p!.question.design;
     // Mode « petit nombre d'événements » : diagnostic en direct.
     int? events, nonEvents;
-    final eventVar = model == 'cox' ? status : outcome;
-    if ((binary || model == 'cox') && eventVar != null && event != null) {
+    final eventVar = surv ? status : outcome;
+    if ((binary || surv) && eventVar != null && event != null) {
       final y = ds.text(eventVar);
       events = y.where((v) => v == event).length;
       nonEvents = y.where((v) => v != null && v != event).length;
@@ -131,6 +134,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
         ButtonSegment(value: 'poisson', label: Text(tr('Poisson robuste', 'Robust Poisson')), enabled: design != StudyDesign.caseControl),
         const ButtonSegment(value: 'firth', label: Text('Firth')),
         const ButtonSegment(value: 'cox', label: Text('Cox')),
+        const ButtonSegment(value: 'fine_gray', label: Text('Fine-Gray')),
       ], selected: {model}, onSelectionChanged: (s) => setState(() {
             model = s.first;
             outcome = null;
@@ -143,31 +147,35 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             'logistic' => tr('Issue binaire ; OR ajustés. Seule option en cas-témoins.', 'Binary outcome; adjusted ORs. The only option in case-control studies.'),
             'poisson' => tr('Issue binaire fréquente en cohorte, essai ou transversal ; RR (ou RP) ajustés.', 'Common binary outcome in a cohort, trial or cross-sectional study; adjusted RRs (or PRs).'),
             'cox' => tr('Délai jusqu\'à un événement avec censure ; HR ajustés, test de proportionnalité des risques.', 'Time to an event with censoring; adjusted HRs, proportional hazards test.'),
+            'fine_gray' => tr('Délai jusqu\'à un événement quand un autre événement (p. ex. le décès) peut l\'empêcher ; sHR sur l\'incidence cumulée, HR spécifiques de cause en regard.', 'Time to an event when another event (e.g. death) can prevent it; sHRs on the cumulative incidence, cause-specific HRs alongside.'),
             _ => tr('Issue binaire avec peu d\'événements ou séparation ; OR pénalisés (IC profilés).', 'Binary outcome with few events or separation; penalized ORs (profile CIs).'),
           },
           style: Theme.of(context).textTheme.bodySmall),
       const SizedBox(height: 10),
       Wrap(spacing: 12, runSpacing: 12, children: [
-        Pick<String>(model == 'cox' ? tr('Durée de suivi', 'Follow-up time') : tr('Issue', 'Outcome'), outcome, [
+        Pick<String>(surv ? tr('Durée de suivi', 'Follow-up time') : tr('Issue', 'Outcome'), outcome, [
           for (final n in ds.names)
             if (binary ? (ds.dictionary[n]!.type == VarType.binary) : ds.dictionary[n]!.type == VarType.numeric) (n, n)
         ], (v) => setState(() {
               outcome = v;
-              if (model != 'cox') event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+              if (!surv) event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
               terms = [for (final t in terms) if (t.variable != v) t];
             })),
-        if (model == 'cox')
-          Pick<String>(tr('Statut (événement / censure)', 'Status (event / censoring)'), status, [
+        if (surv)
+          Pick<String>(model == 'cox' ? tr('Statut (événement / censure)', 'Status (event / censoring)') : tr('Statut (événement, concurrent, censure)', 'Status (event, competing, censoring)'), status, [
             for (final n in ds.names)
               if (ds.dictionary[n]!.type == VarType.binary || ds.dictionary[n]!.type == VarType.categorical) (n, n)
           ], (v) => setState(() {
                 status = v;
                 event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+                censor = v == null ? null : (ds.levels(v).contains('0') ? '0' : null);
                 terms = [for (final t in terms) if (t.variable != v) t];
               })),
-        if ((binary && outcome != null) || (model == 'cox' && status != null))
-          Pick<String>(tr('Modalité « événement »', 'Event level'), event, [for (final l in ds.levels(model == 'cox' ? status! : outcome!)) (l, l)],
-              (v) => setState(() => event = v)),
+        if ((binary && outcome != null) || (surv && status != null))
+          Pick<String>(model == 'fine_gray' ? tr('Événement d\'intérêt', 'Event of interest') : tr('Modalité « événement »', 'Event level'), event,
+              [for (final l in ds.levels(surv ? status! : outcome!)) (l, l)], (v) => setState(() => event = v)),
+        if (model == 'fine_gray' && status != null)
+          Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
         if (model == 'cox' && expert)
           Pick<bool>(tr('Ex aequo', 'Ties'), efron, [(true, tr('Efron (défaut de coxph)', 'Efron (coxph default)')), (false, 'Breslow')], (v) => setState(() => efron = v ?? true), width: 220),
       ]),
@@ -175,7 +183,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       PredictorEditor(ds, terms, (l) => setState(() {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
-          }), exclude: {?outcome, if (model == 'cox') ?status}),
+          }), exclude: {?outcome, if (surv) ?status}),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),
@@ -199,7 +207,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
           value: mi,
           onChanged: (v) => setState(() => mi = v),
         ),
-      if (mi && model != 'cox' && model != 'firth') NumField(tr('Nombre d\'imputations m', 'Number of imputations m'), miM, width: 200),
+      if (mi && !surv && model != 'firth') NumField(tr('Nombre d\'imputations m', 'Number of imputations m'), miM, width: 200),
       if (epv != null) ...[
         const SizedBox(height: 10),
         _SmallEventsPanel(events: events!, nonEvents: nonEvents!, params: params, epv: epv),
@@ -211,7 +219,11 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
           label: Text(tr('Ajuster le modèle', 'Fit the model')),
           onPressed: () => run(context, () {
             if (outcome == null || terms.isEmpty) throw StatInputError('missing', tr('Choisir l\'issue et au moins un prédicteur.', 'Choose the outcome and at least one predictor.'));
-            if ((binary || model == 'cox') && event == null) throw StatInputError('missing', tr('Préciser la modalité « événement ».', 'Specify the event level.'));
+            if ((binary || surv) && event == null) throw StatInputError('missing', tr('Préciser la modalité « événement ».', 'Specify the event level.'));
+            if (model == 'fine_gray') {
+              if (status == null || censor == null) throw StatInputError('missing', tr('Choisir la variable de statut et la modalité de censure.', 'Choose the status variable and the censoring level.'));
+              return fineGrayRegression(buildCompetingDesign(ds, outcome!, status!, event!, {censor!}, terms));
+            }
             if (model == 'cox') {
               if (status == null) throw StatInputError('missing', tr('Choisir la variable de statut.', 'Choose the status variable.'));
               return coxRegression(buildSurvivalDesign(ds, outcome!, status!, event!, terms), efron: efron);

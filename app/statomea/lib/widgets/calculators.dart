@@ -25,6 +25,7 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('correlation', tr('Corrélation', 'Correlation'), Icons.scatter_plot_outlined, tr('Corrélation', 'Correlation')),
   ('bland_altman', tr('Accord (Bland-Altman)', 'Agreement (Bland-Altman)'), Icons.align_horizontal_center, tr('Accord', 'Agreement')),
   ('kaplan_meier', tr('Survie (Kaplan-Meier, log-rank)', 'Survival (Kaplan-Meier, log-rank)'), Icons.timeline, tr('Survie', 'Survival')),
+  ('cumulative_incidence', tr('Risques concurrents (incidence cumulée)', 'Competing risks (cumulative incidence)'), Icons.call_split, tr('Survie', 'Survival')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
   ('regression', tr('Atelier de régression', 'Regression workshop'), Icons.functions, tr('Ateliers', 'Workshops')),
   ('meta', tr('Atelier de métaanalyse', 'Meta-analysis workshop'), Icons.stacked_bar_chart, tr('Ateliers', 'Workshops')),
@@ -37,7 +38,7 @@ String calculatorFor(String methodId) => switch (methodId) {
       'anova_oneway' || 'anova_welch' || 'kruskal_wallis' => 'compare_k',
       'paired_t_test' || 'wilcoxon_signed_rank' => 'paired',
       'pearson' || 'spearman' => 'correlation',
-      'linear_regression' || 'logistic_regression' || 'poisson_robust' || 'firth_logistic' || 'cox' => 'regression',
+      'linear_regression' || 'logistic_regression' || 'poisson_robust' || 'firth_logistic' || 'cox' || 'fine_gray' => 'regression',
       'meta_binary' || 'meta_continuous' => 'meta',
       'prediction_logistic_internal' => 'prediction',
       'hardy_weinberg' || 'genetic_association' || 'snp_scan' || 'lmm_scan' || 'ldsc' || 'genetic_correlation' || 'polygenic_score' || 'glmm_scan' || 'mendelian_randomization' || 'mendelian_randomization_mv' || 'mr_steiger' || 'genotype_qc' || 'mutation_phenotype' || 'type_diversity' || 'qpcr_standard_curve' || 'qpcr_relative' || 'qpcr_lod' ||
@@ -85,6 +86,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'bland_altman' => BlandAltmanCalc(ds, onResult),
       'sample_size' => SampleSizeCalc(onResult),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
+      'cumulative_incidence' => CompetingRisksCalc(ds, onResult),
       'regression' => RegressionWorkshop(project: p, onResult: onResult, initialMethod: widget.initialMethod),
       'meta' => MetaWorkshop(project: p, onResult: onResult),
       'genomics' => GenomicsWorkshop(project: p, onResult: onResult, initialMethod: widget.initialMethod),
@@ -861,6 +863,82 @@ class _SurvivalCalcState extends State<SurvivalCalc> {
             throw StatInputError('lengths', tr('Durées, statuts et groupes doivent avoir le même nombre de valeurs.', 'Times, statuses and groups must have the same number of values.'));
           }
           return survivalAnalysis(t, s, '1', groupRaw: gText.isEmpty ? null : gText, horizon: readNum(horizon));
+        }, widget.onResult);
+      }),
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------- Risques concurrents
+
+class CompetingRisksCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const CompetingRisksCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<CompetingRisksCalc> createState() => _CompetingRisksCalcState();
+}
+
+class _CompetingRisksCalcState extends State<CompetingRisksCalc> {
+  String? time, status, cause, censor, group;
+  final horizon = TextEditingController();
+  final mt = TextEditingController(text: '2 3 4 5 6 8 9 12 14 15 18 20 24 30 36 36');
+  final ms = TextEditingController(text: '1 2 1 0 1 2 1 1 2 0 1 2 0 1 0 0');
+  final mg = TextEditingController(text: 'A A A A A A A A B B B B B B B B');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Risques concurrents : incidence cumulée', 'Competing risks: cumulative incidence'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(
+          tr('Quand un autre événement (p. ex. le décès) peut empêcher l\'événement étudié, 1 − Kaplan-Meier surestime son incidence : l\'estimateur d\'Aalen-Johansen la mesure correctement.',
+              'When another event (e.g. death) can prevent the studied event, 1 − Kaplan-Meier overestimates its incidence: the Aalen-Johansen estimator measures it correctly.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds != null)
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Durée de suivi', 'Follow-up time'), time, _vars(ds, types: {VarType.numeric}), (v) => setState(() => time = v)),
+          Pick<String>(tr('Statut (événement, concurrent, censure)', 'Status (event, competing, censoring)'), status, _vars(ds, types: {VarType.binary, VarType.categorical}),
+              (v) => setState(() {
+                    status = v;
+                    cause = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+                    censor = v == null ? null : (ds.levels(v).contains('0') ? '0' : null);
+                  })),
+          if (status != null) ...[
+            Pick<String>(tr('Événement d\'intérêt', 'Event of interest'), cause, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => cause = v)),
+            Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
+          ],
+          Pick<String>(tr('Groupe (facultatif)', 'Group (optional)'), group, [('', tr('— aucun —', '— none —')), ..._vars(ds, types: {VarType.binary, VarType.categorical})],
+              (v) => setState(() => group = (v == null || v.isEmpty) ? null : v)),
+        ])
+      else ...[
+        TextField(controller: mt, decoration: InputDecoration(labelText: tr('Durées', 'Times'))),
+        const SizedBox(height: 8),
+        TextField(controller: ms, decoration: InputDecoration(labelText: tr('Statuts (1 = événement, 2 = concurrent, 0 = censure), même ordre', 'Statuses (1 = event, 2 = competing, 0 = censoring), same order'))),
+        const SizedBox(height: 8),
+        TextField(controller: mg, decoration: InputDecoration(labelText: tr('Groupes (facultatif), même ordre', 'Groups (optional), same order'))),
+      ],
+      const SizedBox(height: 10),
+      NumField(tr('Horizon (facultatif)', 'Horizon (optional)'), horizon, width: 200, helper: tr('incidence estimée à ce temps', 'incidence estimated at this time')),
+      _computeButton(context, () {
+        run(context, () {
+          if (ds != null) {
+            if (time == null || status == null || cause == null || censor == null) {
+              throw StatInputError('missing', tr('Choisir durée, statut, événement d\'intérêt et modalité de censure.', 'Choose time, status, event of interest and censoring level.'));
+            }
+            final excl = ds.excludedRows;
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            final t = ds.numeric(time!), st = ds.text(status!), g = group == null ? null : ds.text(group!);
+            return competingRisksAnalysis([for (final i in keep) t[i]], [for (final i in keep) st[i]], cause!, {censor!},
+                groupRaw: g == null ? null : [for (final i in keep) g[i]], horizon: readNum(horizon), timeUnit: ds.dictionary[time]!.unit, groupName: group ?? tr('Groupe', 'Group'));
+          }
+          final t = parseSeries(mt.text), s = [for (final v in parseSeries(ms.text)) v == null ? null : '${v.round()}'];
+          final gText = mg.text.trim().split(RegExp(r'[\s;]+')).where((x) => x.isNotEmpty).toList();
+          if (s.length != t.length || (gText.isNotEmpty && gText.length != t.length)) {
+            throw StatInputError('lengths', tr('Durées, statuts et groupes doivent avoir le même nombre de valeurs.', 'Times, statuses and groups must have the same number of values.'));
+          }
+          return competingRisksAnalysis(t, s, '1', {'0'}, groupRaw: gText.isEmpty ? null : gText, horizon: readNum(horizon));
         }, widget.onResult);
       }),
     ]);

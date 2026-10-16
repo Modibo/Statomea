@@ -255,6 +255,12 @@ void main() {
     List<double> bcol(String c) => [for (var i = 0; i < bd.rowCount; i++) if (bd.cell(i, 'instrument') == 'X') double.parse(bd.cell(i, c)!)];
     final stEn = steigerDirectionality(bcol('beta_x'), bcol('se_x'), bcol('beta_y'), bcol('se_y'), nX: 60000, nY: 90000, exposure: 'X', outcome: 'Y');
     expectResult('steiger', stEn.result, const {'X', 'Y'});
+    final crDs = parseCsv(File('test/reference/risques_concurrents_simule.csv').readAsStringSync()).dataset;
+    final crEn = competingRisksAnalysis(crDs.numeric('mois'), crDs.text('statut'), 'rechute', {'censure'}, groupRaw: crDs.text('bras'), horizon: 24, timeUnit: 'months', groupName: 'arm');
+    expectResult('cumulative incidence', crEn, const {'rechute', 'deces', 'censure', 'arm', 'months'});
+    expectEnglish('cif svg', cifSvg(crEn.figures['cumulativeIncidence'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'rechute', 'deces'});
+    final fgEn = fineGrayRegression(buildCompetingDesign(crDs, 'mois', 'statut', 'rechute', {'censure'}, [TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')]));
+    expectResult('fine-gray', fgEn, const {'rechute', 'deces', 'censure', 'mois', 'statut', 'bras', 'age'});
     final gh = harmoniseGwas(parseGwasSumstats(File('test/reference/gwas_exposition_simule.tsv').readAsStringSync(), source: 'exposure.tsv'),
         parseGwasSumstats(File('test/reference/gwas_issue_simule.tsv').readAsStringSync(), source: 'outcome.tsv'));
     expectEnglish('gwas harmonisation', [...gh.summary(), gh.toDataset().source, for (final s in HarmonisationStatus.values) s.label].join('\n'), const {'exposure.tsv', 'outcome.tsv'});

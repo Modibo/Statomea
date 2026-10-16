@@ -1,6 +1,8 @@
 /// Statistiques résumées de GWAS : lecture (GWAS-SSF, TwoSampleMR, PLINK), choix des instruments (seuil puis clumping
 /// par distance) et harmonisation des allèles entre l'exposition et l'issue, avant une randomisation mendélienne.
 /// Règles de TwoSampleMR (harmonise_data, action 2), validées contre validation/r/39_gwas_mr.R.
+library;
+
 import 'dart:math' as math;
 
 import '../data/csv.dart';

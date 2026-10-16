@@ -265,6 +265,80 @@ String kmSvg(Map<String, Object?> km, {String font = defaultSvgFont}) {
   return b.toString();
 }
 
+/// Incidence cumulée en escalier par groupe (trait plein, bande d'IC claire), 1 − Kaplan-Meier naïf (tirets, même
+/// couleur) et incidence de l'événement concurrent (pointillés).
+String cifSvg(Map cif, {String font = defaultSvgFont}) {
+  final curves = (cif['curves'] as List).cast<Map>();
+  final unit = (cif['unit'] as String?) ?? '';
+  const colors = ['#1f4e79', '#c0504d', '#5a8f29', '#7a5c00', '#6b4c9a', '#2a8c8c'];
+  List<double> dl(Object? v) => [for (final x in v as List) (x as num).toDouble()];
+  final tmax = curves.map((c) => (c['last'] as num).toDouble()).fold(0.0, math.max);
+  var ymax = 0.0;
+  for (final c in curves) {
+    for (final k in ['upper', 'naive', 'compCif']) {
+      for (final v in dl(c[k])) {
+        if (v.isFinite) ymax = math.max(ymax, v);
+      }
+    }
+  }
+  final yt = _niceTicks(0, math.max(ymax, 0.05));
+  final top = yt.last, xt = _niceTicks(0, tmax), right = xt.last > tmax ? xt.last : tmax;
+  const l = 60.0, t = 20.0, w = 340.0, h = 220.0;
+  double x(double v) => l + v / right * w;
+  double y(double v) => t + h - v / top * h;
+  final legendH = 16.0 * (curves.length + 2) + 10;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 ${_n(290 + legendH)}' width='440' height='${_n(290 + legendH)}' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, tr('Temps${unit.isEmpty ? "" : " ($unit)"}', 'Time${unit.isEmpty ? "" : " ($unit)"}'), tr('Incidence cumulée', 'Cumulative incidence'), xt, yt, x, y);
+  String steps(List<double> ts, List<double> vs, double end) {
+    final pts = <String>['${_n(x(0))},${_n(y(0))}'];
+    var prev = 0.0;
+    for (var i = 0; i < ts.length; i++) {
+      pts.add('${_n(x(ts[i]))},${_n(y(prev))}');
+      pts.add('${_n(x(ts[i]))},${_n(y(vs[i]))}');
+      prev = vs[i];
+    }
+    pts.add('${_n(x(end))},${_n(y(prev))}');
+    return pts.join(' ');
+  }
+
+  for (var k = 0; k < curves.length; k++) {
+    final c = curves[k];
+    final col = colors[k % colors.length];
+    final ts = dl(c['time']), lo = dl(c['lower']), hi = dl(c['upper']), end = (c['last'] as num).toDouble();
+    // Bande d'IC (marches hautes puis basses en sens inverse).
+    final up = <String>[], dn = <String>[];
+    for (var i = 0; i < ts.length; i++) {
+      final t1 = i + 1 < ts.length ? ts[i + 1] : end;
+      if (!lo[i].isFinite || !hi[i].isFinite) continue;
+      up..add('${_n(x(ts[i]))},${_n(y(hi[i]))}')..add('${_n(x(t1))},${_n(y(hi[i]))}');
+      dn..add('${_n(x(t1))},${_n(y(lo[i]))}')..add('${_n(x(ts[i]))},${_n(y(lo[i]))}');
+    }
+    if (up.isNotEmpty) b.writeln("<polygon points='${[...up, ...dn.reversed].join(' ')}' fill='$col' fill-opacity='0.12' stroke='none'/>");
+    b
+      ..writeln("<polyline points='${steps(dl(c['naiveTime']), dl(c['naive']), end)}' fill='none' stroke='$col' stroke-width='1.2' stroke-dasharray='6 4'/>")
+      ..writeln("<polyline points='${steps(dl(c['compTime']), dl(c['compCif']), end)}' fill='none' stroke='$col' stroke-width='1.2' stroke-dasharray='1.5 3' stroke-opacity='0.8'/>")
+      ..writeln("<polyline points='${steps(ts, dl(c['cif']), end)}' fill='none' stroke='$col' stroke-width='2'/>");
+  }
+  // Légende sous le graphique.
+  var ly = t + h + 44;
+  for (var k = 0; k < curves.length; k++) {
+    final col = colors[k % colors.length];
+    b
+      ..writeln("<rect x='${_n(l)}' y='${_n(ly - 4)}' width='16' height='3' fill='$col'/>")
+      ..writeln("<text x='${_n(l + 22)}' y='${_n(ly)}' font-size='11'>${_esc(curves[k]['group'].toString())} — ${_esc(cif['cause'].toString())}</text>");
+    ly += 16;
+  }
+  b
+    ..writeln("<line x1='${_n(l)}' x2='${_n(l + 16)}' y1='${_n(ly - 4)}' y2='${_n(ly - 4)}' stroke='#444' stroke-dasharray='6 4'/>")
+    ..writeln("<text x='${_n(l + 22)}' y='${_n(ly)}' font-size='11'>${tr('1 − Kaplan-Meier naïf (surestime)', 'Naive 1 − Kaplan-Meier (overestimates)')}</text>");
+  ly += 16;
+  b
+    ..writeln("<line x1='${_n(l)}' x2='${_n(l + 16)}' y1='${_n(ly - 4)}' y2='${_n(ly - 4)}' stroke='#444' stroke-dasharray='1.5 3'/>")
+    ..writeln("<text x='${_n(l + 22)}' y='${_n(ly)}' font-size='11'>${_esc(cif['competing'].toString())} (${tr('événement concurrent', 'competing event')})</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
 /// Graphique à bulles de méta-régression : effet de chaque étude en fonction
 /// du modérateur (aire ∝ poids), droite de régression (échelle log si ratio).
 String bubblePlotSvg(Map bubble, {String font = defaultSvgFont}) {

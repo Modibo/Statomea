@@ -770,3 +770,27 @@ Le clumping est fait par distance (pas de panel de référence de DL embarqué, 
 une fenêtre de 10 000 kb est conservatrice. Dans l'application, l'outil de randomisation mendélienne importe les deux
 fichiers (.tsv, .csv ou .gz), règle seuil et fenêtre, affiche le bilan d'harmonisation et le joint au résultat.
 
+## Risques concurrents : incidence cumulée et modèle de Fine-Gray — 1.39.0
+
+Script `validation/r/40_risques_concurrents.R` : `cmprsk` 2.2-11 (`cuminc`, `crr` avec `gtol = 1e-12`) et `survival`
+(`survfit`, `coxph`). Données simulées (`demos/risques_concurrents_simule.csv`) : 400 patients après traitement d'un
+cancer, issue « rechute » (191), événement concurrent « décès » (141), 68 censures ; bras A/B, âge, sexe ; durées en
+mois au dixième (ex aequo). Tests `test/risques_concurrents_test.dart` (moteur) et `app/statomea/test/risques_concurrents_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Incidence cumulée d'Aalen-Johansen à chaque temps d'événement, 2 groupes × 2 causes | `cuminc` | 1e-12 |
+| Variance de Gray (avec correction des ex aequo) | `cuminc` | 1e-10 |
+| IC ponctuel log(−log) F^exp(±z·√v/(F·log F)) | même formule en R | 1e-9 |
+| Incidence de rechute à 24 mois : A 50,1 %, B 28,0 % (1 − KM naïf : 61,4 % et 34,3 %) | `cuminc`, `survfit` | 1e-12 |
+| Fine-Gray (bras, âge, sexe) : coefficients, ES sandwich, log-pseudo-vraisemblance | `crr` | 1e-8, 1e-7, 1e-10 |
+| Cox spécifique de cause en regard | `coxph` (Efron) | 1e-8 |
+| Sans événement concurrent : Fine-Gray = Cox de Breslow ; incidence = 1 − KM | identités | 1e-9 |
+
+Sur ces données, l'âge augmente le risque spécifique de rechute (HR > 1) mais diminue son incidence cumulée (sHR < 1) :
+les patients âgés meurent plus souvent avant de rechuter. L'application le signale (alerte « sens opposés »).
+
+Non fait : le test de Gray (comparaison des incidences cumulées, `cuminc$Tests`). Une linéarisation de sa variance donne
+une statistique à 0,1–0,2 % de celle de `cuminc` sans l'égaler ; la comparaison des groupes passe donc par un modèle de
+Fine-Gray avec le groupe (Wald robuste), validé exactement.
+

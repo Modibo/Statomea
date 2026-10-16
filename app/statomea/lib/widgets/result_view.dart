@@ -157,6 +157,7 @@ class FiguresView extends StatelessWidget {
       if (f['miChains'] is Map) (tr('Convergence des chaînes d\'imputation', 'Convergence of the imputation chains'), miChainsSvg(f['miChains'] as Map, font: 'NotoSans'), 340, 480),
       if (f['sroc'] is Map) (tr('Espace ROC : études, point combiné, SROC', 'ROC space: studies, pooled point, SROC'), srocSvg((f['sroc'] as Map).cast(), font: 'NotoSans'), 360, 520),
       if (f['bubble'] is Map) (tr('Méta-régression (aire ∝ poids)', 'Meta-regression (area ∝ weight)'), bubblePlotSvg(f['bubble'] as Map, font: 'NotoSans'), 340, 520),
+      if (f['cumulativeIncidence'] is Map) (tr('Incidence cumulée', 'Cumulative incidence'), cifSvg(f['cumulativeIncidence'] as Map, font: 'NotoSans'), 340, 520),
       if (f['kaplanMeier'] is Map) ('Kaplan-Meier', kmSvg((f['kaplanMeier'] as Map).cast(), font: 'NotoSans'), 340, 520),
       if (f['blandAltman'] is Map) ('Bland-Altman', blandAltmanSvg(f['blandAltman'] as Map, font: 'NotoSans'), 340, 500),
       if (f['volcano'] is Map) ('Volcano plot', volcanoSvg(f['volcano'] as Map, font: 'NotoSans'), 360, 560),
@@ -221,6 +222,12 @@ String figureDescription(String title, Map<String, Object?> f) {
     final l = (f['qq'] as Map)['lambda'];
     return tr('QQ plot des p observés contre les p attendus sous l\'hypothèse nulle, avec bande de confiance à 95 %${l == null ? '' : ' ; λ = ${fmt((l as num).toDouble(), digits: 3)}'}. $tables',
         'QQ plot of observed against expected p-values under the null hypothesis, with a 95% confidence band${l == null ? '' : '; λ = ${fmt((l as num).toDouble(), digits: 3)}'}. $tables');
+  }
+  if (f['cumulativeIncidence'] is Map) {
+    final m = f['cumulativeIncidence'] as Map;
+    final groups = [for (final c in (m['curves'] as List).cast<Map>()) c['group'].toString()];
+    return tr('Incidence cumulée de « ${m['cause']} » au cours du temps (${groups.join(', ')}), en trait plein avec sa bande de confiance ; en tirets, 1 − Kaplan-Meier naïf, plus élevé ; en pointillés, l\'incidence de l\'événement concurrent (${m['competing']}). $tables',
+        'Cumulative incidence of "${m['cause']}" over time (${groups.join(', ')}), solid line with its confidence band; dashed, naive 1 − Kaplan-Meier, higher; dotted, the incidence of the competing event (${m['competing']}). $tables');
   }
   if (f['mr'] is Map) {
     final m = f['mr'] as Map;
