@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -265,6 +266,31 @@ void main() {
     expect(rev.methodId, 'mendelian_randomization');
     expect(rev.methodName, contains('effet de Y sur X'));
     expect(rev.statistics['ivw_p']!, greaterThan(0.05));
+  });
+
+  testWidgets('deux GWAS complets : instruments, harmonisation des allèles puis IVW = R (39_gwas_mr.R)', (t) async {
+    final (_, got) = await mount(t, initial: 'mendelian_randomization');
+    await t.runAsync(() async {
+      await t.tap(find.text('Exemple simulé : deux GWAS à harmoniser'));
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+    });
+    await t.pumpAndSettle();
+    expect(find.textContaining('29 instruments après clumping'), findsOneWidget);
+    expect(find.textContaining('palindromique écarté : 2'), findsOneWidget);
+    expect(find.textContaining('Issue fournie en OR'), findsOneWidget);
+    await t.tap(find.text('Estimer l\'effet causal'));
+    await t.pumpAndSettle();
+    final r = got.last;
+    final ref = (jsonDecode(File('$_ref/gwas_mr.json').readAsStringSync()) as Map)['ivw'] as Map;
+    expect(r.methodId, 'mendelian_randomization');
+    expect(r.inputs['variants'], 24);
+    expect((r.statistics['ivw']! - (ref['estimate'] as num).toDouble()).abs(), lessThan(1e-10));
+    // Seuil plus strict : moins d'instruments, harmonisation refaite.
+    await t.enterText(find.widgetWithText(TextField, 'Seuil p'), '1e-12');
+    await t.tap(find.text('Harmoniser'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('29 instruments après clumping'), findsNothing);
+    expect(t.takeException(), isNull);
   });
 
   testWidgets('randomisation mendélienne sans données : message, pas d\'écran d\'erreur', (t) async {

@@ -34,6 +34,7 @@ export 'src/genetics/genotype_ldsc.dart';
 export 'src/genetics/genotype_prs.dart';
 export 'src/genetics/genotype_glmm.dart';
 export 'src/genetics/mendelian.dart';
+export 'src/genetics/gwas_summary.dart';
 export 'src/inference/paired.dart';
 export 'src/inference/correlation.dart';
 export 'src/inference/sample_size.dart';

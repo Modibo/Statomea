@@ -255,6 +255,9 @@ void main() {
     List<double> bcol(String c) => [for (var i = 0; i < bd.rowCount; i++) if (bd.cell(i, 'instrument') == 'X') double.parse(bd.cell(i, c)!)];
     final stEn = steigerDirectionality(bcol('beta_x'), bcol('se_x'), bcol('beta_y'), bcol('se_y'), nX: 60000, nY: 90000, exposure: 'X', outcome: 'Y');
     expectResult('steiger', stEn.result, const {'X', 'Y'});
+    final gh = harmoniseGwas(parseGwasSumstats(File('test/reference/gwas_exposition_simule.tsv').readAsStringSync(), source: 'exposure.tsv'),
+        parseGwasSumstats(File('test/reference/gwas_issue_simule.tsv').readAsStringSync(), source: 'outcome.tsv'));
+    expectEnglish('gwas harmonisation', [...gh.summary(), gh.toDataset().source, for (final s in HarmonisationStatus.values) s.label].join('\n'), const {'exposure.tsv', 'outcome.tsv'});
     final pg = parsePlinkBed(File('test/reference/genotypes/prs.bed').readAsBytesSync(), File('test/reference/genotypes/prs.bim').readAsStringSync(),
         File('test/reference/genotypes/prs.fam').readAsStringSync());
     final prsEn = polygenicRiskScore(pg, [for (final p in pg.phenotype) p == null ? null : (p == 2 ? 1.0 : 0.0)], outcomeName: 'disease');

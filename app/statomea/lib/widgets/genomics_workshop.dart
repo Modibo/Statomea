@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -855,6 +856,102 @@ class MrToolState extends State<MrTool> {
 
   Dataset? get data => example ?? widget.dataset;
 
+  /// Statistiques résumées de GWAS (exposition, issue) et leur harmonisation ; seuil et fenêtre de clumping.
+  GwasSumstats? gwasX, gwasY;
+  GwasHarmonisation? harmonisation;
+  final gwasThreshold = TextEditingController(text: '5e-8'), gwasKb = TextEditingController(text: '10000');
+
+  /// Lit un fichier GWAS (texte ou .gz) ; quand les deux sont présents, choisit les instruments et harmonise.
+  void loadGwas(List<int> bytes, String name, {required bool isExposure}) {
+    try {
+      final raw = name.toLowerCase().endsWith('.gz') ? const GZipDecoder().decodeBytes(bytes) : bytes;
+      final g = parseGwasSumstats(utf8.decode(raw, allowMalformed: true), source: name.replaceAll(RegExp(r'\.gz$', caseSensitive: false), ''));
+      setState(() => isExposure ? gwasX = g : gwasY = g);
+      if (gwasX != null && gwasY != null) harmonise();
+    } on FormatException catch (e) {
+      showError(context, e.message);
+    }
+  }
+
+  void harmonise() {
+    final p = parseNumber(gwasThreshold.text.trim()), kb = parseNumber(gwasKb.text.trim());
+    if (gwasX == null || gwasY == null) return;
+    if (p == null || !(p > 0 && p < 1) || kb == null || kb < 0) {
+      showError(context, tr('Seuil p entre 0 et 1 et fenêtre de clumping positive (kb).', 'p threshold between 0 and 1 and a positive clumping window (kb).'));
+      return;
+    }
+    final h = harmoniseGwas(gwasX!, gwasY!, pThreshold: p, windowKb: kb);
+    setState(() {
+      harmonisation = h;
+      example = h.toDataset();
+      names = 'variant';
+      bx = 'beta_x';
+      bxse = 'se_x';
+      by = 'beta_y';
+      byse = 'se_y';
+      subsetCol = subsetLevel = null;
+      reverse = false;
+      multivariable = false;
+      logOdds = gwasY!.fromOddsRatio || logOdds;
+    });
+  }
+
+  Future<void> pickGwas({required bool isExposure}) async {
+    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['tsv', 'txt', 'csv', 'gz', 'ssf']);
+    if (files.isEmpty || !mounted) return;
+    loadGwas(await files.single.xFile.readAsBytes(), files.single.name, isExposure: isExposure);
+  }
+
+  /// Exemple simulé : deux GWAS complets (12 000 variants), l'issue au format TwoSampleMR (OR, allèles à harmoniser).
+  Future<void> loadGwasExample() async {
+    Future<List<int>> b(String f) async => (await rootBundle.load('assets/demos/$f')).buffer.asUint8List();
+    final x = await b('gwas_exposition_simule.tsv.gz'), y = await b('gwas_issue_simule.tsv.gz');
+    if (!mounted) return;
+    exposure.text = tr('exposition simulée', 'simulated exposure');
+    outcome.text = tr('issue simulée', 'simulated outcome');
+    logOdds = true;
+    loadGwas(x, 'gwas_exposition_simule.tsv.gz', isExposure: true);
+    loadGwas(y, 'gwas_issue_simule.tsv.gz', isExposure: false);
+  }
+
+  Widget _gwasPanel() {
+    final h = harmonisation;
+    String fileLabel(GwasSumstats? g) => g == null ? tr('aucun fichier', 'no file') : tr('${g.source} (${g.variants.length} variants)', '${g.source} (${g.variants.length} variants)');
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr('À partir de deux GWAS complets (statistiques résumées)', 'From two full GWAS (summary statistics)'), style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Text(tr('Formats GWAS-SSF (GWAS Catalog), OpenGWAS / TwoSampleMR ou PLINK ; .tsv, .csv ou .gz. Instruments : seuil p puis clumping par distance ; allèles harmonisés (inversion, brin, palindromiques).',
+              'GWAS-SSF (GWAS Catalog), OpenGWAS / TwoSampleMR or PLINK formats; .tsv, .csv or .gz. Instruments: p threshold then distance clumping; alleles harmonised (flip, strand, palindromic).')),
+          const SizedBox(height: 8),
+          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            OutlinedButton.icon(icon: const Icon(Icons.upload_file), label: Text(tr('GWAS de l\'exposition', 'Exposure GWAS')), onPressed: () => pickGwas(isExposure: true)),
+            Text(fileLabel(gwasX)),
+          ]),
+          const SizedBox(height: 6),
+          Wrap(spacing: 8, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            OutlinedButton.icon(icon: const Icon(Icons.upload_file), label: Text(tr('GWAS de l\'issue', 'Outcome GWAS')), onPressed: () => pickGwas(isExposure: false)),
+            Text(fileLabel(gwasY)),
+          ]),
+          const SizedBox(height: 8),
+          Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            SizedBox(width: 140, child: TextField(controller: gwasThreshold, decoration: InputDecoration(labelText: tr('Seuil p', 'p threshold')))),
+            SizedBox(width: 160, child: TextField(controller: gwasKb, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: tr('Clumping (kb)', 'Clumping (kb)')))),
+            FilledButton.tonalIcon(
+                icon: const Icon(Icons.join_inner), label: Text(tr('Harmoniser', 'Harmonise')), onPressed: gwasX != null && gwasY != null ? harmonise : null),
+          ]),
+          if (h != null) ...[
+            const SizedBox(height: 10),
+            Banner2(h.usable.length >= 3 ? Severity.info : Severity.caution, h.summary().join('\n')),
+          ],
+        ]),
+      ),
+    );
+  }
+
   /// Exemple publié (28 variants, Waterworth et al. 2010, jeu du paquet R MendelianRandomization).
   /// Exemple simulé de sens causal : X cause Y ; instruments de X (« X ») et de Y (« Y »).
   Future<void> loadDirectionExample() async {
@@ -960,7 +1057,7 @@ class MrToolState extends State<MrTool> {
           [for (final i in rows) cols[3][i]!],
           names: names == null ? null : [for (final i in rows) d.cell(i, names!) ?? '${i + 1}'],
           exposure: _exposureName, outcome: _outcomeName, outcomeLogOdds: logOdds && !reverse);
-      widget.onResult(r.result, options: {'columns': [bx, bxse, by, byse], 'example': example != null, 'reverse': reverse});
+      widget.onResult(r.result, options: {'columns': [bx, bxse, by, byse], 'example': example != null, 'reverse': reverse, if (harmonisation != null && example != null) 'harmonisation': harmonisation!.summary()});
     } on StatInputError catch (e) {
       showError(context, e);
     }
@@ -985,9 +1082,15 @@ class MrToolState extends State<MrTool> {
             icon: const Icon(Icons.swap_horiz),
             label: Text(tr('Exemple simulé : sens causal (X → Y)', 'Simulated example: causal direction (X → Y)')),
             onPressed: loadDirectionExample),
+        OutlinedButton.icon(
+            icon: const Icon(Icons.dataset_outlined),
+            label: Text(tr('Exemple simulé : deux GWAS à harmoniser', 'Simulated example: two GWAS to harmonise')),
+            onPressed: loadGwasExample),
         if (example != null && widget.dataset != null)
           TextButton(onPressed: () => setState(() => example = null), child: Text(tr('Revenir aux données du projet', 'Back to the project data'))),
       ]),
+      const SizedBox(height: 10),
+      _gwasPanel(),
       const SizedBox(height: 10),
       if (numeric.length < 4)
         Text(tr('Il faut au moins quatre colonnes numériques (βX, ES, βY, ES) dans le projet, ou charger l\'exemple.',

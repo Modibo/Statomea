@@ -748,3 +748,25 @@ direct plus fort sur Y ; 20 instruments de Y sans effet sur X ; N_X = 60 000, N_
 Dans l'application, l'outil de randomisation mendélienne propose une sélection des variants (colonne, modalité), le
 sens inverse (issue comme exposition) et le test de Steiger (effectifs des deux études). La leçon « causalité » a un
 exercice sur r² de Steiger.
+
+## Randomisation mendélienne à partir de deux GWAS complets — 1.38.0
+
+Script `validation/r/39_gwas_mr.R` : règles de TwoSampleMR (`harmonise_data`, action 2 ; paquet non distribué sur CRAN)
+réécrites en R, puis `MendelianRandomization::mr_ivw`, `mr_egger`, `mr_median`. Données simulées : deux fichiers de
+statistiques résumées de 12 000 variants (4 chromosomes, 40 loci causaux, θ = 0,3), l'exposition au format GWAS-SSF
+(`demos/gwas_exposition_simule.tsv`), l'issue au format TwoSampleMR avec OR, allèles en minuscules, un tiers d'allèles
+inversés, un quart de brins complémentaires, 400 palindromiques, des allèles incompatibles et 500 variants absents
+(`demos/gwas_issue_simule.tsv`). Test `test/gwas_mr_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Lecture : alias de colonnes GWAS-SSF / TwoSampleMR / PLINK, OR → log(OR), lignes illisibles écartées | — | exact |
+| 62 variants à p < 5e-8, 29 instruments après clumping 10 000 kb (mêmes variants, même ordre) | spécification R | exact |
+| Statut de chaque instrument : 8 alignés, 7 inversés, 3 brins corrigés, 4 brins corrigés et inversés, 1 palindromique aligné, 1 retourné, 2 écartés (EAF ∈ ]0,42 ; 0,58[), 2 incompatibles, 1 absent | spécification R | exact |
+| β de l'issue réalignés (24 instruments utilisables) | spécification R | 1e-12 |
+| IVW 0,265 (ES 0,018 ; θ simulé 0,3 dans l'IC), MR-Egger, intercept, médiane pondérée | `mr_ivw`, `mr_egger`, `mr_median` | 1e-10 |
+
+Le clumping est fait par distance (pas de panel de référence de DL embarqué, l'application fonctionnant hors ligne) :
+une fenêtre de 10 000 kb est conservatrice. Dans l'application, l'outil de randomisation mendélienne importe les deux
+fichiers (.tsv, .csv ou .gz), règle seuil et fenêtre, affiche le bilan d'harmonisation et le joint au résultat.
+

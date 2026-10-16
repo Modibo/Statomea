@@ -110,7 +110,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Métaanalyse binaire et continue, forest plot, sensibilité, sous-groupes, méta-régression, métaanalyse diagnostique bivariée | ✅ | metafor, mada | validé |
 | Prédiction : développement, validation interne bootstrap, validation externe et recalibration | ✅ | glm, pROC, pmsampsize | validé |
-| Génomique : import de génotypes VCF/PLINK, contrôle de qualité, apparentement (KING), ACP de stratification, modèle mixte linéaire (option LOCO) et logistique, régression LD score, corrélation génétique, score de risque polygénique et randomisation mendélienne, association génétique, pathogènes (mutations–résistance, typage), qPCR, RNA-seq (TMM + voom + limma, plans à plusieurs facteurs, appariés ou à mesures répétées), alignement local hors ligne type BLAST | ✅ | HardyWeinberg, glm, MASS, vcfR, snpStats, rrBLUP, GMMAT, MendelianRandomization, pROC, edgeR, limma, Biostrings, BLAST+ 2.17 | validé |
+| Génomique : import de génotypes VCF/PLINK, contrôle de qualité, apparentement (KING), ACP de stratification, modèle mixte linéaire (option LOCO) et logistique, régression LD score, corrélation génétique, score de risque polygénique et randomisation mendélienne (y compris à partir de deux GWAS complets, allèles harmonisés), association génétique, pathogènes (mutations–résistance, typage), qPCR, RNA-seq (TMM + voom + limma, plans à plusieurs facteurs, appariés ou à mesures répétées), alignement local hors ligne type BLAST | ✅ | HardyWeinberg, glm, MASS, vcfR, snpStats, rrBLUP, GMMAT, MendelianRandomization, pROC, edgeR, limma, Biostrings, BLAST+ 2.17 | validé |
 | Formation (19 leçons), grilles TRIPOD+AI / PROBAST+AI / PRISMA | ✅ | — | contenu à relire par des enseignants |
 | Audit contradictoire | ✅ | corpus annoté | heuristique pour la partie lexicale |
 | Exports PDF, HTML, CSV, JSON | ✅ | tests app | validé |
@@ -124,6 +124,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
   `validation/r/`. Elles ne décrivent aucune population réelle.
 - Démo 2 : 13 essais publiés du BCG (Colditz et al., JAMA 1994 ; jeu public `dat.bcg` de metafor).
 - Randomisation mendélienne : 28 variants publiés LDL-cholestérol / maladie coronarienne (Waterworth et al. 2010), jeu d'exemple du paquet R MendelianRandomization (`demos/mr_ldl_chd.csv`).
+- Randomisation mendélienne à partir de deux GWAS complets (simulés, 12 000 variants) : exposition au format GWAS-SSF, issue au format TwoSampleMR à harmoniser (`demos/gwas_exposition_simule.tsv`, `demos/gwas_issue_simule.tsv`).
 - Démos 4, 5 et 6 (tuberculose, GWAS, polygénie) : **données simulées** (`validation/r/24_demo_tb.R`, `29_demo_gwas.R`, `32_ldsc.R`, `33_rg.R`).
 
 ## Licences des ressources
