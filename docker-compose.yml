@@ -1,0 +1,17 @@
+# Serveur statique de Statoméa (version web Flutter), joint par la façade Caddy de NexoLab via son réseau Docker.
+# Les fichiers de site/ sont montés en lecture seule : un `git pull` suffit à publier une nouvelle version.
+services:
+  statomea-web:
+    image: caddy:2-alpine
+    container_name: statomea-web
+    restart: unless-stopped
+    volumes:
+      - ./site:/srv:ro
+      - ./Caddyfile.static:/etc/caddy/Caddyfile:ro
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: ${PROXY_NETWORK:?réseau Docker de la façade Caddy requis}
+    external: true

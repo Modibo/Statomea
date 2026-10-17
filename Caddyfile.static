@@ -1,0 +1,19 @@
+# Serveur interne (port 80, non exposé) : fichiers de la version web, repli sur index.html (application monopage).
+# Les fichiers Flutter n'ont pas de nom versionné : revalidation systématique (ETag), sinon une ancienne
+# coquille resterait en cache après une mise à jour.
+:80 {
+	root * /srv
+	encode zstd gzip
+	header Cache-Control "no-cache"
+	# Application sous /app/ (monopage : repli sur son index.html) ; page d'accueil à la racine.
+	redir /app /app/ 308
+	@app path /app/*
+	handle @app {
+		try_files {path} /app/index.html
+		file_server
+	}
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+}
