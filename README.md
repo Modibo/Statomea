@@ -107,7 +107,10 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Imputation multiple (MICE) et règles de Rubin, y compris dans la validation interne | ✅ | mice | validé |
 | Assistant de choix de méthode | ✅ | scénarios | validé |
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
+| Comparaison de méthodes de laboratoire : Passing-Bablok (IC analytique) et Deming (IC jackknife), biais aux niveaux de décision | ✅ | mcr | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
+| Splines cubiques restreintes : test de non-linéarité, courbe dose-effet relative à la médiane | ✅ | rms, Hmisc | validé |
+| Score de propension : appariement 1:1 (caliper), IPTW ATE et ATT, équilibre (différences standardisées, love plot), effet avec ES robuste | ✅ | MatchIt, WeightIt, cobalt, sandwich | validé |
 | Risques concurrents : incidence cumulée d'Aalen-Johansen (variance de Gray), test de Gray, modèle de Fine-Gray et Cox spécifique de cause | ✅ | cmprsk, survival | validé |
 | Comptages (Poisson avec offset, quasi-Poisson, binomiale négative) ; issues ordinales (cotes proportionnelles) et nominales (multinomiale) | ✅ | glm, MASS, nnet | validé |
 | Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires ; GEE (gaussienne, binomiale, Poisson ; indépendance ou échangeable ; variance robuste) ; modèle mixte logistique ou de Poisson (Laplace, Gauss-Hermite adaptative) | ✅ | lme4, nlme, geepack, gee, vraisemblance exacte (integrate) | validé |
@@ -116,6 +119,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Cox avec covariables dépendant du temps (processus de comptage, découpage à une date de changement) | ✅ | survival (coxph, tmerge) | validé |
 | Métaanalyse binaire et continue, forest plot, sensibilité, sous-groupes, méta-régression, métaanalyse diagnostique bivariée | ✅ | metafor, mada | validé |
 | Prédiction : développement, validation interne bootstrap, validation externe et recalibration | ✅ | glm, pROC, pmsampsize | validé |
+| Calibration de risques prédits : Hosmer-Lemeshow, Spiegelhalter, courbe lissée (lowess), Eavg/E90/Emax | ✅ | ResourceSelection, rms | validé |
 | Génomique : import de génotypes VCF/PLINK, contrôle de qualité, apparentement (KING), ACP de stratification, modèle mixte linéaire (option LOCO) et logistique, régression LD score, corrélation génétique, score de risque polygénique et randomisation mendélienne (y compris à partir de deux GWAS complets, allèles harmonisés), association génétique, pathogènes (mutations–résistance, typage), qPCR, RNA-seq (TMM + voom + limma, plans à plusieurs facteurs, appariés ou à mesures répétées), alignement local hors ligne type BLAST | ✅ | HardyWeinberg, glm, MASS, vcfR, snpStats, rrBLUP, GMMAT, MendelianRandomization, pROC, edgeR, limma, Biostrings, BLAST+ 2.17 | validé |
 | Formation (24 leçons), grilles TRIPOD+AI / PROBAST+AI / PRISMA | ✅ | — | contenu à relire par des enseignants |
 | Audit contradictoire | ✅ | corpus annoté | heuristique pour la partie lexicale |
@@ -133,6 +137,8 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 - Comptages et issues ordinales (paquet MASS) : absences scolaires `quine` (`demos/absences_quine.csv`), sinistres `Insurance` avec offset (`demos/sinistres_assurance.csv`), satisfaction du logement `housing` (`demos/satisfaction_logement.csv`).
 - Mesures répétées : étude de privation de sommeil (18 sujets, 10 jours, jeu `sleepstudy` de lme4, `demos/sommeil_belenky.csv`) et essai simulé de suivi de l'HbA1c avec sorties d'étude (`demos/hba1c_longitudinal_simule.csv`).
 - Démo 8 (survie avancée) : rechute avec décès concurrent et greffe de Stanford, de la question au rapport, avec un brouillon à auditer.
+- Démo 9 (laboratoire) : créatinine sur sérum et sur plasma chez 108 patients, jeu `creatinine` du paquet R mcr (`demos/creatinine_serum_plasma.csv`).
+- Score de propension : étude observationnelle **simulée** des statines (`demos/statines_observationnel_simule.csv`, `validation/r/53_propension.R`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).
 - Randomisation mendélienne à partir de deux GWAS complets (simulés, 12 000 variants) : exposition au format GWAS-SSF, issue au format TwoSampleMR à harmoniser (`demos/gwas_exposition_simule.tsv`, `demos/gwas_issue_simule.tsv`).

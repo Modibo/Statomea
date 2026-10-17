@@ -44,11 +44,18 @@ class ModelEquation {
     }
     final spec = PredictionSpec.fromJson((r.inputs['spec'] as Map).cast());
     final cols = [for (final c in ((r.inputs['model'] as Map)['columns'] as List)) c as String];
+    // Splines : nœuds du développement figés (sinon recalculés sur les nouvelles données).
+    final knots = ((r.inputs['model'] as Map)['splineKnots'] as Map?) ?? const {};
     return ModelEquation(
       name: name,
       outcome: spec.outcome,
       eventLevel: spec.eventLevel,
-      predictors: spec.predictors,
+      predictors: [
+        for (final t in spec.predictors)
+          knots[t.variable] is List && t.knots == null
+              ? TermSpec(t.variable, transform: t.transform, knots: [for (final k in knots[t.variable] as List) (k as num).toDouble()])
+              : t
+      ],
       coefficients: {for (final c in cols) c: r.statistics['beta_$c']!},
       source: tr('développement : ${spec.targetPopulation} ; horizon ${spec.horizon}', 'development: ${spec.targetPopulation}; horizon ${spec.horizon}'),
     );

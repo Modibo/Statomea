@@ -335,5 +335,26 @@ void main() {
       expect(Project.decode(p.encodeCompact()).encode(), p.encode());
     });
   });
-}
 
+  group('Démo 9 — laboratoire : créatinine sur plasma ou sur sérum', () {
+    final p = buildDemoMethodComparison(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync());
+    final rs = [for (final e in p.journal) analysisResultFromJson(e.result)];
+    final ref = loadRef('comparaison_methodes');
+
+    test('chaîne : corrélation, Bland-Altman, Passing-Bablok (= algorithme publié), Deming (= mcr)', () {
+      expect([for (final r in rs) r.methodId], ['pearson', 'bland_altman', 'passing_bablok', 'deming']);
+      expect(rs[2].statistics['slope'], closeRel(asD(((ref['paba_classic'] as Map)['slope'] as List).first)!, rel: 1e-12));
+      expect(rs[3].statistics['slope'], closeRel(asD(((ref['deming1'] as Map)['slope'] as List).first)!, rel: 1e-11));
+      expect(rs[2].statistics.keys, containsAll(['bias_at_1.2', 'bias_at_2']));
+    });
+
+    test('le brouillon contient les erreurs volontaires, et l\'audit en relève', () {
+      final a = runAudit(question: p.question, results: rs, text: p.resultsText);
+      expect(a.alerts.map((f) => f.family).toSet(), containsAll([AuditFamily.agreementVsCi, AuditFamily.pValueMisread, AuditFamily.overPrecision]));
+    });
+
+    test('projet sérialisable', () {
+      expect(Project.decode(p.encodeCompact()).encode(), p.encode());
+    });
+  });
+}

@@ -55,6 +55,8 @@ SurvivalDesign buildCompetingDesign(Dataset ds, String time, String status, Stri
     codingNotes: notes,
     alerts: d.alerts,
     formula: 'Crr($time, $status) ~ ${d.formula.split('~').last.trim()}',
+    splineKnots: d.splineKnots,
+    splineColumns: d.splineColumns,
   );
   return SurvivalDesign(dm, codes, time, status, causeLevel, terms: terms);
 }

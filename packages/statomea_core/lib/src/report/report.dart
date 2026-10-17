@@ -82,7 +82,15 @@ String _figures(AnalysisResult r) {
   final f = r.figures;
   final b = StringBuffer();
   if (f['forest'] is Map) b.writeln('<figure>${forestPlotSvg((f['forest'] as Map).cast())}<figcaption>Forest plot</figcaption></figure>');
-  if (f['calibration'] is List) b.writeln('<figure>${calibrationSvg((f['calibration'] as List).cast())}<figcaption>${tr('Courbe de calibration (déciles de risque prédit)', 'Calibration curve (deciles of predicted risk)')}</figcaption></figure>');
+  if (f['calibration'] is List) b.writeln('<figure>${calibrationSvg((f['calibration'] as List).cast(), smooth: (f['calibrationSmooth'] as List?)?.cast())}<figcaption>${tr('Courbe de calibration (déciles de risque prédit${f['calibrationSmooth'] is List ? ', lissage lowess' : ''})', 'Calibration curve (deciles of predicted risk${f['calibrationSmooth'] is List ? ', lowess smooth' : ''})')}</figcaption></figure>');
+  if (f['doseResponse'] is List) {
+    for (final c in (f['doseResponse'] as List).cast<Map>()) {
+      b.writeln('<figure>${doseResponseSvg(c)}<figcaption>${tr('Courbe dose-effet (spline cubique restreinte) : ${c['variable']}, bande de confiance', 'Dose-response curve (restricted cubic spline): ${c['variable']}, confidence band')}</figcaption></figure>');
+    }
+  }
+  if (f['methodComparison'] is Map) b.writeln('<figure>${methodComparisonSvg(f['methodComparison'] as Map)}<figcaption>${tr('Comparaison de méthodes : droite ajustée et identité', 'Method comparison: fitted line and identity')}</figcaption></figure>');
+  if (f['lovePlot'] is Map) b.writeln('<figure>${lovePlotSvg(f['lovePlot'] as Map)}<figcaption>${tr('Équilibre des covariables avant et après ajustement (love plot)', 'Covariate balance before and after adjustment (love plot)')}</figcaption></figure>');
+  if (f['psOverlap'] is Map) b.writeln('<figure>${psOverlapSvg(f['psOverlap'] as Map)}<figcaption>${tr('Distribution du score de propension par groupe (recouvrement)', 'Propensity score distribution by group (overlap)')}</figcaption></figure>');
   if (f['decisionCurve'] is List) b.writeln('<figure>${decisionCurveSvg((f['decisionCurve'] as List).cast())}<figcaption>${tr('Courbe de décision', 'Decision curve')}</figcaption></figure>');
   if (f['miChains'] is Map) b.writeln('<figure>${miChainsSvg(f['miChains'] as Map)}<figcaption>${tr('Convergence des chaînes d\'imputation', 'Convergence of the imputation chains')}</figcaption></figure>');
   if (f['sroc'] is Map) b.writeln('<figure>${srocSvg((f['sroc'] as Map).cast())}<figcaption>${tr('Espace ROC : études, point combiné, courbe SROC, régions de confiance et de prédiction', 'ROC space: studies, pooled point, SROC curve, confidence and prediction regions')}</figcaption></figure>');

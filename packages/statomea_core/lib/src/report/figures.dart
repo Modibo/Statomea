@@ -132,9 +132,11 @@ String _axes(StringBuffer b, double l, double t, double w, double h, String xl, 
 }
 
 /// Courbe de calibration (groupes de risque, IC de Wilson), diagonale idéale.
-String calibrationSvg(List<Map> groups, {String font = defaultSvgFont}) {
+String calibrationSvg(List<Map> groups, {String font = defaultSvgFont, List<Map>? smooth}) {
   const l = 60.0, t = 20.0, w = 320.0, h = 320.0;
-  final maxV = math.max(0.1, groups.map((g) => math.max((g['predicted'] as num).toDouble(), (g['upper'] as num).toDouble())).fold(0.0, math.max));
+  final maxV = math.max(
+      math.max(0.1, groups.map((g) => math.max((g['predicted'] as num).toDouble(), (g['upper'] as num).toDouble())).fold(0.0, math.max)),
+      (smooth ?? const []).map((s) => math.max((s['p'] as num).toDouble(), (s['smooth'] as num).toDouble())).fold(0.0, math.max));
   final top = (maxV * 10).ceil() / 10;
   double x(double v) => l + v / top * w;
   double y(double v) => t + h - v / top * h;
@@ -150,9 +152,15 @@ String calibrationSvg(List<Map> groups, {String font = defaultSvgFont}) {
       ..writeln("<line x1='${_n(px)}' x2='${_n(px)}' y1='${_n(y((g['lower'] as num).toDouble()))}' y2='${_n(y((g['upper'] as num).toDouble()))}' stroke='#1f4e79'/>")
       ..writeln("<circle cx='${_n(px)}' cy='${_n(py)}' r='4' fill='#1f4e79'/>");
   }
-  b
-    ..writeln("<polyline points='${pts.join(' ')}' fill='none' stroke='#1f4e79'/>")
-    ..writeln('</svg>');
+  b.writeln("<polyline points='${pts.join(' ')}' fill='none' stroke='#1f4e79'/>");
+  if (smooth != null && smooth.isNotEmpty) {
+    final sp = [for (final s in smooth) '${_n(x((s['p'] as num).toDouble()))},${_n(y(((s['smooth'] as num).toDouble()).clamp(0, top).toDouble()))}'];
+    b
+      ..writeln("<polyline points='${sp.join(' ')}' fill='none' stroke='#c0504d' stroke-width='2'/>")
+      ..writeln("<text x='${_n(l + 6)}' y='${_n(t + 14)}' fill='#1f4e79' font-size='10'>${tr('● déciles (IC)', '● deciles (CI)')}</text>")
+      ..writeln("<text x='${_n(l + 6)}' y='${_n(t + 28)}' fill='#c0504d' font-size='10'>${tr('— lissage lowess', '— lowess smooth')}</text>");
+  }
+  b.writeln('</svg>');
   return b.toString();
 }
 
@@ -828,6 +836,138 @@ String mrSvg(Map f, {String font = defaultSvgFont}) {
     ..writeln("<text x='${l + 8}' y='${t + 14}' fill='#1f4e79'>IVW</text><text x='${l + 48}' y='${t + 14}' fill='#c0504d'>MR-Egger</text>"
         "<text x='${l + 120}' y='${t + 14}' fill='#4f8a3c'>${tr('médiane pondérée', 'weighted median')}</text>"
         "${mo == null ? '' : "<text x='${l + 8}' y='${t + 30}' fill='#7b4f9e'>${tr('mode pondéré', 'weighted mode')}</text>"}")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
+
+/// Courbe dose-effet d'une spline : contraste à la médiane et bande de confiance (échelle log si OR, RR ou HR).
+String doseResponseSvg(Map c, {String font = defaultSvgFont}) {
+  final xs = [for (final v in c['x'] as List) (v as num).toDouble()];
+  final est = [for (final v in c['est'] as List) (v as num).toDouble()];
+  final lo = [for (final v in c['lower'] as List) (v as num).toDouble()];
+  final hi = [for (final v in c['upper'] as List) (v as num).toDouble()];
+  final knots = [for (final v in c['knots'] as List) (v as num).toDouble()];
+  final isLog = c['log'] == true;
+  double tf(double v) => isLog ? math.log(v) : v;
+  const l = 60.0, t = 20.0, w = 340.0, h = 240.0;
+  final all = [...lo, ...hi].map(tf).where((v) => v.isFinite).toList();
+  var ymin = all.reduce(math.min), ymax = all.reduce(math.max);
+  if (ymax - ymin < 1e-9) ymax = ymin + 1;
+  final pad = 0.05 * (ymax - ymin);
+  ymin -= pad;
+  ymax += pad;
+  double x(double v) => l + (v - xs.first) / (xs.last - xs.first) * w;
+  double y(double v) => t + h - (tf(v) - ymin) / (ymax - ymin) * h;
+  final yt = isLog
+      ? [for (final v in [0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 4.0, 5.0, 10.0, 20.0]) if (math.log(v) >= ymin && math.log(v) <= ymax) v]
+      : _niceTicks(ymin, ymax);
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 320' width='440' height='320' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, _esc(c['variable'].toString()), _esc('${c['effect']} ${tr('(réf. : médiane', '(ref.: median')} ${fmt((c['ref'] as num).toDouble())})'), _niceTicks(xs.first, xs.last), yt,
+      x, (v) => isLog ? t + h - (math.log(v) - ymin) / (ymax - ymin) * h : t + h - (v - ymin) / (ymax - ymin) * h);
+  final band = [
+    for (var i = 0; i < xs.length; i++) '${_n(x(xs[i]))},${_n(y(hi[i]))}',
+    for (var i = xs.length - 1; i >= 0; i--) '${_n(x(xs[i]))},${_n(y(lo[i]))}',
+  ];
+  final nullV = isLog ? 1.0 : 0.0;
+  b
+    ..writeln("<polygon points='${band.join(' ')}' fill='#1f4e79' fill-opacity='0.15' stroke='none'/>")
+    ..writeln("<line x1='${_n(l)}' x2='${_n(l + w)}' y1='${_n(y(nullV))}' y2='${_n(y(nullV))}' stroke='#888' stroke-dasharray='4 3'/>")
+    ..writeln("<polyline points='${[for (var i = 0; i < xs.length; i++) '${_n(x(xs[i]))},${_n(y(est[i]))}'].join(' ')}' fill='none' stroke='#1f4e79' stroke-width='2'/>");
+  for (final k in knots) {
+    if (k < xs.first || k > xs.last) continue;
+    b.writeln("<line x1='${_n(x(k))}' x2='${_n(x(k))}' y1='${_n(t + h - 8)}' y2='${_n(t + h)}' stroke='#c0504d' stroke-width='2'/>");
+  }
+  b
+    ..writeln("<text x='${_n(l + w - 4)}' y='${_n(t + h - 12)}' text-anchor='end' font-size='10' fill='#c0504d'>${tr('▮ nœuds', '▮ knots')}</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
+/// Comparaison de méthodes : nuage de points, droite d'identité et droite ajustée (Passing-Bablok ou Deming).
+String methodComparisonSvg(Map m, {String font = defaultSvgFont}) {
+  final xs = [for (final v in m['x'] as List) (v as num).toDouble()];
+  final ys = [for (final v in m['y'] as List) (v as num).toDouble()];
+  final a = (m['intercept'] as num).toDouble(), sl = (m['slope'] as num).toDouble();
+  const l = 60.0, t = 20.0, w = 300.0, h = 300.0;
+  final lo = math.min(xs.reduce(math.min), ys.reduce(math.min)), hi = math.max(xs.reduce(math.max), ys.reduce(math.max));
+  final ticks = _niceTicks(lo, hi);
+  final a0 = math.min(lo, ticks.first), a1 = math.max(hi, ticks.last);
+  double x(double v) => l + (v - a0) / (a1 - a0) * w;
+  double y(double v) => t + h - (v - a0) / (a1 - a0) * h;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 380' width='400' height='380' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, _esc(m['xName'].toString()), _esc(m['yName'].toString()), ticks, ticks, x, y);
+  for (var i = 0; i < xs.length; i++) {
+    b.writeln("<circle cx='${_n(x(xs[i]))}' cy='${_n(y(ys[i]))}' r='2.5' fill='#1f4e79' fill-opacity='0.7'/>");
+  }
+  double cl(double v) => v.clamp(a0, a1).toDouble();
+  b
+    ..writeln("<line x1='${_n(x(a0))}' y1='${_n(y(a0))}' x2='${_n(x(a1))}' y2='${_n(y(a1))}' stroke='#888' stroke-dasharray='4 3'/>")
+    ..writeln("<line x1='${_n(x(a0))}' y1='${_n(y(cl(a + sl * a0)))}' x2='${_n(x(a1))}' y2='${_n(y(cl(a + sl * a1)))}' stroke='#c0504d' stroke-width='2'/>")
+    ..writeln("<text x='${_n(l + 6)}' y='${_n(t + 14)}' font-size='10' fill='#c0504d'>${_esc('y = ${fmt(a)} + ${fmt(sl)}·x')}</text>")
+    ..writeln("<text x='${_n(l + 6)}' y='${_n(t + 28)}' font-size='10' fill='#888'>${tr('- - y = x (identité)', '- - y = x (identity)')}</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
+/// Love plot : différences standardisées avant (cercles vides) et après (pleins) ajustement, seuil ±0,1.
+String lovePlotSvg(Map lp, {String font = defaultSvgFont}) {
+  final rows = [for (final r in lp['rows'] as List) (r as Map)];
+  final th = (lp['threshold'] as num).toDouble();
+  final names = [for (final r in rows) r['name'].toString()];
+  final maxLen = names.map((s) => s.length).fold(8, math.max);
+  final left = math.min(220.0, 20 + maxLen * 6.2), plotW = 260.0, rowH = 22.0, top = 20.0;
+  final h = top + rows.length * rowH + 40;
+  final vals = [for (final r in rows) ...[(r['before'] as num).toDouble().abs(), (r['after'] as num).toDouble().abs()]];
+  final xmax = math.max(0.25, vals.fold(0.0, math.max) * 1.1);
+  double x(double v) => left + v.abs() / xmax * plotW;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${_n(left + plotW + 20)} ${_n(h)}' width='${_n(left + plotW + 20)}' height='${_n(h)}' ${_font(font)} font-size='11'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  final bottom = top + rows.length * rowH;
+  b
+    ..writeln("<line x1='${_n(x(0))}' x2='${_n(x(0))}' y1='${_n(top)}' y2='${_n(bottom)}' stroke='black'/>")
+    ..writeln("<line x1='${_n(x(th))}' x2='${_n(x(th))}' y1='${_n(top)}' y2='${_n(bottom)}' stroke='#c0504d' stroke-dasharray='4 3'/>");
+  for (final v in _niceTicks(0, xmax)) {
+    b.writeln("<text x='${_n(x(v))}' y='${_n(bottom + 14)}' text-anchor='middle' font-size='10'>${fmt(v, digits: 2)}</text>");
+  }
+  b.writeln("<text x='${_n(left + plotW / 2)}' y='${_n(bottom + 30)}' text-anchor='middle'>${tr('|Différence standardisée des moyennes|', '|Standardized mean difference|')}</text>");
+  for (var i = 0; i < rows.length; i++) {
+    final cy = top + (i + 0.5) * rowH;
+    final bf = (rows[i]['before'] as num).toDouble(), af = (rows[i]['after'] as num).toDouble();
+    b
+      ..writeln("<text x='${_n(left - 6)}' y='${_n(cy + 4)}' text-anchor='end'>${_esc(names[i])}</text>")
+      ..writeln("<line x1='${_n(x(bf))}' x2='${_n(x(af))}' y1='${_n(cy)}' y2='${_n(cy)}' stroke='#bbb'/>")
+      ..writeln("<circle cx='${_n(x(bf))}' cy='${_n(cy)}' r='4' fill='white' stroke='#c0504d' stroke-width='1.5'/>")
+      ..writeln("<circle cx='${_n(x(af))}' cy='${_n(cy)}' r='4' fill='#1f4e79'/>");
+  }
+  b
+    ..writeln("<text x='${_n(left + plotW)}' y='12' text-anchor='end' font-size='10'><tspan fill='#c0504d'>○ ${tr('avant', 'before')}</tspan>  <tspan fill='#1f4e79'>● ${tr('après', 'after')}</tspan></text>")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
+/// Distribution du score de propension par groupe (histogrammes en miroir : traités en haut, autres en bas).
+String psOverlapSvg(Map o, {String font = defaultSvgFont}) {
+  final bins = [for (final r in o['bins'] as List) (r as Map)];
+  const l = 60.0, t = 20.0, w = 340.0, h = 240.0;
+  final maxC = bins.map((r) => math.max((r['treated'] as num).toInt(), (r['control'] as num).toInt())).fold(1, math.max);
+  final mid = t + h / 2;
+  double x(double v) => l + v * w;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 320' width='440' height='320' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, tr('Score de propension', 'Propensity score'), tr('Effectif', 'Count'), [0, 0.2, 0.4, 0.6, 0.8, 1], const [], x, (v) => v);
+  for (final r in bins) {
+    final x0 = x((r['lo'] as num).toDouble()), x1 = x((r['hi'] as num).toDouble());
+    final ht = (r['treated'] as num) / maxC * (h / 2 - 4), hc = (r['control'] as num) / maxC * (h / 2 - 4);
+    b
+      ..writeln("<rect x='${_n(x0 + 0.5)}' y='${_n(mid - ht)}' width='${_n(x1 - x0 - 1)}' height='${_n(ht.toDouble())}' fill='#1f4e79'/>")
+      ..writeln("<rect x='${_n(x0 + 0.5)}' y='${_n(mid)}' width='${_n(x1 - x0 - 1)}' height='${_n(hc.toDouble())}' fill='#c0504d'/>");
+  }
+  b
+    ..writeln("<line x1='${_n(l)}' x2='${_n(l + w)}' y1='${_n(mid)}' y2='${_n(mid)}' stroke='black'/>")
+    ..writeln("<text x='${_n(l + 6)}' y='${_n(t + 14)}' font-size='10' fill='#1f4e79'>▲ ${_esc(o['treated'].toString())}</text>")
+    ..writeln("<text x='${_n(l + 6)}' y='${_n(t + h - 6)}' font-size='10' fill='#c0504d'>▼ ${_esc(o['control'].toString())}</text>")
+    ..writeln("<text x='${_n(l - 6)}' y='${_n(t + 10)}' text-anchor='end' font-size='10'>$maxC</text>")
+    ..writeln("<text x='${_n(l - 6)}' y='${_n(mid + 4)}' text-anchor='end' font-size='10'>0</text>")
+    ..writeln("<text x='${_n(l - 6)}' y='${_n(t + h)}' text-anchor='end' font-size='10'>$maxC</text>")
     ..writeln('</svg>');
   return b.toString();
 }

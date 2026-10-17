@@ -957,3 +957,80 @@ manquants, modalités). Une feuille « dictionnaire » d'un classeur importé es
 d'origine restent intactes. La régression ordinale reprend l'ordre déclaré des modalités. Note : le R x86 de
 validation exige `Sys.setlocale("LC_CTYPE", "en_US.UTF-8")` pour écrire des accents corrects.
 
+
+## Splines cubiques restreintes — 1.51.0
+
+Script `validation/r/50_splines.R` : `rms` 6.7 (`rcs`, `ols`, `lrm`, `cph`, `anova`, `Predict`) et `Hmisc`
+(`rcspline.eval`). Données : `regression_data.csv` (pas selon l'âge, n = 300, et sous-échantillon de 60 sujets pour la
+règle des petits effectifs), `cardiometabolique_simule.csv` (événement à 5 ans selon l'IMC), `cox_lung.csv`. Test
+`test/splines_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Nœuds (quantiles, valeurs extrêmes très fréquentes, 5e plus petite et plus grande valeur sous 100 observations) | `rcspline.eval(knots.only = TRUE)`, `attr(rcs(), "parms")` | 1e-12 |
+| Base (normalisation (t_k − t_1)^(2/3)) : coefficients et ES — linéaire, logistique, Cox (Efron) | `ols`, `lrm`, `cph` | 1e-9 à 1e-7 |
+| Tests de Wald : association globale (k − 1 ddl) et non-linéarité (k − 2 ddl) ; F pour le modèle linéaire | `anova` | 1e-9 à 1e-7 |
+| Courbe dose-effet : contraste f(x) − f(médiane) et IC (t pour ols, normal sinon) | `Predict(ref.zero = TRUE)` | 1e-7 |
+
+`lrm` et `cph` s'arrêtent par défaut à un critère lâche (`cph` : eps = 1e-4, d'où 4e-3 d'écart relatif sur un
+coefficient) : la référence les relance avec eps = 1e-12, valeurs alors identiques à `glm` et `coxph`. Une équation de
+prédiction exportée garde les nœuds du développement (sinon recalculés sur les nouvelles données). Option « spline à
+3, 4 ou 5 nœuds » de l'éditeur de prédicteurs (mode expert), pour les modèles linéaire, logistique, de Poisson, de
+Firth et de Cox ; l'interaction avec une spline est refusée.
+
+## Comparaison de méthodes : Passing-Bablok et Deming — 1.51.0
+
+Script `validation/r/51_comparaison_methodes.R` : `mcr` 1.3.3 et l'algorithme publié de Passing-Bablok (1983)
+recalculé en R. Données : créatinine sérique et plasmatique (`mcr::creatinine`, 108 patients complets,
+`demos/creatinine_serum_plasma.csv`) et un petit jeu avec ex aequo et paire verticale. Test
+`test/method_comparison_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Passing-Bablok : N pentes, K pentes < −1, pente, ordonnée et IC analytiques | algorithme publié recalculé | 1e-12 |
+| Passing-Bablok : idem | `mcreg(method.reg = "PaBa", method.ci = "analytical")` | pente 1e-8, bornes 1e-4 |
+| Deming λ = 1 et 2 : coefficients, ES et IC jackknife (t à n − 2 ddl) | `mcreg(method.reg = "Deming", method.ci = "jackknife")` | 1e-11 à 1e-9 |
+| τ de Kendall (τ-b) et p avec correction des ex aequo | `cor.test(method = "kendall", exact = FALSE)` | 1e-12, 1e-6 |
+
+`mcr` calcule Passing-Bablok sur les angles des pentes : la médiane d'un nombre pair d'angles diffère de la médiane des
+pentes de 4e-9, et une borne d'IC de 6e-5 ; le moteur suit l'algorithme publié. Sur la créatinine : pente 1,088
+(IC 1,000 à 1,173), ordonnée −0,117 (IC −0,200 à −0,020) mg/dL : biais constant négatif. Calculateur « Comparaison de
+méthodes » (rubrique Accord), biais aux niveaux de décision ; démonstration 9.
+
+## Calibration : Hosmer-Lemeshow, courbe lissée — 1.51.0
+
+Script `validation/r/52_calibration.R` : `ResourceSelection` 0.3.6 (`hoslem.test`), `rms` 6.7 (`val.prob`),
+`stats::lowess`. Modèle logistique développé sur `cardiometabolique_simule.csv`, évalué sur lui-même (calibration
+apparente) et sur `cardiometabolique_externe_simule.csv`. Test `test/calibration_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Hosmer-Lemeshow : χ², ddl, p, événements observés et attendus par groupe (quantiles uniques, `cut(include.lowest = TRUE)`) | `hoslem.test(g = 10)` | 1e-10, exact, 1e-8 |
+| Spiegelhalter z et p ; Brier ; intercept et pente de recalibration ; calibration dans l'ensemble | `val.prob`, `glm` avec offset | 1e-12 à 1e-7 |
+| Courbe lowess (iter = 0) en chaque point | `lowess` (portage de clowess) | 1e-10 |
+| Eavg, E90, Emax | `val.prob` | 1e-9 |
+
+Validation externe : Hosmer-Lemeshow χ² = 22,7 (p = 0,004), pente 0,79, Eavg 0,045. Calculateur « Calibration d'un
+modèle de risque » (rubrique Prédiction) ; la figure superpose les déciles et la courbe lissée.
+
+## Score de propension : appariement et pondération — 1.51.0
+
+Script `validation/r/53_propension.R` : `MatchIt` 4.5.5, `WeightIt` 0.14.2, `cobalt` 4.5.2, `sandwich`. Données :
+étude observationnelle simulée (statines et événement cardiovasculaire, confusion par l'âge, le diabète et le LDL,
+`demos/statines_observationnel_simule.csv`) avec caliper 0,2 ; `lalonde` (MatchIt) sans caliper. Test
+`test/propensity_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Score (régression logistique) | `glm` (epsilon 1e-14) | 1e-9 |
+| Appariement 1:1 sans remise, ordre des traités par score décroissant, caliper en ÉT du score : paire de chaque traité | `matchit(method = "nearest")`, `match.matrix` | exact |
+| Différences standardisées avant et après, rapports des variances (ATT : ÉT des traités ; ATE : ÉT poolé ; binaires standardisées) | `bal.tab(binary = "std")` | 1e-8 |
+| IPTW ATE et ATT : tailles effectives, effet, ES robuste HC0 | `weightit(method = "glm")`, `vcovHC(type = "HC0")` | 1e-9, 1e-8 |
+| Appariement : effet et ES robuste par paire | `lm(weights)`, `vcovCL(cluster = ~subclass, type = "HC1")` | 1e-9, 1e-8 |
+
+Deux points ont été nécessaires : `glm` s'arrête par défaut à epsilon = 1e-8 (écart de 3e-9 sur les scores de
+lalonde, où les revenus ont une grande échelle) ; la référence passe `control = list(epsilon = 1e-14)` à MatchIt et
+WeightIt. Les ex aequo exacts de score (sujets aux covariables identiques) sont départagés comme MatchIt, qui parcourt
+les témoins triés par score : le plus proche dans cet ordre. Calculateur « Score de propension » (rubrique Causalité) :
+tableau et graphique d'équilibre (love plot), recouvrement des scores, alertes (équilibre insuffisant, poids extrêmes,
+traités non appariés).

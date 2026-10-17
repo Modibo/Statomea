@@ -368,6 +368,7 @@ AnalysisResult logisticRegression(DesignMatrix d, {double level = 0.95, StudyDes
   for (var j = 1; j < d.p; j++) {
     final col = [for (final r in d.x) r[j]];
     if (col.toSet().length <= 2) continue;
+    if (d.splineColumns.values.any((c) => c.contains(j))) continue; // spline : testée à part
     final mu = col.fold(0.0, (a, b) => a + b) / d.n;
     final xq = [for (var i = 0; i < d.n; i++) [...d.x[i], math.pow(col[i] - mu, 2).toDouble()]];
     final fq = fitLogistic(xq, d.y);
@@ -394,7 +395,7 @@ AnalysisResult logisticRegression(DesignMatrix d, {double level = 0.95, StudyDes
       tr('Distance de Cook maximale ≈ ${fmt(maxCook)} (ligne ${d.rows[cook.indexOf(maxCook)] + 1}).', "Maximum Cook's distance ≈ ${fmt(maxCook)} (row ${d.rows[cook.indexOf(maxCook)] + 1}).")));
   final reliable = fit.converged && !sep.suspected;
   final main = coefs.length > 1 ? coefs[1] : coefs.first;
-  return AnalysisResult(
+  return withSplineAnalysis(AnalysisResult(
     methodId: 'logistic_regression',
     methodName: tr('Régression logistique binaire', 'Binary logistic regression'),
     inputs: {'model': d.describe(), 'level': level, 'design': design.name},
@@ -443,7 +444,7 @@ AnalysisResult logisticRegression(DesignMatrix d, {double level = 0.95, StudyDes
       notJustified: tr("Présenter l'OR comme un risque relatif quand l'issue est fréquente ; donner une interprétation causale à un OR ajusté ; interpréter les OR de covariables d'ajustement comme des effets (« sophisme de la table 2 »).",
           'Presenting the OR as a risk ratio when the outcome is common; giving a causal interpretation to an adjusted OR; interpreting the ORs of adjustment covariates as effects ("Table 2 fallacy").'),
     ),
-  );
+  ), d, fit.beta, fit.cov.get, effect: 'OR', exponentiate: true, level: level);
 }
 
 /// Régression de Poisson à variance robuste : RR (ou RP) ajusté.
@@ -474,7 +475,7 @@ AnalysisResult poissonRobustRegression(DesignMatrix d, {double level = 0.95, Stu
   final prevalence = design == StudyDesign.crossSectional;
   final name = prevalence ? tr('RP', 'PR') : 'RR';
   final main = coefs.length > 1 ? coefs[1] : coefs.first;
-  return AnalysisResult(
+  return withSplineAnalysis(AnalysisResult(
     methodId: 'poisson_robust',
     methodName: tr('Régression de Poisson à variance robuste (RR/RP ajusté)', 'Poisson regression with robust variance (adjusted RR/PR)'),
     inputs: {'model': d.describe(), 'level': level, 'design': design.name},
@@ -510,7 +511,7 @@ AnalysisResult poissonRobustRegression(DesignMatrix d, {double level = 0.95, Stu
       notJustified: tr('Utiliser ce modèle en cas-témoins ; interpréter le RR ajusté comme causal ; utiliser les probabilités prédites (parfois > 1).',
           'Using this model in a case-control study; interpreting the adjusted RR as causal; using the predicted probabilities (sometimes > 1).'),
     ),
-  );
+  ), d, fit.beta, fit.cov.get, effect: name, exponentiate: true, level: level);
 }
 
 /// Régression logistique pénalisée de Firth. Les IC sont de Wald ; les IC par
@@ -524,7 +525,7 @@ AnalysisResult firthRegression(DesignMatrix d, {double level = 0.95}) {
   final plHat = firthEval(d.x, d.y, fit.beta)?.pl ?? fit.logLik;
   final profiles = [for (var j = 0; j < d.p; j++) firthProfile(d.x, d.y, fit.beta, plHat, j, coefs[j].se, level: level)];
   final unbounded = [for (var j = 1; j < d.p; j++) if (!profiles[j].lowerFound || !profiles[j].upperFound) d.columns[j]];
-  return AnalysisResult(
+  return withSplineAnalysis(AnalysisResult(
     methodId: 'firth_logistic',
     methodName: tr('Régression logistique pénalisée de Firth', "Firth's penalized logistic regression"),
     inputs: {'model': d.describe(), 'level': level},
@@ -592,5 +593,5 @@ AnalysisResult firthRegression(DesignMatrix d, {double level = 0.95}) {
       notJustified: tr("Croire que Firth « corrige » le manque d'événements : l'incertitude reste grande ; interpréter les OR comme des RR ou comme causaux.",
           'Believing that Firth "corrects" the lack of events: uncertainty remains large; interpreting the ORs as RRs or as causal.'),
     ),
-  );
+  ), d, fit.beta, fit.cov.get, effect: 'OR', exponentiate: true, level: level);
 }

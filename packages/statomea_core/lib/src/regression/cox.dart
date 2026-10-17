@@ -70,6 +70,8 @@ SurvivalDesign buildSurvivalDesign(Dataset ds, String time, String status, Strin
     codingNotes: [...d0.codingNotes, tr('Événement : $status = « $eventLevel » ; autres modalités = censure.', 'Event: $status = "$eventLevel"; other levels = censoring.')],
     alerts: alerts,
     formula: 'Surv($time, $status) ~ ${d0.formula.split('~').last.trim()}',
+    splineKnots: d0.splineKnots,
+    splineColumns: {for (final e in d0.splineColumns.entries) e.key: [for (final j in e.value) j - 1]},
   );
   if (d.x.isEmpty || d.p == 0) throw StatInputError('no_predictor', tr('Au moins un prédicteur est requis.', 'At least one predictor is required.'));
   return SurvivalDesign(d, [for (final k in keep) st[d0.rows[k]] == eventLevel ? 1.0 : 0.0], time, status, eventLevel, terms: terms);
@@ -97,6 +99,8 @@ SurvivalDesign buildCountingDesign(Dataset ds, String start, String stop, String
     codingNotes: d.codingNotes,
     alerts: d.alerts,
     formula: 'Surv($start, $stop, $status) ~ ${d.formula.split('~').last.trim()}',
+    splineKnots: d.splineKnots,
+    splineColumns: d.splineColumns,
   );
   return SurvivalDesign(dm, s.status, stop, status, eventLevel, terms: terms, start: [for (final r in rows) st[r]!], startName: start);
 }
@@ -597,7 +601,7 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
   }
   final main = coefs.first;
   final fu = [...s.time]..sort();
-  return AnalysisResult(
+  return withSplineAnalysis(AnalysisResult(
     methodId: 'cox',
     methodName: counting
         ? tr('Régression de Cox avec covariable(s) dépendant du temps (processus de comptage)', 'Cox regression with time-dependent covariate(s) (counting process)')
@@ -664,5 +668,5 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
       notJustified: tr("Lire un HR comme un risque relatif cumulé ou comme une différence de survie à une date donnée ; interpréter causalement un HR d'étude observationnelle ; ignorer un écart à la proportionnalité ; conclure à la proportionnalité parce que le test n'est pas significatif.",
           'Reading an HR as a cumulative risk ratio or as a survival difference at a given date; interpreting an HR from an observational study causally; ignoring a departure from proportionality; concluding proportionality because the test is not significant.'),
     ),
-  );
+  ), d, fit.beta, fit.cov.get, effect: 'HR', exponentiate: true, level: level);
 }

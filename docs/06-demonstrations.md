@@ -188,6 +188,22 @@ de 82 % ». L'audit relève les deux pièges de survie (nouvelle famille « risq
 langage causal et la formulation catégorique. `test/demos_test.dart` (groupe « Démo 8 ») vérifie la chaîne contre
 les références des scripts 40 et 41.
 
+## Démo 9 — Laboratoire : créatinine sur plasma ou sur sérum ?
+
+Données **réelles** publiées : créatinine dosée sur sérum et sur plasma chez 108 patients (jeu `creatinine` du paquet
+R mcr, mg/dL, `demos/creatinine_serum_plasma.csv`). Question : le dosage sur plasma peut-il remplacer le dosage sur
+sérum sans changer l'interprétation clinique ?
+
+Journal : (1) corrélation de Pearson (r = 0,945 : association, pas accord) ; (2) Bland-Altman avec écart acceptable
+fixé a priori à ±0,3 mg/dL (limites d'accord −0,314 à 0,299) ; (3) Passing-Bablok, biais aux niveaux de décision 1,2
+et 2,0 mg/dL (pente 1,088, IC 1,000 à 1,173 ; ordonnée −0,117, IC −0,200 à −0,020 : biais constant) ; (4) Deming
+(λ = 1) en sensibilité.
+
+Brouillon à auditer : « fortement corrélés, ce qui prouve qu'ils sont interchangeables », limites d'accord présentées
+comme un IC à 95 %, pente donnée à 5 décimales, « pas de différence (p > 0,05) ». L'audit relève la confusion limites
+d'accord / IC, la lecture de p comme preuve d'absence d'effet, la formulation catégorique et la précision excessive.
+`test/demos_test.dart` (groupe « Démo 9 ») vérifie la chaîne contre les références du script 51.
+
 ## Reproduire
 
 Dans l'application : Projets → Démonstrations. En ligne de commande :

@@ -43,6 +43,9 @@ class PredictorEditor extends StatelessWidget {
                 (TermTransform.log2, tr('log2 (par doublement)', 'log2 (per doubling)')),
                 (TermTransform.center, tr('centrée sur la moyenne', 'centred on the mean')),
                 (TermTransform.perUnit, tr('par 10 unités', 'per 10 units')),
+                (TermTransform.rcs3, tr('spline à 3 nœuds', 'spline, 3 knots')),
+                (TermTransform.rcs4, tr('spline à 4 nœuds', 'spline, 4 knots')),
+                (TermTransform.rcs5, tr('spline à 5 nœuds', 'spline, 5 knots')),
               ], (v) {
                 final l = [...terms];
                 l[i] = TermSpec(terms[i].variable, transform: v ?? TermTransform.none, unitStep: v == TermTransform.perUnit ? 10 : null);

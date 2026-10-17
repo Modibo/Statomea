@@ -24,10 +24,13 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('mcnemar', tr('McNemar (binaire apparié)', 'McNemar (paired binary)'), Icons.swap_horiz, tr('Apparié', 'Paired')),
   ('correlation', tr('Corrélation', 'Correlation'), Icons.scatter_plot_outlined, tr('Corrélation', 'Correlation')),
   ('bland_altman', tr('Accord (Bland-Altman)', 'Agreement (Bland-Altman)'), Icons.align_horizontal_center, tr('Accord', 'Agreement')),
+  ('method_comparison', tr('Comparaison de méthodes (Passing-Bablok, Deming)', 'Method comparison (Passing-Bablok, Deming)'), Icons.stacked_line_chart, tr('Accord', 'Agreement')),
   ('kaplan_meier', tr('Survie (Kaplan-Meier, log-rank)', 'Survival (Kaplan-Meier, log-rank)'), Icons.timeline, tr('Survie', 'Survival')),
   ('cumulative_incidence', tr('Risques concurrents (incidence cumulée)', 'Competing risks (cumulative incidence)'), Icons.call_split, tr('Survie', 'Survival')),
   ('rmst', tr('Temps moyen de survie restreint (RMST)', 'Restricted mean survival time (RMST)'), Icons.area_chart, tr('Survie', 'Survival')),
   ('landmark', tr('Analyse landmark (exposition en cours de suivi)', 'Landmark analysis (exposure during follow-up)'), Icons.flag_outlined, tr('Survie', 'Survival')),
+  ('propensity', tr('Score de propension (appariement, IPTW)', 'Propensity score (matching, IPTW)'), Icons.balance, tr('Causalité', 'Causality')),
+  ('calibration', tr('Calibration d\'un modèle de risque', 'Calibration of a risk model'), Icons.tune, tr('Prédiction', 'Prediction')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
   ('power', tr('Puissance et effectif (survie, cas-témoins, GWAS…)', 'Power and sample size (survival, case-control, GWAS…)'), Icons.speed, tr('Planification', 'Planning')),
   ('regression', tr('Atelier de régression', 'Regression workshop'), Icons.functions, tr('Ateliers', 'Workshops')),
@@ -41,7 +44,9 @@ String calculatorFor(String methodId) => switch (methodId) {
       'anova_oneway' || 'anova_welch' || 'kruskal_wallis' => 'compare_k',
       'paired_t_test' || 'wilcoxon_signed_rank' => 'paired',
       'pearson' || 'spearman' => 'correlation',
-      'linear_regression' || 'logistic_regression' || 'poisson_robust' || 'firth_logistic' || 'cox' || 'fine_gray' => 'regression',
+      'linear_regression' || 'logistic_regression' || 'poisson_robust' || 'firth_logistic' || 'cox' || 'fine_gray' || 'restricted_cubic_spline' => 'regression',
+      'passing_bablok' || 'deming' => 'method_comparison',
+      'propensity_matching' || 'propensity_weighting' => 'propensity',
       'meta_binary' || 'meta_continuous' => 'meta',
       'prediction_logistic_internal' => 'prediction',
       'hardy_weinberg' || 'genetic_association' || 'snp_scan' || 'lmm_scan' || 'ldsc' || 'genetic_correlation' || 'polygenic_score' || 'glmm_scan' || 'mendelian_randomization' || 'mendelian_randomization_mv' || 'mr_steiger' || 'genotype_qc' || 'mutation_phenotype' || 'type_diversity' || 'qpcr_standard_curve' || 'qpcr_relative' || 'qpcr_lod' ||
@@ -88,6 +93,9 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'mcnemar' => McNemarCalc(onResult),
       'correlation' => CorrelationCalc(ds, onResult),
       'bland_altman' => BlandAltmanCalc(ds, onResult),
+      'method_comparison' => MethodComparisonCalc(ds, onResult, initial: widget.initialMethod),
+      'calibration' => CalibrationCalc(ds, onResult),
+      'propensity' => PropensityCalc(ds, onResult, initial: widget.initialMethod),
       'sample_size' => SampleSizeCalc(onResult),
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
@@ -1173,3 +1181,185 @@ class _LandmarkCalcState extends State<LandmarkCalc> {
   }
 }
 
+
+// ---------------------------------------------------------------- Comparaison de méthodes
+
+class MethodComparisonCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  final String? initial;
+  const MethodComparisonCalc(this.ds, this.onResult, {super.key, this.initial});
+  @override
+  State<MethodComparisonCalc> createState() => _MethodComparisonCalcState();
+}
+
+class _MethodComparisonCalcState extends State<MethodComparisonCalc> {
+  late MethodComparisonKind kind = widget.initial == 'deming' ? MethodComparisonKind.deming : MethodComparisonKind.passingBablok;
+  String? a, b;
+  final sa = TextEditingController(text: '0,62 0,71 0,80 0,85 0,93 1,02 1,10 1,18 1,25 1,37 1,48 1,60 1,75 1,90 2,10 2,35 2,60 2,95 3,30 3,80 4,40 5,10'),
+      sb = TextEditingController(text: '0,60 0,74 0,78 0,90 0,95 1,08 1,12 1,25 1,30 1,45 1,55 1,70 1,86 2,00 2,24 2,50 2,79 3,12 3,55 4,05 4,70 5,52');
+  final ratio = TextEditingController(text: '1'), levels = TextEditingController(text: '1 2');
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Comparaison de deux méthodes de mesure', 'Comparison of two measurement methods'), style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(tr('Régression de Passing-Bablok (non paramétrique) ou de Deming (erreurs sur les deux méthodes) : biais constant (ordonnée) et proportionnel (pente), en complément de Bland-Altman.',
+                'Passing-Bablok (nonparametric) or Deming (errors on both methods) regression: constant (intercept) and proportional (slope) bias, alongside Bland-Altman.'),
+            style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        SegmentedButton<MethodComparisonKind>(segments: const [
+          ButtonSegment(value: MethodComparisonKind.passingBablok, label: Text('Passing-Bablok')),
+          ButtonSegment(value: MethodComparisonKind.deming, label: Text('Deming')),
+        ], selected: {kind}, onSelectionChanged: (s) => setState(() => kind = s.first)),
+        const SizedBox(height: 10),
+        _TwoColumns(widget.ds, a, b, (v) => setState(() => a = v), (v) => setState(() => b = v), sa, sb, la: tr('Méthode de référence (x)', 'Reference method (x)'), lb: tr('Méthode évaluée (y)', 'Test method (y)')),
+        const SizedBox(height: 10),
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          if (kind == MethodComparisonKind.deming)
+            NumField(tr('Rapport des variances d\'erreur σ²(x)/σ²(y)', 'Error variance ratio σ²(x)/σ²(y)'), ratio, width: 280, helper: tr('1 si répétabilités égales', '1 if equal repeatabilities')),
+          SizedBox(
+              width: 280,
+              child: TextField(controller: levels, decoration: InputDecoration(labelText: tr('Niveaux de décision (facultatif)', 'Decision levels (optional)'), helperText: tr('séparés par des espaces', 'separated by spaces')))),
+        ]),
+        _computeButton(context, () {
+          run(context, () {
+            final c = _cols(widget.ds, a, b, sa, sb);
+            final unit = widget.ds != null && a != null ? widget.ds!.dictionary[a]!.unit : '';
+            return methodComparison(c.x, c.y,
+                kind: kind,
+                errorRatio: readNum(ratio) ?? 1,
+                decisionLevels: [for (final v in parseSeries(levels.text)) ?v],
+                xName: a ?? tr('Méthode de référence', 'Reference method'),
+                yName: b ?? tr('Méthode évaluée', 'Test method'),
+                unit: unit);
+          }, widget.onResult);
+        }),
+      ]);
+}
+
+// ---------------------------------------------------------------- Calibration
+
+class CalibrationCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const CalibrationCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<CalibrationCalc> createState() => _CalibrationCalcState();
+}
+
+class _CalibrationCalcState extends State<CalibrationCalc> {
+  String? pred, outcome, event;
+  final groups = TextEditingController(text: '10');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Calibration d\'un modèle de risque', 'Calibration of a risk model'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Les risques prédits correspondent-ils aux fréquences observées ? Courbe lissée et par déciles, pente et intercept de calibration, Hosmer-Lemeshow, Spiegelhalter, Brier.',
+              'Do predicted risks match observed frequencies? Smoothed and decile curves, calibration slope and intercept, Hosmer-Lemeshow, Spiegelhalter, Brier.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds == null)
+        Text(tr('La calibration travaille sur un jeu de données contenant une colonne de risques prédits (entre 0 et 1) et l\'issue observée (étape 4 d\'un projet).',
+            'Calibration works on a dataset with a column of predicted risks (between 0 and 1) and the observed outcome (step 4 of a project).'))
+      else ...[
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Risque prédit (0 à 1)', 'Predicted risk (0 to 1)'), pred, _vars(ds, types: {VarType.numeric}), (v) => setState(() => pred = v)),
+          Pick<String>(tr('Issue observée', 'Observed outcome'), outcome, _vars(ds, types: {VarType.binary, VarType.categorical}), (v) => setState(() {
+                outcome = v;
+                event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+              })),
+          if (outcome != null) Pick<String>(tr('Modalité « événement »', 'Event level'), event, [for (final l in ds.levels(outcome!)) (l, l)], (v) => setState(() => event = v)),
+          NumField(tr('Groupes (Hosmer-Lemeshow)', 'Groups (Hosmer-Lemeshow)'), groups, width: 200),
+        ]),
+        _computeButton(context, () {
+          run(context, () {
+            if (pred == null || outcome == null || event == null) throw StatInputError('missing', tr('Choisir le risque prédit, l\'issue et la modalité « événement ».', 'Choose the predicted risk, the outcome and the event level.'));
+            final excl = ds.excludedRows;
+            final p = ds.numeric(pred!), y = ds.text(outcome!);
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            return calibrationAssessment([for (final i in keep) p[i]], [for (final i in keep) y[i] == null ? null : (y[i] == event ? 1.0 : 0.0)],
+                groups: (readNum(groups) ?? 10).round().clamp(3, 20), predictedName: pred);
+          }, widget.onResult);
+        }),
+      ],
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------- Score de propension
+
+class PropensityCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  final String? initial;
+  const PropensityCalc(this.ds, this.onResult, {super.key, this.initial});
+  @override
+  State<PropensityCalc> createState() => _PropensityCalcState();
+}
+
+class _PropensityCalcState extends State<PropensityCalc> {
+  String? treatment, treated, outcome, event;
+  late PropensityMethod method = widget.initial == 'propensity_weighting' ? PropensityMethod.iptwAte : PropensityMethod.matching;
+  List<TermSpec> covariates = [];
+  final caliper = TextEditingController(text: '0,2');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    final binaryOutcome = ds != null && outcome != null && ds.dictionary[outcome]!.type != VarType.numeric;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Score de propension', 'Propensity score'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Étude observationnelle : comparer traités et non-traités à caractéristiques mesurées comparables, par appariement ou pondération, et vérifier l\'équilibre obtenu.',
+              'Observational study: compare treated and untreated at comparable measured characteristics, by matching or weighting, and check the balance achieved.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds == null)
+        Text(tr('Le score de propension travaille sur un jeu de données individuelles (étape 4 d\'un projet).', 'The propensity score works on an individual dataset (step 4 of a project).'))
+      else ...[
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Traitement (exposition)', 'Treatment (exposure)'), treatment, _vars(ds, types: {VarType.binary, VarType.categorical}), (v) => setState(() {
+                treatment = v;
+                treated = v == null ? null : (ds.levels(v).contains('oui') ? 'oui' : ds.levels(v).contains('1') ? '1' : null);
+                covariates = [for (final c in covariates) if (c.variable != v) c];
+              })),
+          if (treatment != null) Pick<String>(tr('Modalité « traité »', 'Treated level'), treated, [for (final l in ds.levels(treatment!)) (l, l)], (v) => setState(() => treated = v)),
+          Pick<String>(tr('Issue (facultatif)', 'Outcome (optional)'), outcome, [('', tr('— aucune —', '— none —')), ..._vars(ds, types: {VarType.numeric, VarType.binary, VarType.categorical})],
+              (v) => setState(() {
+                    outcome = (v == null || v.isEmpty) ? null : v;
+                    event = outcome == null ? null : (ds.levels(outcome!).contains('1') ? '1' : ds.levels(outcome!).contains('oui') ? 'oui' : null);
+                    covariates = [for (final c in covariates) if (c.variable != outcome) c];
+                  })),
+          if (binaryOutcome) Pick<String>(tr('Modalité « événement »', 'Event level'), event, [for (final l in ds.levels(outcome!)) (l, l)], (v) => setState(() => event = v)),
+        ]),
+        const SizedBox(height: 8),
+        PredictorEditor(ds, covariates, (l) => setState(() => covariates = l), exclude: {?treatment, ?outcome}, title: tr('Covariables de confusion (choisies a priori)', 'Confounding covariates (chosen a priori)')),
+        const SizedBox(height: 8),
+        SegmentedButton<PropensityMethod>(segments: [
+          ButtonSegment(value: PropensityMethod.matching, label: Text(tr('Appariement 1:1', '1:1 matching'))),
+          const ButtonSegment(value: PropensityMethod.iptwAte, label: Text('IPTW (ATE)')),
+          ButtonSegment(value: PropensityMethod.iptwAtt, label: Text(tr('Pondération (ATT)', 'Weighting (ATT)'))),
+        ], selected: {method}, onSelectionChanged: (s) => setState(() => method = s.first)),
+        if (method == PropensityMethod.matching) ...[
+          const SizedBox(height: 10),
+          NumField(tr('Caliper (ÉT du score)', 'Caliper (SD of score)'), caliper, width: 220, helper: tr('vide : sans caliper', 'empty: no caliper')),
+        ],
+        _computeButton(context, () {
+          run(context, () {
+            if (treatment == null || treated == null) throw StatInputError('missing', tr('Choisir le traitement et la modalité « traité ».', 'Choose the treatment and the treated level.'));
+            if (binaryOutcome && event == null) throw StatInputError('missing', tr('Choisir la modalité « événement » de l\'issue.', 'Choose the event level of the outcome.'));
+            return propensityAnalysis(ds,
+                treatment: treatment!,
+                treatedLevel: treated!,
+                covariates: covariates,
+                outcome: outcome,
+                outcomeEvent: binaryOutcome ? event : null,
+                method: method,
+                caliper: method == PropensityMethod.matching ? readNum(caliper) : null);
+          }, widget.onResult);
+        }),
+      ],
+    ]);
+  }
+}

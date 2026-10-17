@@ -24,6 +24,8 @@ import '../genetics/pathogens.dart';
 import '../genetics/qpcr.dart';
 import '../inference/compare.dart';
 import '../inference/competing_risks.dart';
+import '../inference/correlation.dart';
+import '../inference/method_comparison.dart';
 import '../inference/survival.dart';
 import '../inference/proportion.dart';
 import '../inference/two_by_two.dart';
@@ -617,3 +619,55 @@ Project buildDemoSurvivalAdvanced(String csv) {
   );
 }
 
+
+
+/// Démonstration 9 : laboratoire — la créatinine dosée sur plasma remplace-t-elle le dosage sur sérum ?
+/// Données réelles publiées (mcr::creatinine).
+Project buildDemoMethodComparison(String csv) {
+  final ds = parseCsv(csv, source: tr('creatinine_serum_plasma.csv (paquet R mcr)', 'creatinine_serum_plasma.csv (R package mcr)')).dataset;
+  final x = ds.numeric('creatinine_serum'), y = ds.numeric('creatinine_plasma');
+  final journal = <JournalEntry>[];
+  final r = correlation(x, y, xName: 'creatinine_serum', yName: 'creatinine_plasma');
+  journal.add(_entry(1, r, data: ds, note: tr('Corrélation : mesure l\'association, pas l\'accord (à ne pas utiliser pour conclure).', 'Correlation: measures association, not agreement (not to be used to conclude).')));
+  final ba = blandAltman(x, y, name1: 'creatinine_serum', name2: 'creatinine_plasma', unit: 'mg/dL', acceptableLimit: 0.3);
+  journal.add(_entry(2, ba, data: ds, note: tr('Limite acceptable fixée a priori : ±0,3 mg/dL.', 'Acceptable limit set a priori: ±0.3 mg/dL.')));
+  final pb = methodComparison(x, y, xName: 'creatinine_serum', yName: 'creatinine_plasma', unit: 'mg/dL', decisionLevels: const [1.2, 2.0]);
+  journal.add(_entry(3, pb, data: ds, note: tr('Niveaux de décision : 1,2 mg/dL (limite supérieure usuelle) et 2,0 mg/dL.', 'Decision levels: 1.2 mg/dL (usual upper limit) and 2.0 mg/dL.')));
+  final dm = methodComparison(x, y, kind: MethodComparisonKind.deming, xName: 'creatinine_serum', yName: 'creatinine_plasma', unit: 'mg/dL', decisionLevels: const [1.2, 2.0]);
+  journal.add(_entry(4, dm, data: ds, note: tr('Deming, répétabilités supposées égales (λ = 1).', 'Deming, repeatabilities assumed equal (λ = 1).')));
+  double est(AnalysisResult a, String fr) => a.estimates.firstWhere((e) => e.label.startsWith(fr)).value;
+  final lo = est(ba, tr('Limite d\'accord inf', 'Lower limit')), hi = est(ba, tr('Limite d\'accord sup', 'Upper limit'));
+  return Project(
+    id: 'demo-methodes',
+    title: tr('Démo 9 — Laboratoire : créatinine sur plasma ou sur sérum ?', 'Demo 9 — Laboratory: creatinine on plasma or on serum?'),
+    createdAt: tr('démonstration', 'demonstration'),
+    demoNotice: tr('Données RÉELLES publiées : créatinine dosée sur sérum et sur plasma chez 108 patients (jeu d\'exemple du paquet R mcr, mg/dL).',
+        'REAL published data: creatinine measured on serum and on plasma in 108 patients (example data of the R package mcr, mg/dL).'),
+    dataset: ds,
+    question: ResearchQuestion(
+      text: tr('Le dosage de la créatinine sur plasma peut-il remplacer le dosage sur sérum sans changer l\'interprétation clinique ?',
+          'Can creatinine measured on plasma replace measurement on serum without changing the clinical interpretation?'),
+      population: tr('Patients dont la créatinine est dosée en routine', 'Patients with routine creatinine measurement'),
+      exposure: tr('Dosage sur plasma (méthode évaluée)', 'Measurement on plasma (test method)'),
+      comparator: tr('Dosage sur sérum (méthode de référence)', 'Measurement on serum (reference method)'),
+      outcome: tr('Créatinine (mg/dL)', 'Creatinine (mg/dL)'),
+      horizon: tr('Même prélèvement', 'Same sample'),
+      design: StudyDesign.crossSectional,
+      objective: StudyObjective.descriptive,
+      outcomeType: OutcomeType.continuous,
+      exposureType: ExposureType.binary,
+      pairing: Pairing.paired,
+      dataLevel: DataLevel.individual,
+      agreementQuestion: true,
+    ),
+    analysisPlan: tr(
+        '1) Bland-Altman (biais, limites d\'accord et leurs IC), écart acceptable fixé a priori à ±0,3 mg/dL. 2) Passing-Bablok : biais constant (ordonnée) et proportionnel (pente), biais aux niveaux de décision 1,2 et 2,0 mg/dL. 3) Deming (λ = 1) en sensibilité. La corrélation est rapportée pour montrer qu\'elle ne mesure pas l\'accord.',
+        '1) Bland-Altman (bias, limits of agreement and their CIs), acceptable difference set a priori at ±0.3 mg/dL. 2) Passing-Bablok: constant (intercept) and proportional (slope) bias, bias at the decision levels 1.2 and 2.0 mg/dL. 3) Deming (λ = 1) as sensitivity analysis. The correlation is reported to show that it does not measure agreement.'),
+    journal: journal,
+    // Brouillon contenant des erreurs volontaires, à repérer avec l'audit et la leçon « accord entre méthodes ».
+    resultsText: tr(
+        'Les deux dosages sont très fortement corrélés (r = ${fmt(r.estimates.first.value)}), ce qui prouve qu\'ils sont interchangeables. La différence entre sérum et plasma est comprise dans l\'IC à 95 % de ${fmt(lo)} à ${fmt(hi)} mg/dL. La pente de Passing-Bablok vaut ${fmtFixed(pb.statistics['slope']!, 5)} : pas de différence entre les méthodes (p > 0,05 pour la tendance de Bland-Altman).',
+        'The two assays are very strongly correlated (r = ${fmt(r.estimates.first.value)}), which proves that they are interchangeable. The difference between serum and plasma lies within the 95% CI from ${fmt(lo)} to ${fmt(hi)} mg/dL. The Passing-Bablok slope is ${fmtFixed(pb.statistics['slope']!, 5)}: no difference between the methods (p > 0.05 for the Bland-Altman trend).'),
+    completed: {Step.question, Step.studyPlan, Step.analysisPlan, Step.dataControl, Step.methodChoice, Step.computation, Step.diagnostics, Step.interpretation},
+  );
+}

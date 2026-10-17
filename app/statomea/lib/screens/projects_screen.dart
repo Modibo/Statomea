@@ -63,6 +63,10 @@ class ProjectsScreen extends StatelessWidget {
           tr('Rechute avec décès concurrent (incidence cumulée, test de Gray, Fine-Gray) et biais du temps immortel (greffe de Stanford).',
               'Relapse with competing death (cumulative incidence, Gray test, Fine-Gray) and immortal time bias (Stanford transplant).'),
           Icons.timeline),
+      ('methodes', tr('Laboratoire : plasma ou sérum ?', 'Laboratory: plasma or serum?'),
+          tr('Créatinine sur 108 patients : corrélation (piège), Bland-Altman, Passing-Bablok et Deming, biais aux niveaux de décision.',
+              'Creatinine in 108 patients: correlation (pitfall), Bland-Altman, Passing-Bablok and Deming, bias at decision levels.'),
+          Icons.science_outlined),
     ];
     // En-tête : titre et description ; actions « Nouveau projet » (principale) et « Importer » côte à côte, à droite
     // du titre sur grand écran, en dessous et à parts égales sur téléphone.

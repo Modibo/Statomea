@@ -276,6 +276,27 @@ void main() {
     final stfEn = parseCsv(File('test/reference/greffe_stanford.csv').readAsStringSync()).dataset;
     expectResult('landmark', landmarkAnalysis(stfEn, time: 'jours', status: 'deces', eventLevel: 'oui', switchTime: 'attente_greffe', landmark: 30, terms: [const TermSpec('age')]),
         const {'jours', 'deces', 'oui', 'non', 'attente_greffe', 'expose_au_landmark', 'temps_depuis_landmark', 'age', 'greffe', 'chirurgie', 'patient'});
+    final mcDs = parseCsv(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync()).dataset;
+    final pbEn = methodComparison(mcDs.numeric('creatinine_serum'), mcDs.numeric('creatinine_plasma'), xName: 'creatinine_serum', yName: 'creatinine_plasma', unit: 'mg/dL', decisionLevels: const [1, 2]);
+    expectResult('passing-bablok', pbEn, const {'creatinine_serum', 'creatinine_plasma', 'mg/dL'});
+    expectResult('deming', methodComparison(mcDs.numeric('creatinine_serum'), mcDs.numeric('creatinine_plasma'), kind: MethodComparisonKind.deming, errorRatio: 2), const {});
+    expectEnglish('method comparison svg', methodComparisonSvg(pbEn.figures['methodComparison'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'creatinine_serum', 'creatinine_plasma'});
+    final calRef = jsonDecode(File('test/reference/calibration.json').readAsStringSync())['ext'] as Map;
+    final calEn = calibrationAssessment([for (final v in calRef['p'] as List) (v as num).toDouble()], [for (final v in calRef['y'] as List) (v as num).toDouble()]);
+    expectResult('calibration', calEn, const {});
+    expectEnglish('calibration svg', calibrationSvg((calEn.figures['calibration'] as List).cast(), smooth: (calEn.figures['calibrationSmooth'] as List).cast()).replaceAll(RegExp(r'<[^>]+>'), ' '), const {});
+    final psEn = parseCsv(File('test/reference/statines_observationnel_simule.csv').readAsStringSync()).dataset;
+    const psCov = [TermSpec('age'), TermSpec('sexe', categorical: true, reference: 'F'), TermSpec('diabete', categorical: true, reference: 'non'), TermSpec('ldl')];
+    const psAllow = {'statine', 'oui', 'non', 'evenement', 'age', 'sexe', 'diabete', 'ldl', 'F', 'H'};
+    final pmEn = propensityAnalysis(psEn, treatment: 'statine', treatedLevel: 'oui', covariates: psCov, outcome: 'evenement', outcomeEvent: '1', caliper: 0.2);
+    expectResult('propensity matching', pmEn, psAllow);
+    expectResult('propensity iptw', propensityAnalysis(psEn, treatment: 'statine', treatedLevel: 'oui', covariates: psCov, outcome: 'evenement', method: PropensityMethod.iptwAte), psAllow);
+    expectEnglish('love plot svg', lovePlotSvg(pmEn.figures['lovePlot'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), psAllow);
+    expectEnglish('ps overlap svg', psOverlapSvg(pmEn.figures['psOverlap'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), psAllow);
+    final splDs = parseCsv(File('test/reference/regression_data.csv').readAsStringSync()).dataset;
+    final spEn = logisticRegression(buildDesign(splDs, const ModelFormula('hta', [TermSpec('age', transform: TermTransform.rcs4), TermSpec('sexe', categorical: true, reference: 'F')], eventLevel: '1'), binaryOutcome: true));
+    expectResult('spline logistic', spEn, const {'hta', 'age', 'sexe', 'F', 'H'});
+    expectEnglish('dose-response svg', doseResponseSvg((spEn.figures['doseResponse'] as List).first as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'age'});
     final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
     final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
     expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});
@@ -388,12 +409,13 @@ void main() {
     final p6 = demo6();
     final p7 = buildDemoMr(File('test/reference/mr_ldl_chd.csv').readAsStringSync());
     final p8 = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
-    for (final p in [p1, p2, p3, p4, p5, p6, p7, p8]) {
+    final p9 = buildDemoMethodComparison(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync());
+    for (final p in [p1, p2, p3, p4, p5, p6, p7, p8, p9]) {
       final al = {
         ...dataTokens([p.dataset!]),
         for (final s in p.studies) ...[s.label, s.subgroup, for (final v in s.values.values) v.source, s.compatibility.comment],
         for (final e in p.journal) e.result['inputs'].toString(),
-        'cardiometabolique_externe_simule.csv', 'aghbs_simule.csv', 'bcg_colditz1994.csv', 'cardiometabolique_simule.csv',
+        'cardiometabolique_externe_simule.csv', 'aghbs_simule.csv', 'bcg_colditz1994.csv', 'cardiometabolique_simule.csv', 'creatinine_serum_plasma.csv', 'mg/dL',
         // Séquences de la démo 4 (lettres A, C, G, T) et libellés des références : données, pas du texte.
         for (final r in parseFasta(File('test/reference/tb_references_simule.fasta').readAsStringSync())) ...[r.id, r.description],
         for (final l in File('test/reference/gwas_simule.bim').readAsLinesSync()) l.split('\t')[1],
@@ -438,6 +460,8 @@ void main() {
     expect(fam(p7), containsAll([AuditFamily.causalLanguage, AuditFamily.orAsRr, AuditFamily.overPrecision]));
     final p8 = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
     expect(fam(p8), containsAll([AuditFamily.survivalPitfalls, AuditFamily.causalLanguage, AuditFamily.overPrecision]));
+    final p9 = buildDemoMethodComparison(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync());
+    expect(fam(p9), containsAll([AuditFamily.agreementVsCi, AuditFamily.pValueMisread, AuditFamily.overPrecision]));
   });
 
   test('une équation développée en français s\'applique en anglais, et inversement', () {

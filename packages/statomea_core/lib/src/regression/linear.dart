@@ -117,6 +117,7 @@ AnalysisResult linearRegression(DesignMatrix d, {double level = 0.95, String uni
   for (var j = 1; j < p; j++) {
     final col = [for (final r in d.x) r[j]];
     if (col.toSet().length <= 2) continue; // indicatrice
+    if (d.splineColumns.values.any((c) => c.contains(j))) continue; // spline : testée à part
     final mu = col.fold(0.0, (a, b) => a + b) / n;
     final xq = [for (var i = 0; i < n; i++) [...d.x[i], math.pow(col[i] - mu, 2).toDouble()]];
     try {
@@ -153,7 +154,7 @@ AnalysisResult linearRegression(DesignMatrix d, {double level = 0.95, String uni
   }
   final u = unit.isEmpty ? '' : ' $unit';
   final main = coefs.length > 1 ? coefs[1] : coefs.first;
-  return AnalysisResult(
+  return withSplineAnalysis(AnalysisResult(
     methodId: 'linear_regression',
     methodName: tr('Régression linéaire (moindres carrés ordinaires)', 'Linear regression (ordinary least squares)'),
     inputs: {'model': d.describe(), 'level': level},
@@ -206,5 +207,5 @@ AnalysisResult linearRegression(DesignMatrix d, {double level = 0.95, String uni
       notJustified: tr("Interpréter un coefficient ajusté comme l'effet causal d'une intervention sur la variable (confusion résiduelle, choix des covariables, sens causal) ; extrapoler hors de la plage observée ; utiliser R² comme preuve de validité du modèle.",
           'Interpreting an adjusted coefficient as the causal effect of intervening on the variable (residual confounding, covariate choice, causal direction); extrapolating beyond the observed range; using R² as proof of model validity.'),
     ),
-  );
+  ), d, fit.beta, (i, j) => fit.sigma2 * fit.covUnscaled.get(i, j), effect: 'β', dfResidual: fit.df, level: level);
 }

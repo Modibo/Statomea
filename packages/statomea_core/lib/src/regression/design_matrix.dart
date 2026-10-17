@@ -9,7 +9,86 @@ import '../i18n.dart';
 import '../data/dataset.dart';
 import '../model/result.dart';
 
-enum TermTransform { none, log, log2, center, perUnit }
+enum TermTransform { none, log, log2, center, perUnit, rcs3, rcs4, rcs5 }
+
+/// Nombre de nœuds d'une spline cubique restreinte (0 si la transformation n'en est pas une).
+int splineKnotCount(TermTransform t) => switch (t) { TermTransform.rcs3 => 3, TermTransform.rcs4 => 4, TermTransform.rcs5 => 5, _ => 0 };
+
+/// Nœuds d'une spline cubique restreinte, comme Hmisc::rcspline.eval (rms::rcs) : quantiles (type 7) aux proportions
+/// régulières entre 0,05 et 0,95 (0,10 et 0,90 pour 3 nœuds) ; valeurs extrêmes très fréquentes (≥ 5 %) remplacées par
+/// la valeur suivante ; avec moins de 100 valeurs, nœuds extrêmes = 5ᵉ plus petite et 5ᵉ plus grande valeur.
+List<double> rcsKnots(List<double> values, int nk) {
+  var xx = [...values]..sort();
+  final n = xx.length;
+  if (n < 6) throw StatInputError('spline_few', tr('Moins de 6 valeurs : spline impossible.', 'Fewer than 6 values: spline impossible.'));
+  final xu = xx.toSet().toList()..sort();
+  List<double> knots;
+  if (xu.length - 2 <= nk) {
+    knots = xu.sublist(1, xu.length - 1);
+  } else {
+    var outer = nk > 3 ? 0.05 : 0.1;
+    if (nk > 6) outer = 0.025;
+    var nke = nk;
+    final first = <double>[], last = <double>[];
+    var overFirst = false, overLast = false;
+    final freq = <double, int>{};
+    for (final v in xx) {
+      freq[v] = (freq[v] ?? 0) + 1;
+    }
+    final inner = [for (var k = 1; k < xu.length - 1; k++) freq[xu[k]]! / n];
+    if (inner.reduce(math.max) < 0.05) {
+      if (freq[xu.first]! / n >= 0.05) {
+        final f = xx.firstWhere((v) => v > xu.first);
+        first.add(f);
+        xx = [for (final v in xx) if (v > f) v];
+        nke--;
+        overFirst = true;
+      }
+      if (freq[xu.last]! / n >= 0.05) {
+        final l = xx.lastWhere((v) => v < xu.last);
+        last.add(l);
+        xx = [for (final v in xx) if (v < l) v];
+        nke--;
+        overLast = true;
+      }
+    }
+    final xs = xx; // trié
+    double q(double p) {
+      final h = (xs.length - 1) * p, lo = h.floor(), hi = h.ceil();
+      return xs[lo] + (h - lo) * (xs[hi] - xs[lo]);
+    }
+
+    if (nke == 1) {
+      knots = [q(0.5)];
+    } else {
+      final ps = nke == 2 ? [for (var k = 0; k < nke; k++) 0.5 + k * (0.5 - outer) / (nke - 1)] : [for (var k = 0; k < nke; k++) outer + k * (1 - 2 * outer) / (nke - 1)];
+      knots = [for (final p in ps) q(p)];
+      if (knots.toSet().length < math.min(nke, 3)) {
+        throw StatInputError('spline_ties', tr('Trop de valeurs identiques pour placer $nk nœuds distincts : réduire le nombre de nœuds.', 'Too many tied values to place $nk distinct knots: reduce the number of knots.'));
+      }
+      if (xs.length < 100) {
+        if (!overFirst) knots[0] = xs[4];
+        if (!overLast) knots[nke - 1] = xs[xs.length - 5];
+      }
+    }
+    knots = [...first, ...knots, ...last];
+  }
+  knots = knots.toSet().toList()..sort();
+  if (knots.length < 3) throw StatInputError('spline_ties', tr('Moins de 3 nœuds distincts : spline impossible.', 'Fewer than 3 distinct knots: spline impossible.'));
+  return knots;
+}
+
+/// Base de la spline cubique restreinte (normalisation de rms : division par (t_k − t_1)^(2/3) avant le cube) :
+/// x, puis k − 2 termes non linéaires.
+List<double> rcsBasis(double x, List<double> t) {
+  final k = t.length, kd = math.pow(t[k - 1] - t[0], 2 / 3).toDouble();
+  double c(double u) => u > 0 ? u * u * u : 0;
+  return [
+    x,
+    for (var j = 0; j < k - 2; j++)
+      c((x - t[j]) / kd) + ((t[k - 2] - t[j]) * c((x - t[k - 1]) / kd) - (t[k - 1] - t[j]) * c((x - t[k - 2]) / kd)) / (t[k - 1] - t[k - 2])
+  ];
+}
 
 /// Nom de la colonne constante dans la langue courante.
 String get interceptName => tr('Constante', 'Intercept');
@@ -51,8 +130,16 @@ class TermSpec {
   final double? unitStep;
   final double? centerAt;
 
+  /// Spline : nœuds figés (équation réappliquée à d'autres données) ; null = calculés sur les données.
+  final List<double>? knots;
+
   const TermSpec(this.variable,
-      {this.categorical = false, this.reference, this.transform = TermTransform.none, this.unitStep, this.centerAt});
+      {this.categorical = false, this.reference, this.transform = TermTransform.none, this.unitStep, this.centerAt, this.knots});
+
+  /// Même terme avec les nœuds de spline utilisés par [d] (pour réappliquer une équation sans les recalculer).
+  TermSpec withKnotsFrom(DesignMatrix d) => d.splineKnots[variable] == null || knots != null
+      ? this
+      : TermSpec(variable, categorical: categorical, reference: reference, transform: transform, unitStep: unitStep, centerAt: centerAt, knots: d.splineKnots[variable]);
 
   Map<String, Object?> toJson() => {
         'variable': variable,
@@ -61,6 +148,7 @@ class TermSpec {
         'transform': transform.name,
         'unitStep': unitStep,
         'centerAt': centerAt,
+        if (knots != null) 'knots': knots,
       };
 
   factory TermSpec.fromJson(Map<String, Object?> j) => TermSpec(j['variable'] as String,
@@ -68,7 +156,8 @@ class TermSpec {
       reference: j['reference'] as String?,
       transform: TermTransform.values.byName((j['transform'] as String?) ?? 'none'),
       unitStep: (j['unitStep'] as num?)?.toDouble(),
-      centerAt: (j['centerAt'] as num?)?.toDouble());
+      centerAt: (j['centerAt'] as num?)?.toDouble(),
+      knots: (j['knots'] as List?)?.map((e) => (e as num).toDouble()).toList());
 }
 
 class ModelFormula {
@@ -96,7 +185,7 @@ class ModelFormula {
   String describe() {
     final parts = [
       for (final t in terms)
-        '${t.transform == TermTransform.log ? "log(${t.variable})" : t.transform == TermTransform.log2 ? "log2(${t.variable})" : t.variable}'
+        '${t.transform == TermTransform.log ? "log(${t.variable})" : t.transform == TermTransform.log2 ? "log2(${t.variable})" : splineKnotCount(t.transform) > 0 ? "rcs(${t.variable}, ${splineKnotCount(t.transform)})" : t.variable}'
             '${t.categorical ? tr(" [réf. ${t.reference ?? "?"}]", " [ref. ${t.reference ?? "?"}]") : ""}',
       for (final i in interactions) '${i.$1} × ${i.$2}',
     ];
@@ -118,6 +207,10 @@ class DesignMatrix {
   final String? eventLevel;
   final String formula;
 
+  /// Splines cubiques restreintes : variable → nœuds ; colonnes = [splineColumns].
+  final Map<String, List<double>> splineKnots;
+  final Map<String, List<int>> splineColumns;
+
   DesignMatrix(
       {required this.columns,
       required this.termOfColumn,
@@ -129,7 +222,9 @@ class DesignMatrix {
       required this.codingNotes,
       required this.alerts,
       required this.formula,
-      this.eventLevel});
+      this.eventLevel,
+      this.splineKnots = const {},
+      this.splineColumns = const {}});
 
   int get n => y.length;
   int get p => columns.length;
@@ -142,6 +237,7 @@ class DesignMatrix {
         'excludedByCorrection': excludedByCorrection,
         'coding': codingNotes,
         if (eventLevel != null) 'eventLevel': eventLevel,
+        if (splineKnots.isNotEmpty) 'splineKnots': splineKnots,
       };
 }
 
@@ -183,6 +279,8 @@ DesignMatrix buildDesign(Dataset ds, ModelFormula f, {bool binaryOutcome = false
   final termOf = <String>['($interceptName)'];
   final getters = <double? Function(int)>[(_) => 1.0];
   final termColumns = <String, List<int>>{};
+  final splineKnots = <String, List<double>>{};
+  final splineColumns = <String, List<int>>{};
 
   for (final t in f.terms) {
     if (t.categorical) {
@@ -210,6 +308,21 @@ DesignMatrix buildDesign(Dataset ds, ModelFormula f, {bool binaryOutcome = false
       }
       termColumns[t.variable] = idx;
       notes.add(tr('${t.variable} : indicatrices pour ${lv.where((l) => l != ref).join(", ")} ; référence « $ref ».', '${t.variable}: indicators for ${lv.where((l) => l != ref).join(", ")}; reference "$ref".'));
+    } else if (splineKnotCount(t.transform) > 0) {
+      final raw = ds.numeric(t.variable);
+      final knots = t.knots ?? rcsKnots([for (var i = 0; i < ds.rowCount; i++) if (!excludedRows.contains(i) && raw[i] != null && raw[i]!.isFinite) raw[i]!], splineKnotCount(t.transform));
+      final idx = <int>[];
+      for (var j = 0; j < knots.length - 1; j++) {
+        idx.add(cols.length);
+        cols.add(j == 0 ? t.variable : '${t.variable}${"'" * j}');
+        termOf.add(t.variable);
+        getters.add((i) => raw[i] == null ? null : rcsBasis(raw[i]!, knots)[j]);
+      }
+      termColumns[t.variable] = idx;
+      splineKnots[t.variable] = knots;
+      splineColumns[t.variable] = idx;
+      notes.add(tr('${t.variable} : spline cubique restreinte à ${knots.length} nœuds (${knots.map(fmt).join(" ; ")}), ${knots.length - 1} coefficients (${t.variable} puis ${knots.length - 2} terme(s) non linéaire(s) ${[for (var j = 1; j < knots.length - 1; j++) "${t.variable}${"'" * j}"].join(", ")}) ; les coefficients isolés ne s\'interprètent pas : lire la courbe et les tests.',
+          '${t.variable}: restricted cubic spline with ${knots.length} knots (${knots.map(fmt).join("; ")}), ${knots.length - 1} coefficients (${t.variable} then ${knots.length - 2} nonlinear term(s) ${[for (var j = 1; j < knots.length - 1; j++) "${t.variable}${"'" * j}"].join(", ")}); individual coefficients are not interpretable: read the curve and the tests.'));
     } else {
       final raw = ds.numeric(t.variable);
       double? Function(int) g;
@@ -238,6 +351,9 @@ DesignMatrix buildDesign(Dataset ds, ModelFormula f, {bool binaryOutcome = false
           name = tr('${t.variable} (par ${fmt(k)} unités)', '${t.variable} (per ${fmt(k)} units)');
           notes.add(tr('$name : coefficient pour une augmentation de ${fmt(k)} unités.', '$name: coefficient for an increase of ${fmt(k)} units.'));
         case TermTransform.none:
+        case TermTransform.rcs3:
+        case TermTransform.rcs4:
+        case TermTransform.rcs5:
           g = (i) => raw[i];
       }
       termColumns[t.variable] = [cols.length];
@@ -247,6 +363,9 @@ DesignMatrix buildDesign(Dataset ds, ModelFormula f, {bool binaryOutcome = false
     }
   }
   for (final (a, b) in f.interactions) {
+    if (splineKnots.containsKey(a) || splineKnots.containsKey(b)) {
+      throw StatInputError('interaction_spline', tr('Interaction $a × $b : non prise en charge avec une spline ; utiliser la forme linéaire ou stratifier.', 'Interaction $a × $b: not supported with a spline; use the linear form or stratify.'));
+    }
     final ia = termColumns[a], ib = termColumns[b];
     if (ia == null || ib == null) {
       throw StatInputError('interaction_term',
@@ -325,5 +444,7 @@ DesignMatrix buildDesign(Dataset ds, ModelFormula f, {bool binaryOutcome = false
       codingNotes: notes,
       alerts: alerts,
       formula: f.describe(),
-      eventLevel: eventLevel);
+      eventLevel: eventLevel,
+      splineKnots: splineKnots,
+      splineColumns: splineColumns);
 }

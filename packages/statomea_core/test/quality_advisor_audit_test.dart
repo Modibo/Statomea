@@ -84,7 +84,14 @@ void main() {
       expect(a.questions.map((q) => q.field), contains('approxNormal'));
     });
     test('accord entre méthodes → Bland-Altman ; survie → Cox recommandé', () {
-      expect(advise(const ResearchQuestion(agreementQuestion: true, objective: StudyObjective.descriptive, dataLevel: DataLevel.individual)).options.single.methodId, 'bland_altman');
+      final ag = advise(const ResearchQuestion(agreementQuestion: true, objective: StudyObjective.descriptive, dataLevel: DataLevel.individual)).options;
+      expect(ag.map((o) => o.methodId), ['bland_altman', 'passing_bablok', 'deming']);
+      expect(ag.where((o) => o.recommended).single.methodId, 'bland_altman');
+      // Traitement binaire en cohorte, ajustement : score de propension proposé en alternative.
+      final ps = advise(const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort,
+          outcomeType: OutcomeType.binary, exposureType: ExposureType.binary, pairing: Pairing.independent, needsAdjustment: true));
+      expect(ps.options.map((o) => o.methodId), containsAll(['propensity_matching', 'propensity_weighting']));
+      expect(ps.options.firstWhere((o) => o.recommended).methodId, 'poisson_robust');
       final cox = advise(const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort,
           outcomeType: OutcomeType.timeToEvent, exposureType: ExposureType.binary, pairing: Pairing.independent, needsAdjustment: true));
       expect(cox.options.map((o) => o.methodId), ['kaplan_meier', 'cox']);

@@ -152,7 +152,12 @@ class FiguresView extends StatelessWidget {
     // (titre, SVG, largeur minimale lisible, largeur maximale utile)
     final svgs = <(String, String, double, double)>[
       if (f['forest'] is Map) ('Forest plot', forestPlotSvg((f['forest'] as Map).cast(), font: 'NotoSans'), 640, 820),
-      if (f['calibration'] is List) (tr('Courbe de calibration', 'Calibration curve'), calibrationSvg((f['calibration'] as List).cast(), font: 'NotoSans'), 340, 460),
+      if (f['calibration'] is List) (tr('Courbe de calibration', 'Calibration curve'), calibrationSvg((f['calibration'] as List).cast(), font: 'NotoSans', smooth: (f['calibrationSmooth'] as List?)?.cast()), 340, 460),
+      if (f['doseResponse'] is List)
+        for (final c in (f['doseResponse'] as List).cast<Map>()) (tr('Courbe dose-effet : ${c['variable']}', 'Dose-response curve: ${c['variable']}'), doseResponseSvg(c, font: 'NotoSans'), 340, 520),
+      if (f['methodComparison'] is Map) (tr('Comparaison de méthodes', 'Method comparison'), methodComparisonSvg(f['methodComparison'] as Map, font: 'NotoSans'), 340, 460),
+      if (f['lovePlot'] is Map) (tr('Équilibre des covariables (love plot)', 'Covariate balance (love plot)'), lovePlotSvg(f['lovePlot'] as Map, font: 'NotoSans'), 360, 560),
+      if (f['psOverlap'] is Map) (tr('Recouvrement des scores de propension', 'Propensity score overlap'), psOverlapSvg(f['psOverlap'] as Map, font: 'NotoSans'), 340, 520),
       if (f['decisionCurve'] is List) (tr('Courbe de décision', 'Decision curve'), decisionCurveSvg((f['decisionCurve'] as List).cast(), font: 'NotoSans'), 340, 500),
       if (f['miChains'] is Map) (tr('Convergence des chaînes d\'imputation', 'Convergence of the imputation chains'), miChainsSvg(f['miChains'] as Map, font: 'NotoSans'), 340, 480),
       if (f['sroc'] is Map) (tr('Espace ROC : études, point combiné, SROC', 'ROC space: studies, pooled point, SROC'), srocSvg((f['sroc'] as Map).cast(), font: 'NotoSans'), 360, 520),
@@ -206,6 +211,26 @@ class FiguresView extends StatelessWidget {
 /// figure montre, et où trouver les valeurs (les tableaux du résultat).
 String figureDescription(String title, Map<String, Object?> f) {
   final tables = tr('Les valeurs représentées figurent dans les tableaux du résultat.', 'The plotted values are given in the result tables.');
+  if (f['doseResponse'] is List && (title.startsWith('Courbe dose-effet') || title.startsWith('Dose-response'))) {
+    final c = (f['doseResponse'] as List).cast<Map>().firstWhere((c) => title.endsWith(': ${c['variable']}'), orElse: () => (f['doseResponse'] as List).first as Map);
+    return tr('Courbe dose-effet de ${c['variable']} : ${c['effect']} par rapport à la médiane (${fmt((c['ref'] as num).toDouble())}), avec sa bande de confiance ; la ligne horizontale marque l\'absence d\'effet, les traits rouges les nœuds de la spline. $tables',
+        'Dose-response curve of ${c['variable']}: ${c['effect']} relative to the median (${fmt((c['ref'] as num).toDouble())}), with its confidence band; the horizontal line marks no effect, the red ticks the spline knots. $tables');
+  }
+  if (f['methodComparison'] is Map && (title == 'Comparaison de méthodes' || title == 'Method comparison')) {
+    final m = f['methodComparison'] as Map;
+    return tr('${m['yName']} selon ${m['xName']} (${(m['x'] as List).length} échantillons) ; droite ajustée y = ${fmt((m['intercept'] as num).toDouble())} + ${fmt((m['slope'] as num).toDouble())}·x en rouge, identité en tirets. $tables',
+        '${m['yName']} against ${m['xName']} (${(m['x'] as List).length} samples); fitted line y = ${fmt((m['intercept'] as num).toDouble())} + ${fmt((m['slope'] as num).toDouble())}·x in red, identity dashed. $tables');
+  }
+  if (f['lovePlot'] is Map && title.contains('love plot')) {
+    final rows = ((f['lovePlot'] as Map)['rows'] as List).cast<Map>();
+    final bad = rows.where((r) => ((r['after'] as num).abs()) >= 0.1).length;
+    return tr('Différences standardisées de ${rows.length} variables avant (cercles vides) et après ajustement (cercles pleins), seuil 0,1 en tirets ; $bad variable(s) au-dessus du seuil après ajustement. $tables',
+        'Standardized differences of ${rows.length} variables before (open circles) and after adjustment (filled circles), 0.1 threshold dashed; $bad variable(s) above the threshold after adjustment. $tables');
+  }
+  if (f['psOverlap'] is Map && (title.startsWith('Recouvrement') || title.startsWith('Propensity score overlap'))) {
+    return tr('Histogrammes en miroir du score de propension : traités en haut, autres en bas ; le recouvrement indique la zone où des sujets comparables existent. $tables',
+        'Mirrored histograms of the propensity score: treated above, others below; the overlap shows where comparable subjects exist. $tables');
+  }
   if (title == 'Forest plot' && f['forest'] is Map) {
     final fo = (f['forest'] as Map).cast<String, Object?>();
     final k = (fo['studies'] as List).length;

@@ -243,6 +243,9 @@ Advice advise(ResearchQuestion q) {
   if (q.agreementQuestion) {
     opts.add(_opt('bland_altman', tr('Deux méthodes mesurant la même grandeur quantitative sur les mêmes sujets.', 'Two methods measuring the same quantitative variable on the same subjects.'), recommended: true,
         cautions: [tr("Une corrélation élevée ne prouve pas l'accord.", 'A high correlation does not prove agreement.')]));
+    opts.add(_opt('passing_bablok', tr('Laboratoire : comparer une nouvelle méthode à la méthode de référence (biais constant et proportionnel), sans hypothèse de normalité.', 'Laboratory: compare a new method with the reference method (constant and proportional bias), without assuming normality.'),
+        cautions: [tr('Au moins 40 échantillons couvrant la plage de mesure ; conclure par le biais aux niveaux de décision, pas par les seuls IC de la pente et de l\'ordonnée.', 'At least 40 samples covering the measuring range; conclude from the bias at decision levels, not from the slope and intercept CIs alone.')]));
+    opts.add(_opt('deming', tr('Les deux méthodes ont une erreur de mesure connue (répétabilités) : régression de Deming.', 'Both methods have a known measurement error (repeatabilities): Deming regression.')));
     return Advice(ask, opts, notes);
   }
 
@@ -289,6 +292,7 @@ Advice advise(ResearchQuestion q) {
         opts.add(_opt('prediction_logistic_internal', tr('Issue binaire à horizon fixe, suivi complet.', 'Binary outcome at a fixed horizon, complete follow-up.'), recommended: true,
             cautions: [tr("Vérifier la taille d'échantillon (Riley) avant d'ajuster.", 'Check the sample size (Riley) before fitting.'), tr('Ne pas sélectionner les prédicteurs sur les valeurs de p.', 'Do not select predictors on p-values.')]));
         opts.add(_opt('external_validation', tr("Un modèle existe déjà (publié ou développé ailleurs) : l'évaluer sur vos données avant d'en développer un nouveau.", 'A model already exists (published or developed elsewhere): evaluate it on your data before developing a new one.')));
+        opts.add(_opt('calibration', tr('Des risques prédits sont déjà disponibles (score publié, autre logiciel) : vérifier leur calibration sur vos données.', 'Predicted risks are already available (published score, other software): check their calibration on your data.')));
       } else if (q.outcomeType == OutcomeType.timeToEvent) {
         opts.add(_opt('prediction_cox_internal', tr('Issue avec censure : modèle pronostique de Cox, risque prédit à un horizon fixé, validation interne par bootstrap.', 'Censored outcome: Cox prognostic model, risk predicted at a fixed horizon, internal validation by bootstrap.'),
             recommended: true,
@@ -434,6 +438,17 @@ void _explanatory(ResearchQuestion q, List<Clarification> ask, List<MethodOption
       notes.add(tr('Ne pas analyser un délai censuré comme une issue binaire sans horizon commun de suivi complet.', 'Do not analyse a censored time as a binary outcome without a common horizon of complete follow-up.'));
     case OutcomeType.unknown:
       break;
+  }
+  if (adjust && !paired && q.exposureType == ExposureType.binary && q.objective == StudyObjective.explanatory && (q.design == StudyDesign.cohort || q.design == StudyDesign.crossSectional) &&
+      (q.outcomeType == OutcomeType.binary || q.outcomeType == OutcomeType.continuous)) {
+    opts.add(_opt('propensity_matching', tr('Traitement binaire en étude observationnelle : comparer des traités et non-traités appariés sur le score de propension (effet chez les traités).', 'Binary treatment in an observational study: compare treated and untreated matched on the propensity score (effect in the treated).'),
+        cautions: [tr('Vérifier l\'équilibre (différences standardisées < 0,1) ; ne corrige pas la confusion non mesurée.', 'Check balance (standardized differences < 0.1); does not correct unmeasured confounding.')]));
+    opts.add(_opt('propensity_weighting', tr('Même question, effet moyen dans toute la population (IPTW, ATE).', 'Same question, average effect in the whole population (IPTW, ATE).'),
+        cautions: [tr('Surveiller les poids extrêmes et le recouvrement des scores.', 'Watch for extreme weights and the overlap of scores.')]));
+  }
+  if (adjust && q.objective == StudyObjective.explanatory && q.exposureType == ExposureType.continuous) {
+    notes.add(tr('Exposition continue : ne pas la découper en classes ; si la relation peut être courbe, la modéliser par une spline cubique restreinte (option des ateliers, mode expert) et lire le test de non-linéarité.',
+        'Continuous exposure: do not cut it into classes; if the relationship may be curved, model it with a restricted cubic spline (workshop option, expert mode) and read the nonlinearity test.'));
   }
   if (q.design != StudyDesign.rct && q.design != StudyDesign.unknown && q.objective == StudyObjective.explanatory) {
     notes.add(tr('Plan observationnel : une association, même ajustée, ne suffit pas à établir un effet causal (confusion résiduelle, biais de sélection, sens causal).', 'Observational design: an association, even adjusted, is not enough to establish a causal effect (residual confounding, selection bias, causal direction).'));
