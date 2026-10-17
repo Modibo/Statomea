@@ -187,6 +187,7 @@ List<pw.Widget> _figures(AnalysisResult r, pw.Font regular, pw.Font bold) {
     if (f['miChains'] is Map) miChainsSvg(f['miChains'] as Map),
     if (f['sroc'] is Map) srocSvg((f['sroc'] as Map).cast()),
     if (f['bubble'] is Map) bubblePlotSvg(f['bubble'] as Map),
+    if (f['powerCurve'] is Map) powerCurveSvg(f['powerCurve'] as Map),
     if (f['cumulativeIncidence'] is Map) cifSvg(f['cumulativeIncidence'] as Map),
     if (f['kaplanMeier'] is Map) kmSvg((f['kaplanMeier'] as Map).cast()),
     if (f['blandAltman'] is Map) blandAltmanSvg(f['blandAltman'] as Map),

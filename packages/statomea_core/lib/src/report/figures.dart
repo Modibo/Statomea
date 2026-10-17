@@ -339,6 +339,28 @@ String cifSvg(Map cif, {String font = defaultSvgFont}) {
   return b.toString();
 }
 
+/// Courbe de puissance : puissance selon l'effectif, ligne de la puissance visée et repère de l'effectif retenu.
+String powerCurveSvg(Map pc, {String font = defaultSvgFont}) {
+  final xs = [for (final v in pc['n'] as List) (v as num).toDouble()];
+  final ys = [for (final v in pc['power'] as List) (v as num).toDouble()];
+  final target = (pc['target'] as num).toDouble(), nStar = (pc['nStar'] as num).toDouble();
+  final xt = _niceTicks(xs.first, xs.last);
+  final lo = xt.first < xs.first ? xt.first : xs.first, hi = xt.last > xs.last ? xt.last : xs.last;
+  const l = 60.0, t = 20.0, w = 340.0, h = 220.0;
+  double x(double v) => l + (v - lo) / (hi - lo) * w;
+  double y(double v) => t + h - v * h;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 300' width='440' height='300' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, _esc(pc['xLabel'].toString()), tr('Puissance', 'Power'), xt, [0, 0.2, 0.4, 0.6, 0.8, 1], x, y);
+  b
+    ..writeln("<line x1='${_n(l)}' x2='${_n(l + w)}' y1='${_n(y(target))}' y2='${_n(y(target))}' stroke='#c0504d' stroke-dasharray='5 3'/>")
+    ..writeln("<text x='${_n(l + 4)}' y='${_n(y(target) - 4)}' font-size='10' fill='#c0504d'>${tr('puissance visée', 'target power')} ${(target * 100).round()} %</text>")
+    ..writeln("<polyline points='${[for (var i = 0; i < xs.length; i++) '${_n(x(xs[i]))},${_n(y(ys[i]))}'].join(' ')}' fill='none' stroke='#1f4e79' stroke-width='2'/>")
+    ..writeln("<line x1='${_n(x(nStar))}' x2='${_n(x(nStar))}' y1='${_n(t)}' y2='${_n(t + h)}' stroke='#5a8f29' stroke-dasharray='3 3'/>")
+    ..writeln("<text x='${_n(x(nStar) + 4)}' y='${_n(t + h - 6)}' font-size='10' fill='#5a8f29'>n = ${nStar.ceil()}</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}
+
 /// Graphique à bulles de méta-régression : effet de chaque étude en fonction
 /// du modérateur (aire ∝ poids), droite de régression (échelle log si ratio).
 String bubblePlotSvg(Map bubble, {String font = defaultSvgFont}) {

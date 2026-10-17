@@ -11,6 +11,7 @@ import '../genetics/genotype_ldsc.dart';
 import '../genetics/examples.dart';
 import '../genetics/mendelian.dart';
 import '../inference/compare.dart';
+import '../inference/power.dart';
 import '../inference/competing_risks.dart';
 import '../inference/survival.dart';
 import '../inference/diagnostic.dart';
@@ -205,6 +206,11 @@ List<Lesson> buildLessons() {
   final pg = _polygenicExample();
   final mx = _mrExample();
   final cr = _competingExample();
+  // Puissance : survie (Freedman), cas-témoins 1:1 et 1:4, GWAS.
+  final pwSurv = powerSurvival(hr: 0.7, pC: 0.45);
+  final pwCc1 = powerCaseControl(or: 2, p0: 0.2), pwCc4 = powerCaseControl(or: 2, p0: 0.2, ratio: 4);
+  final pwGw = powerGwas(maf: 0.25, or: 1.15);
+  final pwPilot = powerMeans(delta: 5, sd: 10, n: 20);
   final ddct = qpcrRelativeQuantification(const [24.9, 25.3, 25.1], const [18.0, 18.2, 17.9], const [22.8, 23.1, 22.7], const [18.1, 17.9, 17.8]);
 
   if (currentLang == Lang.en) {
@@ -411,6 +417,52 @@ List<Lesson> buildLessons() {
         ],
         commonErrors: ['Choosing the expected effect to obtain a feasible sample size.', 'Forgetting losses to follow-up.'],
         calculatorId: 'sample_size',
+      ),
+      Lesson(
+        id: 'power_planning',
+        title: 'Power: survival, case-control and GWAS',
+        level: Level.advanced,
+        body: [
+          'Power is the probability of detecting the effect if it truly exists. It depends on four quantities: the effect to detect, the variability (or the event frequency), α, and the sample size. Fixing three gives the fourth.',
+          'Survival: power comes from the number of EVENTS, not of patients. Freedman or Schoenfeld give the number of deaths or relapses required; the number of patients follows from the probability of an event during the study (accrual, follow-up). A longer follow-up can replace patients.',
+          'Case-control: the effect is an OR; power depends on the frequency of exposure in controls. Adding controls per case helps, but beyond about 4 controls per case the gain becomes small.',
+          'GWAS: about one million independent tests are performed, hence the genome-wide threshold α = 5·10⁻⁸. True effects of common variants are small (OR 1.05 to 1.2): thousands to tens of thousands of cases are needed.',
+          'Post hoc power, computed from the observed effect, adds nothing to the p-value: to interpret a non-significant result, look at the confidence interval.',
+        ],
+        exampleTitle: 'Three studies planned with 80% power',
+        example: 'Trial, HR 0.7 with 45% events in the control arm: ${fmt(pwSurv.statistics['n_1'], digits: 0)} patients per arm, about ${fmt(pwSurv.statistics['events_freedman'], digits: 0)} events (Freedman; Schoenfeld ${fmt(pwSurv.statistics['events_schoenfeld'], digits: 0)}). '
+            'Case-control, OR 2 with 20% exposed controls: ${fmt(pwCc1.statistics['n_0'], digits: 0)} cases with 1 control each, ${fmt(pwCc4.statistics['n_0'], digits: 0)} cases with 4 controls each. '
+            'GWAS, allele at 25%, OR 1.15, α = 5·10⁻⁸: ${fmt(pwGw.statistics['n_0'], digits: 0)} cases and as many controls. '
+            'A pilot study of 20 subjects per group has only ${fmtPct(pwPilot.statistics['power'])} power to detect d = 0.5.',
+        exercises: [
+          const Exercise.numeric('Schoenfeld: number of events to detect HR = 0.5 with 80% power, α = 0.05, 1:1 allocation (nearest integer)?', 65, 1,
+              'd = (1.96 + 0.84)² × 4 / (log 0.5)² = 7.85 × 4 / 0.480 ≈ 65 events.'),
+          const Exercise.choice('A survival trial records fewer deaths than planned. Its power…', [
+            'is unchanged, since the number of patients is reached',
+            'decreases: power depends on the number of events',
+            'increases',
+          ], 1, 'In survival analysis, the information comes from the events.'),
+          Exercise.numeric('In the example, how many cases are needed for OR 2 with 1 control per case?', pwCc1.statistics['n_0']!, 0.5,
+              '${fmt(pwCc1.statistics['n_0'], digits: 0)} cases; with 4 controls per case, ${fmt(pwCc4.statistics['n_0'], digits: 0)} cases suffice.'),
+          const Exercise.choice('A first GWAS reports OR = 1.6 for a variant. To plan the replication, we should…', [
+            'use OR = 1.6',
+            'assume a smaller OR: the effects reported at discovery are overestimated (winner\'s curse)',
+            'use α = 0.05 for the replication of all variants',
+          ], 1, 'Discovery selects the estimates that happen to be largest; the true effect is generally smaller.'),
+          const Exercise.choice('Non-significant result; a reviewer asks for the "observed power". Best answer?', [
+            'Compute it from the observed effect',
+            'Report the confidence interval of the effect, which shows which effects remain compatible with the data',
+            'Increase α',
+          ], 1, 'Observed power is a function of the p-value and brings no new information.'),
+        ],
+        commonErrors: [
+          'Basing the effect to detect on the hoped-for effect or on a small pilot study.',
+          'In survival, counting patients rather than events.',
+          'Forgetting losses to follow-up, missing data and multiple testing.',
+          'Planning a GWAS with an OR taken from a discovery study.',
+          'Computing post hoc power to "explain" a non-significant result.',
+        ],
+        calculatorId: 'power',
       ),
       Lesson(
         id: 'confounding',
@@ -1031,6 +1083,52 @@ List<Lesson> buildLessons() {
       ],
       commonErrors: ['Choisir l\'effet attendu pour obtenir un effectif faisable.', 'Oublier les perdus de vue.'],
       calculatorId: 'sample_size',
+    ),
+    Lesson(
+      id: 'power_planning',
+      title: 'Puissance : survie, cas-témoins et GWAS',
+      level: Level.advanced,
+      body: [
+        'La puissance est la probabilité de détecter l\'effet s\'il existe vraiment. Elle dépend de quatre quantités : l\'effet à détecter, la variabilité (ou la fréquence de l\'événement), α et l\'effectif. En fixer trois donne la quatrième.',
+        'Survie : la puissance vient du nombre d\'ÉVÉNEMENTS, non de patients. Freedman ou Schoenfeld donnent le nombre de décès ou de rechutes nécessaires ; le nombre de patients s\'en déduit par la probabilité d\'un événement pendant l\'étude (recrutement, suivi). Un suivi plus long peut remplacer des patients.',
+        'Cas-témoins : l\'effet est un OR ; la puissance dépend de la fréquence de l\'exposition chez les témoins. Ajouter des témoins par cas aide, mais au-delà d\'environ 4 témoins par cas le gain devient faible.',
+        'GWAS : environ un million de tests indépendants sont réalisés, d\'où le seuil pangénomique α = 5·10⁻⁸. Les vrais effets des variants fréquents sont petits (OR 1,05 à 1,2) : il faut des milliers à des dizaines de milliers de cas.',
+        'La puissance a posteriori, calculée à partir de l\'effet observé, n\'apporte rien de plus que la p : pour interpréter un résultat non significatif, regarder l\'intervalle de confiance.',
+      ],
+      exampleTitle: 'Trois études planifiées à 80 % de puissance',
+      example: 'Essai, HR 0,7 avec 45 % d\'événements dans le bras contrôle : ${fmt(pwSurv.statistics['n_1'], digits: 0)} patients par bras, environ ${fmt(pwSurv.statistics['events_freedman'], digits: 0)} événements (Freedman ; Schoenfeld ${fmt(pwSurv.statistics['events_schoenfeld'], digits: 0)}). '
+          'Cas-témoins, OR 2 avec 20 % de témoins exposés : ${fmt(pwCc1.statistics['n_0'], digits: 0)} cas avec 1 témoin chacun, ${fmt(pwCc4.statistics['n_0'], digits: 0)} cas avec 4 témoins chacun. '
+          'GWAS, allèle à 25 %, OR 1,15, α = 5·10⁻⁸ : ${fmt(pwGw.statistics['n_0'], digits: 0)} cas et autant de témoins. '
+          'Une étude pilote de 20 sujets par groupe n\'a que ${fmtPct(pwPilot.statistics['power'])} de puissance pour détecter d = 0,5.',
+      exercises: [
+        const Exercise.numeric('Schoenfeld : nombre d\'événements pour détecter HR = 0,5 avec 80 % de puissance, α = 0,05, allocation 1:1 (entier le plus proche) ?', 65, 1,
+            'd = (1,96 + 0,84)² × 4 / (log 0,5)² = 7,85 × 4 / 0,480 ≈ 65 événements.'),
+        const Exercise.choice('Un essai de survie enregistre moins de décès que prévu. Sa puissance…', [
+          'est inchangée, puisque le nombre de patients est atteint',
+          'diminue : la puissance dépend du nombre d\'événements',
+          'augmente',
+        ], 1, 'En analyse de survie, l\'information vient des événements.'),
+        Exercise.numeric('Dans l\'exemple, combien de cas faut-il pour un OR de 2 avec 1 témoin par cas ?', pwCc1.statistics['n_0']!, 0.5,
+            '${fmt(pwCc1.statistics['n_0'], digits: 0)} cas ; avec 4 témoins par cas, ${fmt(pwCc4.statistics['n_0'], digits: 0)} cas suffisent.'),
+        const Exercise.choice('Un premier GWAS rapporte un OR de 1,6 pour un variant. Pour planifier la réplication, il faut…', [
+          'utiliser OR = 1,6',
+          'supposer un OR plus petit : les effets publiés à la découverte sont surestimés (malédiction du vainqueur)',
+          'utiliser α = 0,05 pour la réplication de tous les variants',
+        ], 1, 'La découverte sélectionne les estimations qui se trouvent être les plus grandes ; le vrai effet est en général plus petit.'),
+        const Exercise.choice('Résultat non significatif ; un relecteur demande la « puissance observée ». Meilleure réponse ?', [
+          'La calculer à partir de l\'effet observé',
+          'Donner l\'intervalle de confiance de l\'effet, qui montre quels effets restent compatibles avec les données',
+          'Augmenter α',
+        ], 1, 'La puissance observée est une fonction de la p et n\'apporte aucune information nouvelle.'),
+      ],
+      commonErrors: [
+        'Fonder l\'effet à détecter sur l\'effet espéré ou sur une petite étude pilote.',
+        'En survie, compter les patients plutôt que les événements.',
+        'Oublier les perdus de vue, les données manquantes et la multiplicité des tests.',
+        'Planifier un GWAS avec un OR tiré d\'une étude de découverte.',
+        'Calculer une puissance a posteriori pour « expliquer » un résultat non significatif.',
+      ],
+      calculatorId: 'power',
     ),
     Lesson(
       id: 'confounding',

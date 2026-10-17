@@ -813,3 +813,20 @@ vignette de survival. Test `test/cox_temps_test.dart`.
 En processus de comptage, la concordance et le test de cox.zph ne sont pas calculés (signalé dans le résultat).
 Leçon « Risques concurrents et temps immortel » (5 exercices), exemple calculé par le moteur sur les données de Stanford.
 
+## Atelier de puissance et de taille d'échantillon — 1.41.0
+
+Script `validation/r/42_puissance.R` : `pwr` 1.3, `powerSurvEpi` 0.1.3 et `stats`. Pour chaque plan, n pour une
+puissance visée (résolution par Brent) ou puissance pour un n donné. Test `test/puissance_test.dart`.
+
+| Plan | Référence | Tolérance |
+|---|---|---|
+| Deux moyennes, groupes inégaux (n2 = 2·n1, d = 0,5, 90 %) et égaux ; puissance pour 40 / 80 | `pwr.t2n.test` | n 1e-7, puissance 1e-9 |
+| Apparié et un échantillon (t non centrale, deux queues) | `power.t.test(strict = TRUE)` | 1e-7, 1e-9 |
+| Deux proportions : puissance pour n = 150 | `power.prop.test` | 1e-12 |
+| Cas-témoins (OR 2, 20 % d'exposés, 2 témoins par cas) : 128 cas / 256 témoins ; puissance pour 120 / 240 | `pwr.2p2n.test` (arcsinus) | 1e-7, 1e-12 |
+| Survie (HR 0,7, 45 % d'événements en contrôle) : 319 par bras, 247 événements (Freedman) ; puissance pour 300 / 300 | `powerSurvEpi::ssizeCT`, `powerCT` | exact, 1e-12 |
+| Événements de Schoenfeld | formule | 1e-12 |
+| GWAS, test allélique au seuil 5e-8 : non-centralité, puissance, effectif pour 80 % | `pchisq` non central | 1e-12, 1e-9, 1e-7 |
+
+Atelier « Puissance et effectif » (calculs) avec courbe de puissance ; leçon « Puissance : survie, cas-témoins et GWAS ».
+

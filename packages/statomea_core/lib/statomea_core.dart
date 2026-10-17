@@ -38,6 +38,7 @@ export 'src/genetics/gwas_summary.dart';
 export 'src/inference/paired.dart';
 export 'src/inference/correlation.dart';
 export 'src/inference/sample_size.dart';
+export 'src/inference/power.dart';
 export 'src/data/dataset.dart';
 export 'src/data/csv.dart';
 export 'src/regression/design_matrix.dart';

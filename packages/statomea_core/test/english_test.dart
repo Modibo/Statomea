@@ -255,6 +255,13 @@ void main() {
     List<double> bcol(String c) => [for (var i = 0; i < bd.rowCount; i++) if (bd.cell(i, 'instrument') == 'X') double.parse(bd.cell(i, c)!)];
     final stEn = steigerDirectionality(bcol('beta_x'), bcol('se_x'), bcol('beta_y'), bcol('se_y'), nX: 60000, nY: 90000, exposure: 'X', outcome: 'Y');
     expectResult('steiger', stEn.result, const {'X', 'Y'});
+    for (final r in [
+      powerMeans(delta: 5, sd: 10, ratio: 2), powerMeans(delta: 3, sd: 8, design: MeansDesign.paired, n: 30), powerProportions(p1: 0.3, p2: 0.18, n: 150),
+      powerCaseControl(or: 2, p0: 0.2, ratio: 2), powerSurvival(hr: 0.7, pC: 0.45), powerGwas(maf: 0.25, or: 1.15, nCases: 5000),
+    ]) {
+      expectResult(r.methodId, r);
+      expectEnglish('${r.methodId} svg', powerCurveSvg(r.figures['powerCurve'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '));
+    }
     final crDs = parseCsv(File('test/reference/risques_concurrents_simule.csv').readAsStringSync()).dataset;
     final crEn = competingRisksAnalysis(crDs.numeric('mois'), crDs.text('statut'), 'rechute', {'censure'}, groupRaw: crDs.text('bras'), horizon: 24, timeUnit: 'months', groupName: 'arm');
     expectResult('cumulative incidence', crEn, const {'rechute', 'deces', 'censure', 'arm', 'months'});

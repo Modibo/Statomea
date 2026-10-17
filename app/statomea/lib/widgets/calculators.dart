@@ -27,6 +27,7 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('kaplan_meier', tr('Survie (Kaplan-Meier, log-rank)', 'Survival (Kaplan-Meier, log-rank)'), Icons.timeline, tr('Survie', 'Survival')),
   ('cumulative_incidence', tr('Risques concurrents (incidence cumulée)', 'Competing risks (cumulative incidence)'), Icons.call_split, tr('Survie', 'Survival')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
+  ('power', tr('Puissance et effectif (survie, cas-témoins, GWAS…)', 'Power and sample size (survival, case-control, GWAS…)'), Icons.speed, tr('Planification', 'Planning')),
   ('regression', tr('Atelier de régression', 'Regression workshop'), Icons.functions, tr('Ateliers', 'Workshops')),
   ('meta', tr('Atelier de métaanalyse', 'Meta-analysis workshop'), Icons.stacked_bar_chart, tr('Ateliers', 'Workshops')),
   ('prediction', tr('Atelier de prédiction', 'Prediction workshop'), Icons.monitor_heart_outlined, tr('Ateliers', 'Workshops')),
@@ -43,6 +44,7 @@ String calculatorFor(String methodId) => switch (methodId) {
       'prediction_logistic_internal' => 'prediction',
       'hardy_weinberg' || 'genetic_association' || 'snp_scan' || 'lmm_scan' || 'ldsc' || 'genetic_correlation' || 'polygenic_score' || 'glmm_scan' || 'mendelian_randomization' || 'mendelian_randomization_mv' || 'mr_steiger' || 'genotype_qc' || 'mutation_phenotype' || 'type_diversity' || 'qpcr_standard_curve' || 'qpcr_relative' || 'qpcr_lod' ||
       'differential_expression' || 'local_alignment' => 'genomics',
+      'power_means' || 'power_proportions' || 'power_case_control' || 'power_survival' || 'power_gwas' => 'power',
       'describe_numeric' => 'describe',
       _ => calculatorKinds.any((k) => k.$1 == methodId) ? methodId : 'proportion_ci',
     };
@@ -85,6 +87,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'correlation' => CorrelationCalc(ds, onResult),
       'bland_altman' => BlandAltmanCalc(ds, onResult),
       'sample_size' => SampleSizeCalc(onResult),
+      'power' => PowerCalc(onResult, initial: widget.initialMethod),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
       'cumulative_incidence' => CompetingRisksCalc(ds, onResult),
       'regression' => RegressionWorkshop(project: p, onResult: onResult, initialMethod: widget.initialMethod),
@@ -944,3 +947,100 @@ class _CompetingRisksCalcState extends State<CompetingRisksCalc> {
     ]);
   }
 }
+
+// ---------------------------------------------------------------- Puissance et effectif
+
+/// Atelier de puissance : un plan d'étude, puis « calculer l'effectif » (pour une puissance visée) ou « calculer la
+/// puissance » (pour un effectif donné) ; courbe de puissance dans le résultat.
+class PowerCalc extends StatefulWidget {
+  final OnResult onResult;
+  final String? initial;
+  const PowerCalc(this.onResult, {super.key, this.initial});
+  @override
+  State<PowerCalc> createState() => _PowerCalcState();
+}
+
+class _PowerCalcState extends State<PowerCalc> {
+  late String plan = switch (widget.initial) {
+    'power_proportions' => 'props',
+    'power_case_control' => 'cc',
+    'power_survival' => 'surv',
+    'power_gwas' => 'gwas',
+    _ => 'means',
+  };
+  MeansDesign design = MeansDesign.twoGroups;
+  bool solveN = true;
+  final delta = TextEditingController(text: '5'), sd = TextEditingController(text: '10'), ratio = TextEditingController(text: '1');
+  final p1 = TextEditingController(text: '0,30'), p2 = TextEditingController(text: '0,18');
+  final or = TextEditingController(text: '2'), p0 = TextEditingController(text: '0,20');
+  final hr = TextEditingController(text: '0,7'), pC = TextEditingController(text: '0,45');
+  final maf = TextEditingController(text: '0,25'), orG = TextEditingController(text: '1,2');
+  final alpha = TextEditingController(text: '0,05'), alphaG = TextEditingController(text: '5e-8'), power = TextEditingController(text: '0,8');
+  final n = TextEditingController(text: '100');
+
+  String get nLabel => switch (plan) {
+        'means' => design == MeansDesign.twoGroups ? tr('n du groupe 1', 'n of group 1') : (design == MeansDesign.paired ? tr('Nombre de paires', 'Number of pairs') : tr('n', 'n')),
+        'props' => tr('n par groupe', 'n per group'),
+        'surv' => tr('n du bras contrôle', 'n of the control arm'),
+        _ => tr('Nombre de cas', 'Number of cases'),
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final ratioLabel = switch (plan) {
+      'cc' || 'gwas' => tr('Témoins par cas', 'Controls per case'),
+      'surv' => tr('Ratio expérimental / contrôle', 'Experimental / control ratio'),
+      _ => tr('Ratio n2 / n1', 'Ratio n2 / n1'),
+    };
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Puissance et effectif', 'Power and sample size'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      Wrap(spacing: 12, runSpacing: 12, children: [
+        Pick<String>(tr('Plan d\'étude', 'Study design'), plan, [
+          ('means', tr('Comparer des moyennes', 'Compare means')),
+          ('props', tr('Comparer deux proportions', 'Compare two proportions')),
+          ('cc', tr('Étude cas-témoins (OR)', 'Case-control study (OR)')),
+          ('surv', tr('Survie : essai à deux bras (HR)', 'Survival: two-arm trial (HR)')),
+          ('gwas', tr('Étude pangénomique (GWAS)', 'Genome-wide association study (GWAS)')),
+        ], (v) => setState(() => plan = v ?? plan), width: 300),
+        Pick<bool>(tr('Objectif', 'Goal'), solveN, [(true, tr('l\'effectif nécessaire', 'the required sample size')), (false, tr('la puissance pour un effectif', 'the power for a sample size'))],
+            (v) => setState(() => solveN = v ?? true), width: 280),
+        if (plan == 'means')
+          Pick<MeansDesign>(tr('Plan', 'Design'), design, [
+            (MeansDesign.twoGroups, tr('Deux groupes indépendants', 'Two independent groups')),
+            (MeansDesign.paired, tr('Mesures appariées', 'Paired measurements')),
+            (MeansDesign.oneSample, tr('Un groupe contre une valeur', 'One group against a value')),
+          ], (v) => setState(() => design = v ?? design), width: 280),
+      ]),
+      const SizedBox(height: 10),
+      Wrap(spacing: 12, runSpacing: 12, children: [
+        if (plan == 'means') ...[
+          NumField(design == MeansDesign.paired ? tr('Différence moyenne', 'Mean difference') : tr('Différence à détecter', 'Difference to detect'), delta, width: 200),
+          NumField(design == MeansDesign.paired ? tr('ÉT des différences', 'SD of the differences') : tr('Écart-type', 'Standard deviation'), sd, width: 200),
+        ],
+        if (plan == 'props') ...[NumField(tr('p1 attendue', 'expected p1'), p1), NumField(tr('p2 attendue', 'expected p2'), p2)],
+        if (plan == 'cc') ...[NumField(tr('OR à détecter', 'OR to detect'), or), NumField(tr('Exposition chez les témoins', 'Exposure in controls'), p0, width: 220)],
+        if (plan == 'surv') ...[NumField(tr('HR à détecter', 'HR to detect'), hr), NumField(tr('Événements en contrôle (proportion)', 'Events in control (proportion)'), pC, width: 240)],
+        if (plan == 'gwas') ...[NumField(tr('Fréquence allélique (témoins)', 'Allele frequency (controls)'), maf, width: 220), NumField(tr('OR par allèle', 'Per-allele OR'), orG)],
+        if ((plan == 'means' && design == MeansDesign.twoGroups) || plan == 'cc' || plan == 'surv' || plan == 'gwas') NumField(ratioLabel, ratio, width: 220),
+        NumField(tr('α (bilatéral)', 'α (two-sided)'), plan == 'gwas' ? alphaG : alpha),
+        if (solveN) NumField(tr('Puissance visée', 'Target power'), power) else NumField(nLabel, n, width: 200),
+      ]),
+      _computeButton(context, () {
+        run(context, () {
+          final a = readNum(plan == 'gwas' ? alphaG : alpha) ?? (plan == 'gwas' ? 5e-8 : 0.05), pw = readNum(power) ?? 0.8, k = readNum(ratio) ?? 1;
+          final nn = solveN ? null : readNum(n);
+          if (!solveN && (nn == null || nn < 2)) throw StatInputError('missing', tr('Indiquer un effectif ≥ 2.', 'Enter a sample size ≥ 2.'));
+          return switch (plan) {
+            'props' => powerProportions(p1: readNum(p1) ?? 0, p2: readNum(p2) ?? 0, alpha: a, power: pw, n: nn),
+            'cc' => powerCaseControl(or: readNum(or) ?? 0, p0: readNum(p0) ?? 0, ratio: k, alpha: a, power: pw, nCases: nn),
+            'surv' => powerSurvival(hr: readNum(hr) ?? 0, pC: readNum(pC) ?? 0, ratio: k, alpha: a, power: pw, nControl: nn),
+            'gwas' => powerGwas(maf: readNum(maf) ?? 0, or: readNum(orG) ?? 0, ratio: k, alpha: a, power: pw, nCases: nn),
+            _ => powerMeans(delta: readNum(delta) ?? 0, sd: readNum(sd) ?? 0, design: design, ratio: design == MeansDesign.twoGroups ? k : 1, alpha: a, power: pw, n: nn),
+          };
+        }, widget.onResult);
+      }),
+    ]);
+  }
+}
+
