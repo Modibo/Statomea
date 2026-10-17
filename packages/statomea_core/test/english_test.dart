@@ -269,6 +269,13 @@ void main() {
     final tkEn = parseCsv(File('test/reference/tiques_lagopede.csv').readAsStringSync()).dataset;
     expectResult('glmm', glmmLongitudinal(tkEn, const ModelFormula('tiques', [TermSpec('annee', categorical: true, reference: 'a95'), TermSpec('altitude')]), subject: 'couvee', family: GlmmFamily.poisson),
         const {'tiques', 'annee', 'a95', 'a96', 'a97', 'altitude', 'couvee'});
+    final vetEn = parseCsv(File('test/reference/cox_veteran.csv').readAsStringSync()).dataset;
+    final rmEn = rmstAnalysis(vetEn.numeric('time'), vetEn.text('deces'), 'oui', groupRaw: vetEn.text('trt'), tau: 300, timeUnit: 'days', groupName: 'arm');
+    expectResult('rmst', rmEn, const {'standard', 'test', 'oui', 'arm', 'days'});
+    expectEnglish('rmst svg', kmSvg((rmEn.figures['kaplanMeier'] as Map).cast()).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'standard', 'test'});
+    final stfEn = parseCsv(File('test/reference/greffe_stanford.csv').readAsStringSync()).dataset;
+    expectResult('landmark', landmarkAnalysis(stfEn, time: 'jours', status: 'deces', eventLevel: 'oui', switchTime: 'attente_greffe', landmark: 30, terms: [const TermSpec('age')]),
+        const {'jours', 'deces', 'oui', 'non', 'attente_greffe', 'expose_au_landmark', 'temps_depuis_landmark', 'age', 'greffe', 'chirurgie', 'patient'});
     expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
     expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [

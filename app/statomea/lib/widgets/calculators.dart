@@ -26,6 +26,8 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('bland_altman', tr('Accord (Bland-Altman)', 'Agreement (Bland-Altman)'), Icons.align_horizontal_center, tr('Accord', 'Agreement')),
   ('kaplan_meier', tr('Survie (Kaplan-Meier, log-rank)', 'Survival (Kaplan-Meier, log-rank)'), Icons.timeline, tr('Survie', 'Survival')),
   ('cumulative_incidence', tr('Risques concurrents (incidence cumulée)', 'Competing risks (cumulative incidence)'), Icons.call_split, tr('Survie', 'Survival')),
+  ('rmst', tr('Temps moyen de survie restreint (RMST)', 'Restricted mean survival time (RMST)'), Icons.area_chart, tr('Survie', 'Survival')),
+  ('landmark', tr('Analyse landmark (exposition en cours de suivi)', 'Landmark analysis (exposure during follow-up)'), Icons.flag_outlined, tr('Survie', 'Survival')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
   ('power', tr('Puissance et effectif (survie, cas-témoins, GWAS…)', 'Power and sample size (survival, case-control, GWAS…)'), Icons.speed, tr('Planification', 'Planning')),
   ('regression', tr('Atelier de régression', 'Regression workshop'), Icons.functions, tr('Ateliers', 'Workshops')),
@@ -90,6 +92,8 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
       'cumulative_incidence' => CompetingRisksCalc(ds, onResult),
+      'rmst' => RmstCalc(ds, onResult),
+      'landmark' => LandmarkCalc(ds, onResult),
       'regression' => RegressionWorkshop(project: p, onResult: onResult, initialMethod: widget.initialMethod),
       'meta' => MetaWorkshop(project: p, onResult: onResult),
       'genomics' => GenomicsWorkshop(project: p, onResult: onResult, initialMethod: widget.initialMethod),
@@ -1040,6 +1044,131 @@ class _PowerCalcState extends State<PowerCalc> {
           };
         }, widget.onResult);
       }),
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------- RMST et landmark
+
+class RmstCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const RmstCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<RmstCalc> createState() => _RmstCalcState();
+}
+
+class _RmstCalcState extends State<RmstCalc> {
+  String? time, status, event, group;
+  final tau = TextEditingController();
+  final mt = TextEditingController(text: '3 5 6 8 9 12 14 15 20 24 36 36 4 7 10 13 18 22 26 30 36 36 36 36');
+  final ms = TextEditingController(text: '1 1 1 1 0 1 1 0 1 1 0 0 1 0 1 1 0 1 1 0 0 0 0 0');
+  final mg = TextEditingController(text: 'A A A A A A A A A A A A B B B B B B B B B B B B');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Temps moyen de survie restreint (RMST)', 'Restricted mean survival time (RMST)'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Aire sous la courbe de Kaplan-Meier jusqu\'à un horizon τ : le temps moyen vécu sans événement ; utile quand les risques ne sont pas proportionnels.',
+              'Area under the Kaplan-Meier curve up to a horizon τ: the mean time lived without the event; useful when hazards are not proportional.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds != null)
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Durée de suivi', 'Follow-up time'), time, _vars(ds, types: {VarType.numeric}), (v) => setState(() => time = v)),
+          Pick<String>(tr('Statut', 'Status'), status, _vars(ds, types: {VarType.binary, VarType.categorical}), (v) => setState(() {
+                status = v;
+                event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+              })),
+          if (status != null) Pick<String>(tr('Modalité « événement »', 'Event level'), event, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => event = v)),
+          Pick<String>(tr('Groupe (facultatif)', 'Group (optional)'), group, [('', tr('— aucun —', '— none —')), ..._vars(ds, types: {VarType.binary, VarType.categorical})],
+              (v) => setState(() => group = (v == null || v.isEmpty) ? null : v)),
+        ])
+      else ...[
+        TextField(controller: mt, decoration: InputDecoration(labelText: tr('Durées', 'Times'))),
+        const SizedBox(height: 8),
+        TextField(controller: ms, decoration: InputDecoration(labelText: tr('Statuts (1 = événement, 0 = censure), même ordre', 'Statuses (1 = event, 0 = censoring), same order'))),
+        const SizedBox(height: 8),
+        TextField(controller: mg, decoration: InputDecoration(labelText: tr('Groupes (facultatif), même ordre', 'Groups (optional), same order'))),
+      ],
+      const SizedBox(height: 10),
+      NumField(tr('Horizon τ (facultatif)', 'Horizon τ (optional)'), tau, width: 220, helper: tr('par défaut : suivi du groupe le plus court', 'default: follow-up of the shortest group')),
+      _computeButton(context, () {
+        run(context, () {
+          if (ds != null) {
+            if (time == null || status == null || event == null) throw StatInputError('missing', tr('Choisir durée, statut et modalité « événement ».', 'Choose time, status and event level.'));
+            final excl = ds.excludedRows;
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            final t = ds.numeric(time!), st = ds.text(status!), g = group == null ? null : ds.text(group!);
+            return rmstAnalysis([for (final i in keep) t[i]], [for (final i in keep) st[i]], event!,
+                groupRaw: g == null ? null : [for (final i in keep) g[i]], tau: readNum(tau), timeUnit: ds.dictionary[time]!.unit, groupName: group ?? tr('Groupe', 'Group'));
+          }
+          final t = parseSeries(mt.text), s = [for (final v in parseSeries(ms.text)) v == null ? null : (v == 1 ? '1' : '0')];
+          final gText = mg.text.trim().split(RegExp(r'[\s;]+')).where((x) => x.isNotEmpty).toList();
+          if (s.length != t.length || (gText.isNotEmpty && gText.length != t.length)) {
+            throw StatInputError('lengths', tr('Durées, statuts et groupes doivent avoir le même nombre de valeurs.', 'Times, statuses and groups must have the same number of values.'));
+          }
+          return rmstAnalysis(t, s, '1', groupRaw: gText.isEmpty ? null : gText, tau: readNum(tau));
+        }, widget.onResult);
+      }),
+    ]);
+  }
+}
+
+class LandmarkCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const LandmarkCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<LandmarkCalc> createState() => _LandmarkCalcState();
+}
+
+class _LandmarkCalcState extends State<LandmarkCalc> {
+  String? time, status, event, switchCol;
+  final landmark = TextEditingController(text: '30');
+  final adjust = <String>{};
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Analyse landmark', 'Landmark analysis'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Compare, à partir d\'une date repère L, les sujets déjà exposés (greffe, traitement) aux autres, sans biais du temps immortel.',
+              'Compares, from a landmark date L, subjects already exposed (transplant, treatment) with the others, without immortal time bias.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds == null)
+        Text(tr('L\'analyse landmark travaille sur un jeu de données individuelles (étape 4 d\'un projet).', 'The landmark analysis works on an individual dataset (step 4 of a project).'))
+      else ...[
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Durée de suivi', 'Follow-up time'), time, _vars(ds, types: {VarType.numeric}), (v) => setState(() => time = v)),
+          Pick<String>(tr('Statut', 'Status'), status, _vars(ds, types: {VarType.binary, VarType.categorical}), (v) => setState(() {
+                status = v;
+                event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
+              })),
+          if (status != null) Pick<String>(tr('Modalité « événement »', 'Event level'), event, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => event = v)),
+          Pick<String>(tr('Temps de survenue de l\'exposition', 'Time of exposure onset'), switchCol, _vars(ds, types: {VarType.numeric}), (v) => setState(() => switchCol = v), width: 300),
+          NumField(tr('Landmark L', 'Landmark L'), landmark, width: 160),
+        ]),
+        const SizedBox(height: 8),
+        Text(tr('Ajustement (facultatif)', 'Adjustment (optional)'), style: Theme.of(context).textTheme.titleSmall),
+        Wrap(spacing: 6, children: [
+          for (final n in ds.names)
+            if (n != time && n != status && n != switchCol && ds.dictionary[n]!.type == VarType.numeric)
+              FilterChip(label: Text(n), selected: adjust.contains(n), onSelected: (s) => setState(() => s ? adjust.add(n) : adjust.remove(n))),
+        ]),
+        _computeButton(context, () {
+          run(context, () {
+            if (time == null || status == null || event == null || switchCol == null) {
+              throw StatInputError('missing', tr('Choisir durée, statut, modalité « événement » et temps de survenue de l\'exposition.', 'Choose time, status, event level and time of exposure onset.'));
+            }
+            final l = readNum(landmark);
+            if (l == null || l <= 0) throw StatInputError('landmark', tr('Indiquer un landmark L > 0.', 'Enter a landmark L > 0.'));
+            return landmarkAnalysis(ds, time: time!, status: status!, eventLevel: event!, switchTime: switchCol!, landmark: l, terms: [for (final n in adjust) TermSpec(n)]);
+          }, widget.onResult);
+        }),
+      ],
     ]);
   }
 }

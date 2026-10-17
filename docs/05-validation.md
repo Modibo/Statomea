@@ -923,3 +923,19 @@ Deux corrections ont été nécessaires et sont documentées dans le code : le m
 (un critère sur la valeur de g bute sur l'arrondi et rend la vraisemblance bruitée à 5e-9), et la hessienne utilise un
 pas de 1e-4 (comme `deriv12` de lme4), les covariables étant centrées pour l'optimisation.
 
+## RMST et analyse landmark — 1.49.0
+
+Script `validation/r/48_rmst_landmark.R` : `survRM2` 1.0.4 (`rmst2`) et `survival` 3.5. Données : essai `veteran`
+(traitement standard contre test, `test/reference/cox_veteran.csv`), greffe de Stanford (`demos/greffe_stanford.csv`).
+Test `test/rmst_landmark_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| RMST par bras à τ = 300 et 200 jours, ES (variance de survRM2) | `rmst2` | 1e-12, 1e-10 |
+| Différence de RMST, rapport des RMST et des RMTL, IC, p | `rmst2` | 1e-11, 1e-10, 1e-9 |
+| Landmark 30 et 60 jours : effectifs, exposés, événements, log-rank, Cox (exposition + âge) | `survfit`, `survdiff`, `coxph` | exact, 1e-10, 1e-8 |
+
+Sur `veteran` (τ = 300 j) : RMST 103,5 j (test) contre 114,1 j (standard), différence −10,6 j (p = 0,54). Le τ ne peut
+dépasser le dernier temps observé du groupe au suivi le plus court (refusé sinon). Calculateurs « RMST » et
+« Analyse landmark » (rubrique Survie) ; la courbe de Kaplan-Meier trace τ.
+

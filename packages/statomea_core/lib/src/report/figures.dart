@@ -238,6 +238,13 @@ String kmSvg(Map<String, Object?> km, {String font = defaultSvgFont}) {
       ..writeln("<rect x='${_n(l + w - 120)}' y='${_n(t + 8 + 16.0 * k)}' width='10' height='3' fill='$col'/>")
       ..writeln("<text x='${_n(l + w - 105)}' y='${_n(t + 12 + 16.0 * k)}' font-size='11'>${_esc(c['group'].toString())}</text>");
   }
+  // τ du RMST : trait vertical en tirets (aire sous la courbe jusqu'à τ).
+  final tau = (km['tau'] as num?)?.toDouble();
+  if (tau != null) {
+    b
+      ..writeln("<line x1='${_n(x(tau))}' x2='${_n(x(tau))}' y1='${_n(t)}' y2='${_n(t + h)}' stroke='#7a5c00' stroke-dasharray='5 3'/>")
+      ..writeln("<text x='${_n(x(tau) + 4)}' y='${_n(t + 12)}' font-size='10' fill='#7a5c00'>τ = ${_n(tau).replaceAll('.00', '')}</text>");
+  }
   // Sujets à risque aux graduations.
   final ry = t + h + 52;
   b.writeln("<text x='4' y='${_n(ry)}' font-size='10' font-weight='bold'>${tr('À risque', 'At risk')}</text>");

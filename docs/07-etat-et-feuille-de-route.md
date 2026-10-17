@@ -1,6 +1,6 @@
 # 07 — État du projet : opérationnel, testé, en développement
 
-État au 16 octobre 2026, moteur 1.48.0.
+État au 16 octobre 2026, moteur 1.49.0.
 
 ## Étape par étape
 
@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 1. Analyse critique du cahier des charges | Document 00 | — | — |
 | 2. Socle numérique (lois, algèbre linéaire, RNG) | Oui | 124 comparaisons à R (1e-9) | — |
-| 3. Analyses fondamentales | 12 familles de méthodes (dont survie : Kaplan-Meier, log-rank ; risques concurrents : incidence cumulée d'Aalen-Johansen) ; comparaisons deux à deux après ANOVA (Tukey, Games-Howell) et Kruskal-Wallis (Dunn-Holm) | 41 tests contre R + 9 tests post hoc (TukeyHSD, rstatix) | Contrastes planifiés (Dunnett, contrastes linéaires) |
+| 3. Analyses fondamentales | 12 familles de méthodes (dont survie : Kaplan-Meier, log-rank ; risques concurrents : incidence cumulée d'Aalen-Johansen ; RMST ; analyse landmark) ; comparaisons deux à deux après ANOVA (Tukey, Games-Howell) et Kruskal-Wallis (Dunn-Holm) | 41 tests contre R + 9 tests post hoc (TukeyHSD, rstatix) | Contrastes planifiés (Dunnett, contrastes linéaires) |
 | 4. Données : import, contrôle, corrections journalisées, imputation multiple | Oui | Tests de détection (10 familles d'anomalies) ; imputation contre mice | Pas d'éditeur de cellules ; conversion d'unités non automatisée (volontaire) |
 | 5. Atelier de régression | Linéaire, logistique, Poisson robuste, Firth avec IC profilés pénalisés, Cox (Efron/Breslow, proportionnalité, concordance), Fine-Gray (risques concurrents, HR spécifiques de cause en regard), Cox avec covariables dépendant du temps, modèle linéaire mixte, modèle mixte logistique et de Poisson, et GEE pour mesures répétées, comptages (Poisson, binomiale négative), logistique ordinale et multinomiale | 17 tests contre lm/glm/sandwich/car/logistf/survival + 8 jeux inadaptés | Strates ; résidus de Schoenfeld en processus de comptage ; corrélation AR(1) des GEE |
 | 6. Atelier de métaanalyse | Binaire et continu, FE/DL/REML/HK/MH, sous-groupes, sensibilité, forest plot, méta-régression, métaanalyse diagnostique bivariée (SROC) | 27 tests contre metafor et mada | métaanalyse diagnostique avec covariables ; correction de continuité alternative (empirique) |
