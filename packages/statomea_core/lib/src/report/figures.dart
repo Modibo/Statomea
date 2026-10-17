@@ -361,6 +361,44 @@ String powerCurveSvg(Map pc, {String font = defaultSvgFont}) {
   return b.toString();
 }
 
+/// Trajectoires individuelles (gris) et moyenne ajustée par groupe (partie fixe du modèle mixte).
+String trajectoriesSvg(Map tr0, {String font = defaultSvgFont}) {
+  final subjects = (tr0['subjects'] as List).cast<Map>(), means = (tr0['mean'] as List).cast<Map>();
+  List<double> dl(Object? v) => [for (final x in v as List) (x as num).toDouble()];
+  var xmin = double.infinity, xmax = -double.infinity, ymin = double.infinity, ymax = -double.infinity;
+  for (final s in [...subjects, ...means]) {
+    for (final v in dl(s['x'])) {
+      xmin = math.min(xmin, v);
+      xmax = math.max(xmax, v);
+    }
+    for (final v in dl(s['y'])) {
+      ymin = math.min(ymin, v);
+      ymax = math.max(ymax, v);
+    }
+  }
+  final xt = _niceTicks(xmin, xmax), yt = _niceTicks(ymin, ymax);
+  final x0 = math.min(xt.first, xmin), x1 = math.max(xt.last, xmax), y0 = math.min(yt.first, ymin), y1 = math.max(yt.last, ymax);
+  const l = 60.0, t = 20.0, w = 340.0, h = 220.0;
+  double x(double v) => l + (v - x0) / (x1 - x0 + 1e-12) * w;
+  double y(double v) => t + h - (v - y0) / (y1 - y0 + 1e-12) * h;
+  const colors = ['#1f4e79', '#c0504d', '#5a8f29', '#7a5c00', '#6b4c9a', '#2a8c8c'];
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 ${_n(290 + 16.0 * means.length)}' width='440' height='${_n(290 + 16.0 * means.length)}' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, w, h, _esc(tr0['xLabel'].toString()), _esc(tr0['yLabel'].toString()), xt, yt, x, y);
+  for (final s in subjects) {
+    final xs = dl(s['x']), ys = dl(s['y']);
+    b.writeln("<polyline points='${[for (var i = 0; i < xs.length; i++) '${_n(x(xs[i]))},${_n(y(ys[i]))}'].join(' ')}' fill='none' stroke='#9aa5b1' stroke-opacity='0.55' stroke-width='0.8'/>");
+  }
+  for (var k = 0; k < means.length; k++) {
+    final xs = dl(means[k]['x']), ys = dl(means[k]['y']), col = colors[k % colors.length];
+    b
+      ..writeln("<polyline points='${[for (var i = 0; i < xs.length; i++) '${_n(x(xs[i]))},${_n(y(ys[i]))}'].join(' ')}' fill='none' stroke='$col' stroke-width='2.6'/>")
+      ..writeln("<rect x='${_n(l)}' y='${_n(t + h + 40 + 16.0 * k)}' width='16' height='3' fill='$col'/>")
+      ..writeln("<text x='${_n(l + 22)}' y='${_n(t + h + 44 + 16.0 * k)}' font-size='11'>${tr('Moyenne ajustée', 'Fitted mean')} — ${_esc(means[k]['group'].toString())}</text>");
+  }
+  b.writeln('</svg>');
+  return b.toString();
+}
+
 /// Graphique à bulles de méta-régression : effet de chaque étude en fonction
 /// du modérateur (aire ∝ poids), droite de régression (échelle log si ratio).
 String bubblePlotSvg(Map bubble, {String font = defaultSvgFont}) {

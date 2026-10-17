@@ -255,6 +255,10 @@ void main() {
     List<double> bcol(String c) => [for (var i = 0; i < bd.rowCount; i++) if (bd.cell(i, 'instrument') == 'X') double.parse(bd.cell(i, c)!)];
     final stEn = steigerDirectionality(bcol('beta_x'), bcol('se_x'), bcol('beta_y'), bcol('se_y'), nX: 60000, nY: 90000, exposure: 'X', outcome: 'Y');
     expectResult('steiger', stEn.result, const {'X', 'Y'});
+    final hbEn = parseCsv(File('test/reference/hba1c_longitudinal_simule.csv').readAsStringSync()).dataset;
+    final longEn = longitudinalMixedModel(hbEn, const ModelFormula('hba1c', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')], interactions: [('mois', 'bras')]), subject: 'patient', slope: 'mois');
+    expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
+    expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [
       powerMeans(delta: 5, sd: 10, ratio: 2), powerMeans(delta: 3, sd: 8, design: MeansDesign.paired, n: 30), powerProportions(p1: 0.3, p2: 0.18, n: 150),
       powerCaseControl(or: 2, p0: 0.2, ratio: 2), powerSurvival(hr: 0.7, pC: 0.45), powerGwas(maf: 0.25, or: 1.15, nCases: 5000),

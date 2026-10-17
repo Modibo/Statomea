@@ -830,3 +830,23 @@ puissance visée (résolution par Brent) ou puissance pour un n donné. Test `te
 
 Atelier « Puissance et effectif » (calculs) avec courbe de puissance ; leçon « Puissance : survie, cas-témoins et GWAS ».
 
+## Mesures répétées : modèle linéaire mixte — 1.42.0
+
+Script `validation/r/43_lmm_longitudinal.R` : `lme4` 1.1 (`lmer`, REML, optimiseur bobyqa resserré) et `nlme` 3.1
+(degrés de liberté). Deux jeux : `sleepstudy` (lme4 ; 18 sujets × 10 jours, `demos/sommeil_belenky.csv`) et un essai
+simulé (120 patients, HbA1c à 0–12 mois, bras A/B, âge, 61 visites manquantes, `demos/hba1c_longitudinal_simule.csv`).
+Test `test/lmm_longitudinal_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Déviance REML profilée au θ de lme4 (formule exacte, identité de Woodbury par sujet) | `REMLcrit` | 1e-10 |
+| Optimum atteint par Nelder-Mead (même critère REML) | `lmer` | 1e-10 |
+| Effets fixes, ES | `fixef`, `vcov` | 1e-6, 1e-5 |
+| Degrés de liberté (constant dans le sujet : m − p_inter − 1 ; sinon N − m − p_intra) et p | `nlme::lme` | exact ; 1e-4 |
+| Écarts-types des effets aléatoires, corrélation, σ | `VarCorr` | 1e-4, 1e-3, 1e-5 |
+
+Modèles validés : intercept et pente aléatoires, intercept seul (sleepstudy) ; interaction temps × bras avec termes
+inter-sujets (bras, âge). Leçon « Mesures répétées et modèles mixtes » (exemple sleepstudy : ES de la pente 1,55 contre
+1,24 en régression ordinaire). L'atelier de régression choisit désormais le modèle dans une liste déroulante (lisible sur
+téléphone).
+

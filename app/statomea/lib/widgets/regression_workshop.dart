@@ -89,6 +89,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     'firth_logistic' => 'firth',
     'cox' => 'cox',
     'fine_gray' => 'fine_gray',
+    'lmm_longitudinal' => 'mixed',
     _ => 'linear',
   };
   String? outcome, event;
@@ -97,6 +98,8 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   // Cox avec covariable dépendant du temps : données en intervalles (colonne de début), ou découpage à une date de
   // changement (colonne du temps de changement + covariable binaire concernée).
   String? startCol, switchCol, switchCov;
+  // Mesures répétées : identifiant du sujet, pente aléatoire facultative (temps).
+  String? subjectCol, slopeCol;
   bool efron = true;
   bool mi = false;
   final miM = TextEditingController(text: '20');
@@ -104,7 +107,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   List<(String, String)> interactions = [];
 
   bool get surv => model == 'cox' || model == 'fine_gray';
-  bool get binary => model != 'linear' && !surv;
+  bool get binary => model != 'linear' && model != 'mixed' && !surv;
 
   @override
   Widget build(BuildContext context) {
@@ -131,18 +134,21 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(tr('Atelier de régression', 'Regression workshop'), style: Theme.of(context).textTheme.titleMedium),
       const SizedBox(height: 8),
-      SegmentedButton<String>(segments: [
-        ButtonSegment(value: 'linear', label: Text(tr('Linéaire', 'Linear'))),
-        ButtonSegment(value: 'logistic', label: Text(tr('Logistique', 'Logistic'))),
-        ButtonSegment(value: 'poisson', label: Text(tr('Poisson robuste', 'Robust Poisson')), enabled: design != StudyDesign.caseControl),
-        const ButtonSegment(value: 'firth', label: Text('Firth')),
-        const ButtonSegment(value: 'cox', label: Text('Cox')),
-        const ButtonSegment(value: 'fine_gray', label: Text('Fine-Gray')),
-      ], selected: {model}, onSelectionChanged: (s) => setState(() {
-            model = s.first;
+      // Liste déroulante (et non boutons segmentés) : lisible sur téléphone quel que soit le nombre de modèles.
+      Pick<String>(tr('Modèle', 'Model'), model, [
+        ('linear', tr('Linéaire', 'Linear')),
+        ('logistic', tr('Logistique', 'Logistic')),
+        if (design != StudyDesign.caseControl) ('poisson', tr('Poisson robuste', 'Robust Poisson')),
+        ('firth', tr('Logistique de Firth', 'Firth logistic')),
+        ('cox', tr('Cox (survie)', 'Cox (survival)')),
+        ('fine_gray', tr('Fine-Gray (risques concurrents)', 'Fine-Gray (competing risks)')),
+        ('mixed', tr('Mesures répétées (modèle mixte)', 'Repeated measures (mixed model)')),
+      ], (v) => setState(() {
+            if (v == null || v == model) return;
+            model = v;
             outcome = null;
             event = null;
-          })),
+          }), width: 340),
       const SizedBox(height: 6),
       Text(
           switch (model) {
@@ -150,6 +156,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             'logistic' => tr('Issue binaire ; OR ajustés. Seule option en cas-témoins.', 'Binary outcome; adjusted ORs. The only option in case-control studies.'),
             'poisson' => tr('Issue binaire fréquente en cohorte, essai ou transversal ; RR (ou RP) ajustés.', 'Common binary outcome in a cohort, trial or cross-sectional study; adjusted RRs (or PRs).'),
             'cox' => tr('Délai jusqu\'à un événement avec censure ; HR ajustés, test de proportionnalité des risques.', 'Time to an event with censoring; adjusted HRs, proportional hazards test.'),
+            'mixed' => tr('Plusieurs mesures par sujet (format long : une ligne par mesure) ; intercept et pente aléatoires par sujet, effets fixes avec tests t (ddl de nlme).', 'Several measurements per subject (long format: one row per measurement); random intercept and slope per subject, fixed effects with t tests (nlme df).'),
             'fine_gray' => tr('Délai jusqu\'à un événement quand un autre événement (p. ex. le décès) peut l\'empêcher ; sHR sur l\'incidence cumulée, HR spécifiques de cause en regard.', 'Time to an event when another event (e.g. death) can prevent it; sHRs on the cumulative incidence, cause-specific HRs alongside.'),
             _ => tr('Issue binaire avec peu d\'événements ou séparation ; OR pénalisés (IC profilés).', 'Binary outcome with few events or separation; penalized ORs (profile CIs).'),
           },
@@ -179,6 +186,16 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               [for (final l in ds.levels(surv ? status! : outcome!)) (l, l)], (v) => setState(() => event = v)),
         if (model == 'fine_gray' && status != null)
           Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
+        if (model == 'mixed') ...[
+          Pick<String>(tr('Sujet (identifiant)', 'Subject (identifier)'), subjectCol, [for (final n in ds.names) if (n != outcome) (n, n)],
+              (v) => setState(() => subjectCol = v), width: 260),
+          Pick<String>(tr('Pente aléatoire (temps, facultatif)', 'Random slope (time, optional)'), slopeCol ?? '', [
+            ('', tr('— aucune —', '— none —')),
+            // Temps : toute colonne à valeurs numériques (un temps à quelques visites peut être typé qualitatif).
+            for (final n in ds.names)
+              if (n != outcome && n != subjectCol && ds.text(n).every((v) => v == null || parseNumber(v) != null)) (n, n)
+          ], (v) => setState(() => slopeCol = (v == null || v.isEmpty) ? null : v), width: 300),
+        ],
         if (model == 'cox')
           Pick<String>(tr('Début d\'intervalle (données (début, fin])', 'Interval start ((start, stop] data)'), startCol ?? '', [
             ('', tr('— aucun : suivi depuis 0 —', '— none: follow-up from 0 —')),
@@ -207,7 +224,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       PredictorEditor(ds, terms, (l) => setState(() {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
-          }), exclude: {?outcome, if (surv) ?status}),
+          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed') ?subjectCol}),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),
@@ -261,6 +278,10 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               return coxRegression(buildSurvivalDesign(ds, outcome!, status!, event!, terms), efron: efron);
             }
             final f = ModelFormula(outcome!, terms, interactions: interactions, eventLevel: event);
+            if (model == 'mixed') {
+              if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));
+              return longitudinalMixedModel(ds, f, subject: subjectCol!, slope: slopeCol);
+            }
             if (mi && model != 'firth') {
               final used = {outcome!, for (final t in terms) t.variable};
               final imp = multipleImputation(ds,

@@ -26,6 +26,8 @@ import '../genetics/association.dart';
 import '../genetics/qpcr.dart';
 import '../math/random.dart';
 import '../regression/cox.dart';
+import '../regression/linear.dart';
+import '../regression/mixed.dart';
 import '../regression/design_matrix.dart';
 
 enum Level { beginner, intermediate, advanced }
@@ -211,6 +213,13 @@ List<Lesson> buildLessons() {
   final pwCc1 = powerCaseControl(or: 2, p0: 0.2), pwCc4 = powerCaseControl(or: 2, p0: 0.2, ratio: 4);
   final pwGw = powerGwas(maf: 0.25, or: 1.15);
   final pwPilot = powerMeans(delta: 5, sd: 10, n: 20);
+  // Mesures répétées : sleepstudy, modèle mixte (intercept et pente aléatoires) contre régression ignorant les sujets.
+  final ssData = Dataset.fromColumns({'sujet': sleepStudyExample.subject, 'jours': sleepStudyExample.days, 'reaction': sleepStudyExample.reaction});
+  const ssF = ModelFormula('reaction', [TermSpec('jours')]);
+  final ssMixed = longitudinalMixedModel(ssData, ssF, subject: 'sujet', slope: 'jours');
+  final ssNaive = linearRegression(buildDesign(ssData, ssF));
+  final ssSlope = ssMixed.statistics['beta_jours']!, ssSe = ssMixed.statistics['se_jours']!;
+  final ssSeNaive = ssNaive.estimates.firstWhere((e) => e.label.contains('jours') && e.se != null).se!;
   final ddct = qpcrRelativeQuantification(const [24.9, 25.3, 25.1], const [18.0, 18.2, 17.9], const [22.8, 23.1, 22.7], const [18.1, 17.9, 17.8]);
 
   if (currentLang == Lang.en) {
@@ -463,6 +472,44 @@ List<Lesson> buildLessons() {
           'Computing post hoc power to "explain" a non-significant result.',
         ],
         calculatorId: 'power',
+      ),
+      Lesson(
+        id: 'repeated_measures',
+        title: 'Repeated measures and mixed models',
+        level: Level.advanced,
+        body: [
+          'When the same subject is measured several times (visits, days, eyes, teeth), the measurements are correlated: a subject who starts high tends to stay high. Treating them as independent overstates the information and gives standard errors that are too small for between-subject comparisons.',
+          'The linear mixed model adds subject-specific random effects: a random intercept (each subject has his own level) and, if needed, a random slope (his own evolution over time). The fixed effects describe the average evolution and the differences between groups; the variances describe how much subjects differ.',
+          'It uses all available measurements, even from subjects who left the study, and remains valid if dropout depends on values already observed (MAR). Excluding incomplete subjects wastes information and can bias results.',
+          'In a trial, the treatment effect on the evolution is the time × treatment interaction: one test for the whole follow-up, instead of a comparison at each visit (multiple tests).',
+          'Alternative: GEE (generalized estimating equations) estimate a population-average effect with robust standard errors, without modelling individual trajectories.',
+        ],
+        exampleTitle: 'Sleep deprivation: reaction time of 18 subjects over 10 days',
+        example: 'Mixed model with random intercept and slope: reaction time increases by ${fmt(ssSlope, digits: 4)} ms per day (SE ${fmt(ssSe)}); between-subject SD of the slope ${fmt(ssMixed.statistics['sd_slope'])} ms/day. '
+            'Ordinary regression ignoring the subjects gives the same slope but an SE of ${fmt(ssSeNaive)}: it ignores that subjects differ in their own evolution.',
+        exercises: [
+          const Exercise.choice('Blood pressure measured at 4 visits in 50 patients: how many independent units?', ['200', '50', '4'], 1,
+              'The patients are the independent units; the 4 measurements of a patient are correlated.'),
+          Exercise.numeric('In the example, average increase in reaction time per day (ms, one decimal)?', double.parse(ssSlope.toStringAsFixed(1)), 0.06,
+              '${fmt(ssSlope)} ms per day (fixed effect of days).'),
+          const Exercise.choice('In a trial with 5 visits, the test of a different evolution under treatment is…', [
+            'a t-test at each visit',
+            'the time × treatment interaction in a mixed model',
+            'the comparison of the last visit only, excluding patients who left',
+          ], 1, 'One test for the whole follow-up, using all measurements.'),
+          const Exercise.choice('30% of patients leave the study because their values worsen (observed before leaving). The mixed model…', [
+            'is invalid: only complete patients must be analysed',
+            'remains valid under MAR, since dropout depends on observed values',
+            'requires imputing the last observation (LOCF)',
+          ], 1, 'MAR: missingness depends on observed values; the likelihood of the mixed model remains valid. LOCF is biased.'),
+        ],
+        commonErrors: [
+          'Analysing repeated measurements as independent observations.',
+          'Comparing groups visit by visit with multiple t-tests.',
+          'Excluding subjects with incomplete follow-up or imputing the last observation (LOCF).',
+          'Adding a random slope with too few subjects or measurements (singular fit).',
+        ],
+        calculatorId: 'regression',
       ),
       Lesson(
         id: 'confounding',
@@ -1129,6 +1176,44 @@ List<Lesson> buildLessons() {
         'Calculer une puissance a posteriori pour « expliquer » un résultat non significatif.',
       ],
       calculatorId: 'power',
+    ),
+    Lesson(
+      id: 'repeated_measures',
+      title: 'Mesures répétées et modèles mixtes',
+      level: Level.advanced,
+      body: [
+        'Quand un même sujet est mesuré plusieurs fois (visites, jours, yeux, dents), les mesures sont corrélées : un sujet qui part haut tend à rester haut. Les traiter comme indépendantes surestime l\'information et donne des erreurs types trop petites pour les comparaisons entre sujets.',
+        'Le modèle linéaire mixte ajoute des effets aléatoires propres à chaque sujet : un intercept aléatoire (chaque sujet a son niveau) et, si besoin, une pente aléatoire (sa propre évolution dans le temps). Les effets fixes décrivent l\'évolution moyenne et les différences entre groupes ; les variances décrivent à quel point les sujets diffèrent.',
+        'Il utilise toutes les mesures disponibles, même celles des sujets sortis d\'étude, et reste valide si les sorties dépendent des valeurs déjà observées (MAR). Exclure les sujets incomplets gaspille de l\'information et peut biaiser les résultats.',
+        'Dans un essai, l\'effet du traitement sur l\'évolution est l\'interaction temps × traitement : un seul test pour tout le suivi, au lieu d\'une comparaison à chaque visite (tests multiples).',
+        'Alternative : les GEE (équations d\'estimation généralisées) estiment un effet moyen dans la population avec des erreurs types robustes, sans modéliser les trajectoires individuelles.',
+      ],
+      exampleTitle: 'Privation de sommeil : temps de réaction de 18 sujets sur 10 jours',
+      example: 'Modèle mixte à intercept et pente aléatoires : le temps de réaction augmente de ${fmt(ssSlope, digits: 4)} ms par jour (ES ${fmt(ssSe)}) ; ÉT de la pente entre sujets ${fmt(ssMixed.statistics['sd_slope'])} ms/jour. '
+          'La régression ordinaire qui ignore les sujets donne la même pente mais un ES de ${fmt(ssSeNaive)} : elle ignore que les sujets diffèrent dans leur propre évolution.',
+      exercises: [
+        const Exercise.choice('Pression artérielle mesurée à 4 visites chez 50 patients : combien d\'unités indépendantes ?', ['200', '50', '4'], 1,
+            'Les patients sont les unités indépendantes ; les 4 mesures d\'un patient sont corrélées.'),
+        Exercise.numeric('Dans l\'exemple, augmentation moyenne du temps de réaction par jour (ms, une décimale) ?', double.parse(ssSlope.toStringAsFixed(1)), 0.06,
+            '${fmt(ssSlope)} ms par jour (effet fixe des jours).'),
+        const Exercise.choice('Dans un essai à 5 visites, le test d\'une évolution différente sous traitement est…', [
+          'un test t à chaque visite',
+          'l\'interaction temps × traitement dans un modèle mixte',
+          'la comparaison de la dernière visite seule, en excluant les patients sortis',
+        ], 1, 'Un seul test pour tout le suivi, avec toutes les mesures.'),
+        const Exercise.choice('30 % des patients quittent l\'étude parce que leurs valeurs s\'aggravent (observées avant leur départ). Le modèle mixte…', [
+          'est invalide : il ne faut analyser que les patients complets',
+          'reste valide sous MAR, puisque les sorties dépendent de valeurs observées',
+          'impose d\'imputer la dernière observation (LOCF)',
+        ], 1, 'MAR : le manque dépend de valeurs observées ; la vraisemblance du modèle mixte reste valide. La LOCF est biaisée.'),
+      ],
+      commonErrors: [
+        'Analyser des mesures répétées comme des observations indépendantes.',
+        'Comparer les groupes visite par visite par des tests t multiples.',
+        'Exclure les sujets au suivi incomplet ou imputer la dernière observation (LOCF).',
+        'Ajouter une pente aléatoire avec trop peu de sujets ou de mesures (ajustement singulier).',
+      ],
+      calculatorId: 'regression',
     ),
     Lesson(
       id: 'confounding',

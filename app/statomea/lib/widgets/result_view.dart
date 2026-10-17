@@ -157,6 +157,7 @@ class FiguresView extends StatelessWidget {
       if (f['miChains'] is Map) (tr('Convergence des chaînes d\'imputation', 'Convergence of the imputation chains'), miChainsSvg(f['miChains'] as Map, font: 'NotoSans'), 340, 480),
       if (f['sroc'] is Map) (tr('Espace ROC : études, point combiné, SROC', 'ROC space: studies, pooled point, SROC'), srocSvg((f['sroc'] as Map).cast(), font: 'NotoSans'), 360, 520),
       if (f['bubble'] is Map) (tr('Méta-régression (aire ∝ poids)', 'Meta-regression (area ∝ weight)'), bubblePlotSvg(f['bubble'] as Map, font: 'NotoSans'), 340, 520),
+      if (f['trajectories'] is Map) (tr('Trajectoires individuelles', 'Individual trajectories'), trajectoriesSvg(f['trajectories'] as Map, font: 'NotoSans'), 340, 520),
       if (f['powerCurve'] is Map) (tr('Courbe de puissance', 'Power curve'), powerCurveSvg(f['powerCurve'] as Map, font: 'NotoSans'), 340, 480),
       if (f['cumulativeIncidence'] is Map) (tr('Incidence cumulée', 'Cumulative incidence'), cifSvg(f['cumulativeIncidence'] as Map, font: 'NotoSans'), 340, 520),
       if (f['kaplanMeier'] is Map) ('Kaplan-Meier', kmSvg((f['kaplanMeier'] as Map).cast(), font: 'NotoSans'), 340, 520),
@@ -223,6 +224,11 @@ String figureDescription(String title, Map<String, Object?> f) {
     final l = (f['qq'] as Map)['lambda'];
     return tr('QQ plot des p observés contre les p attendus sous l\'hypothèse nulle, avec bande de confiance à 95 %${l == null ? '' : ' ; λ = ${fmt((l as num).toDouble(), digits: 3)}'}. $tables',
         'QQ plot of observed against expected p-values under the null hypothesis, with a 95% confidence band${l == null ? '' : '; λ = ${fmt((l as num).toDouble(), digits: 3)}'}. $tables');
+  }
+  if (f['trajectories'] is Map) {
+    final m = f['trajectories'] as Map;
+    return tr('Trajectoires individuelles de ${m['yLabel']} selon ${m['xLabel']} (une ligne grise par sujet, ${(m['subjects'] as List).length} au plus), et moyenne ajustée par le modèle mixte pour chaque groupe (lignes de couleur). $tables',
+        'Individual trajectories of ${m['yLabel']} by ${m['xLabel']} (one grey line per subject, ${(m['subjects'] as List).length} at most), and mean fitted by the mixed model for each group (coloured lines). $tables');
   }
   if (f['powerCurve'] is Map) {
     final m = f['powerCurve'] as Map;

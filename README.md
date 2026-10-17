@@ -109,12 +109,13 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Risques concurrents : incidence cumulée d'Aalen-Johansen (variance de Gray), test de Gray, modèle de Fine-Gray et Cox spécifique de cause | ✅ | cmprsk, survival | validé |
+| Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires | ✅ | lme4, nlme | validé |
 | Puissance et effectif : moyennes (groupes inégaux, apparié), proportions, cas-témoins, survie (Freedman, Schoenfeld), GWAS ; courbe de puissance | ✅ | pwr, powerSurvEpi, stats | validé |
 | Cox avec covariables dépendant du temps (processus de comptage, découpage à une date de changement) | ✅ | survival (coxph, tmerge) | validé |
 | Métaanalyse binaire et continue, forest plot, sensibilité, sous-groupes, méta-régression, métaanalyse diagnostique bivariée | ✅ | metafor, mada | validé |
 | Prédiction : développement, validation interne bootstrap, validation externe et recalibration | ✅ | glm, pROC, pmsampsize | validé |
 | Génomique : import de génotypes VCF/PLINK, contrôle de qualité, apparentement (KING), ACP de stratification, modèle mixte linéaire (option LOCO) et logistique, régression LD score, corrélation génétique, score de risque polygénique et randomisation mendélienne (y compris à partir de deux GWAS complets, allèles harmonisés), association génétique, pathogènes (mutations–résistance, typage), qPCR, RNA-seq (TMM + voom + limma, plans à plusieurs facteurs, appariés ou à mesures répétées), alignement local hors ligne type BLAST | ✅ | HardyWeinberg, glm, MASS, vcfR, snpStats, rrBLUP, GMMAT, MendelianRandomization, pROC, edgeR, limma, Biostrings, BLAST+ 2.17 | validé |
-| Formation (23 leçons), grilles TRIPOD+AI / PROBAST+AI / PRISMA | ✅ | — | contenu à relire par des enseignants |
+| Formation (24 leçons), grilles TRIPOD+AI / PROBAST+AI / PRISMA | ✅ | — | contenu à relire par des enseignants |
 | Audit contradictoire | ✅ | corpus annoté | heuristique pour la partie lexicale |
 | Exports PDF, HTML, CSV, JSON | ✅ | tests app | validé |
 | Android | ✅ APK 1.16.0 construit, installé (mise à jour depuis 1.10.0, projets conservés) et utilisé sur émulateur (API 37) | démos 1, 3 et 4, atelier génomique (alignement et expression appariée calculés en isolat) | signé avec la clé de débogage ; essai sur appareil réel à faire |
@@ -127,6 +128,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
   `validation/r/`. Elles ne décrivent aucune population réelle.
 - Démo 2 : 13 essais publiés du BCG (Colditz et al., JAMA 1994 ; jeu public `dat.bcg` de metafor).
 - Randomisation mendélienne : 28 variants publiés LDL-cholestérol / maladie coronarienne (Waterworth et al. 2010), jeu d'exemple du paquet R MendelianRandomization (`demos/mr_ldl_chd.csv`).
+- Mesures répétées : étude de privation de sommeil (18 sujets, 10 jours, jeu `sleepstudy` de lme4, `demos/sommeil_belenky.csv`) et essai simulé de suivi de l'HbA1c avec sorties d'étude (`demos/hba1c_longitudinal_simule.csv`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).
 - Randomisation mendélienne à partir de deux GWAS complets (simulés, 12 000 variants) : exposition au format GWAS-SSF, issue au format TwoSampleMR à harmoniser (`demos/gwas_exposition_simule.tsv`, `demos/gwas_issue_simule.tsv`).
