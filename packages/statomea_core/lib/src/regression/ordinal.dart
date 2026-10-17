@@ -182,7 +182,9 @@ MultinomFit fitMultinomial(List<List<double>> x, List<int> y, int k) {
 
 /// Prépare X (avec constante) et le rang de l'issue selon [levels] (ordre croissant ; défaut : modalités triées).
 ({DesignMatrix d, List<int> y, List<String> levels}) _design(Dataset ds, ModelFormula f, List<String>? levels) {
-  final lv = levels ?? ds.levels(f.outcome);
+  // Ordre : celui donné, sinon celui déclaré dans le dictionnaire de variables, sinon les modalités triées.
+  final declared = ds.dictionary[f.outcome]?.order;
+  final lv = levels ?? (declared != null && declared.toSet().containsAll(ds.levels(f.outcome)) ? declared : ds.levels(f.outcome));
   if (lv.length < 3) throw StatInputError('few_levels', tr('L\'issue doit avoir au moins 3 modalités (sinon : régression logistique).', 'The outcome must have at least 3 levels (otherwise: logistic regression).'));
   const code = '__rang_issue';
   final txt = ds.text(f.outcome);

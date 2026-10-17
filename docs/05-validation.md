@@ -939,3 +939,21 @@ Sur `veteran` (τ = 300 j) : RMST 103,5 j (test) contre 114,1 j (standard), diff
 dépasser le dernier temps observé du groupe au suivi le plus court (refusé sinon). Calculateurs « RMST » et
 « Analyse landmark » (rubrique Survie) ; la courbe de Kaplan-Meier trace τ.
 
+## Import Excel et dictionnaire de variables — 1.50.0
+
+Script `validation/r/49_excel.R` : classeur écrit par `openxlsx` 4.2 (`demos/exemple_excel.xlsx`, feuilles « patients »
+et « dictionnaire »), relu par `readxl` 1.4. Lecteur .xlsx en pur Dart dans le moteur (XML des feuilles, chaînes
+partagées et en ligne, booléens, erreurs de formule → manquant, dates par formats intégrés ou personnalisés, système
+1900 ou 1904) ; le décompactage du zip est fait par l'application (paquet archive). Test `test/excel_dictionary_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Noms des feuilles et des colonnes | `excel_sheets`, `read_excel` | exact |
+| Valeurs des 9 colonnes (dates AAAA-MM-JJ, décimaux, entiers, booléens, vides, « & < > », accents) | `read_excel` | exact |
+| Dictionnaire : codes manquants (999) retirés par correction journalisée, codes 1/2 remplacés par leurs libellés, types, unités, libellés, références, ordre des modalités | effet attendu calculé en R | exact |
+
+Le dictionnaire se lit en CSV ou en Excel (colonnes reconnues : variable, type, unité, min, max, référence, libellé,
+manquants, modalités). Une feuille « dictionnaire » d'un classeur importé est appliquée automatiquement. Les cellules
+d'origine restent intactes. La régression ordinale reprend l'ordre déclaré des modalités. Note : le R x86 de
+validation exige `Sys.setlocale("LC_CTYPE", "en_US.UTF-8")` pour écrire des accents corrects.
+

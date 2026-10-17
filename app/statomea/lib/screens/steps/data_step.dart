@@ -1,10 +1,10 @@
-import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../../services/xlsx_import.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
 
@@ -14,10 +14,10 @@ class DataStep extends StatefulWidget {
   final Project p;
   const DataStep(this.p, {super.key});
   @override
-  State<DataStep> createState() => _DataStepState();
+  State<DataStep> createState() => DataStepState();
 }
 
-class _DataStepState extends State<DataStep> {
+class DataStepState extends State<DataStep> {
   List<String> importWarnings = [];
   String? outcomeVar;
 
@@ -33,18 +33,69 @@ class _DataStepState extends State<DataStep> {
   }
 
   Future<void> _pickFile() async {
-    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['csv', 'txt', 'tsv']);
-    if (files.isEmpty) return;
+    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['csv', 'txt', 'tsv', 'xlsx']);
+    if (files.isEmpty || !mounted) return;
     final f = files.single;
-    final bytes = await f.xFile.readAsBytes();
-    String text;
+    await importFileBytes(f.name, await f.xFile.readAsBytes());
+  }
+
+  /// Import d'un fichier CSV ou Excel (public pour les tests) ; un classeur à plusieurs feuilles fait choisir la feuille,
+  /// et une feuille « dictionnaire » est appliquée automatiquement.
+  Future<void> importFileBytes(String name, List<int> bytes, {String? sheet}) async {
     try {
-      text = utf8.decode(bytes);
-    } on FormatException {
-      text = latin1.decode(bytes);
-      importWarnings = [tr('Fichier non UTF-8 : lu en Latin-1 (vérifier les accents).', 'File not in UTF-8: read as Latin-1 (check accented characters).')];
+      var r = datasetFromFile(name, bytes, sheet: sheet);
+      final wb = r.workbook;
+      if (wb != null && sheet == null) {
+        final dict = dictionarySheet(wb);
+        final candidates = [for (final s in wb.sheetNames) if (s != dict) s];
+        if (candidates.length > 1 && mounted) {
+          final chosen = await showDialog<String>(
+            context: context,
+            builder: (ctx) => SimpleDialog(title: Text(tr('Feuille à importer', 'Sheet to import')), children: [
+              for (final s in candidates) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, s), child: Text(s)),
+            ]),
+          );
+          if (chosen == null) return;
+          r = datasetFromFile(name, bytes, sheet: chosen);
+        }
+      }
+      var d = r.dataset;
+      final w = [...r.warnings];
+      final dict = wb == null ? null : dictionarySheet(wb);
+      if (wb != null && dict != null) {
+        final rep = applyDataDictionary(d, wb.sheet(name: dict), timestamp: DateTime.now().toIso8601String());
+        d = rep.dataset;
+        w.addAll([tr('Dictionnaire « $dict » appliqué :', 'Dictionary "$dict" applied:'), ...rep.summary()]);
+      }
+      _setDataset(d, w);
+    } catch (e) {
+      if (mounted) showError(context, tr('Lecture impossible : $e', 'Reading failed: $e'));
     }
-    _import(text, f.name);
+  }
+
+  Future<void> _pickDictionary() async {
+    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['csv', 'txt', 'tsv', 'xlsx']);
+    if (files.isEmpty || !mounted) return;
+    applyDictionaryBytes(files.single.name, await files.single.xFile.readAsBytes());
+  }
+
+  /// Applique un dictionnaire de variables (CSV ou Excel) au jeu de données du projet (public pour les tests).
+  void applyDictionaryBytes(String name, List<int> bytes) {
+    final d = ds;
+    if (d == null) return;
+    try {
+      final Dataset dict;
+      if (name.toLowerCase().endsWith('.xlsx')) {
+        final wb = openXlsx(bytes);
+        dict = wb.sheet(name: dictionarySheet(wb) ?? wb.sheetNames.first, source: name);
+      } else {
+        dict = datasetFromFile(name, bytes).dataset;
+      }
+      final rep = applyDataDictionary(d, dict, timestamp: DateTime.now().toIso8601String());
+      _setDataset(rep.dataset, [tr('Dictionnaire « $name » appliqué :', 'Dictionary "$name" applied:'), ...rep.summary()]);
+    } catch (e) {
+      showError(context, tr('Dictionnaire illisible : $e', 'Unreadable dictionary: $e'));
+    }
   }
 
   void _import(String text, String source) {
@@ -126,7 +177,9 @@ class _DataStepState extends State<DataStep> {
       Text(tr('Les données importées sont conservées telles quelles. Les corrections sont des opérations justifiées et journalisées, réversibles, appliquées à une copie de travail.', 'Imported data are kept as they are. Corrections are justified, logged, reversible operations applied to a working copy.')),
       const SizedBox(height: 10),
       Wrap(spacing: 8, runSpacing: 8, children: [
-        FilledButton.icon(onPressed: _pickFile, icon: const Icon(Icons.upload_file), label: Text(tr('Importer un CSV', 'Import a CSV'))),
+        FilledButton.icon(onPressed: _pickFile, icon: const Icon(Icons.upload_file), label: Text(tr('Importer un fichier (CSV, Excel)', 'Import a file (CSV, Excel)'))),
+        if (ds != null)
+          OutlinedButton.icon(onPressed: _pickDictionary, icon: const Icon(Icons.menu_book_outlined), label: Text(tr('Appliquer un dictionnaire de variables', 'Apply a variable dictionary'))),
         OutlinedButton.icon(onPressed: _manual, icon: const Icon(Icons.keyboard), label: Text(tr('Saisie manuelle / coller', 'Manual entry / paste'))),
         if (d != null)
           TextButton.icon(

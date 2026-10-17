@@ -103,7 +103,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Module | Opérationnel | Testé contre | Statut |
 |---|---|---|---|
 | Projets en 10 étapes, stockage local, suppression complète | ✅ | tests app | validé |
-| Import CSV, saisie, contrôle des données, corrections journalisées | ✅ | tests de détection | validé |
+| Import CSV et Excel (.xlsx), saisie, dictionnaire de variables (types, unités, bornes, codes manquants, modalités), contrôle des données, corrections journalisées | ✅ | tests de détection, readxl | validé |
 | Imputation multiple (MICE) et règles de Rubin, y compris dans la validation interne | ✅ | mice | validé |
 | Assistant de choix de méthode | ✅ | scénarios | validé |
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |

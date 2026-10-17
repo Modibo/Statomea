@@ -41,6 +41,8 @@ export 'src/inference/sample_size.dart';
 export 'src/inference/power.dart';
 export 'src/data/dataset.dart';
 export 'src/data/csv.dart';
+export 'src/data/xlsx.dart';
+export 'src/data/dictionary.dart';
 export 'src/regression/design_matrix.dart';
 export 'src/regression/common.dart';
 export 'src/regression/linear.dart';

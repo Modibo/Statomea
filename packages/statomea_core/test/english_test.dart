@@ -276,6 +276,9 @@ void main() {
     final stfEn = parseCsv(File('test/reference/greffe_stanford.csv').readAsStringSync()).dataset;
     expectResult('landmark', landmarkAnalysis(stfEn, time: 'jours', status: 'deces', eventLevel: 'oui', switchTime: 'attente_greffe', landmark: 30, terms: [const TermSpec('age')]),
         const {'jours', 'deces', 'oui', 'non', 'attente_greffe', 'expose_au_landmark', 'temps_depuis_landmark', 'age', 'greffe', 'chirurgie', 'patient'});
+    final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
+    final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
+    expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});
     expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
     expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [

@@ -1,0 +1,30 @@
+{
+  "names": ["id", "age", "sexe", "date_inclusion", "poids", "fumeur", "groupe", "score", "commentaire"],
+  "cols": {
+    "id": ["P001", "P002", "P003", "P004", "P005", "P006", "P007", "P008", "P009", "P010", "P011", "P012", "P013", "P014", "P015", "P016", "P017", "P018", "P019", "P020", "P021", "P022", "P023", "P024", "P025", "P026", "P027", "P028", "P029", "P030", "P031", "P032", "P033", "P034", "P035", "P036", "P037", "P038", "P039", "P040"],
+    "age": ["38.6", "45.7", "61.3", "51.6", "48.3", "61.5", "51.8", "52.7", "47", "61", "61.6", null, "60.1", "36.3", "31.8", "52.2", "55.5", "49.8", "41.3", "48.6", "40.5", "46.1", "48.7", "32.8", "40.3", "61", "63.5", "58.6", "50.6", "75.7", "45.3", "34.6", "49", "46.6", "47.9", "56.6", "60.2", "49.5", "50.1", "65.6"],
+    "sexe": ["F", "M", "F", "F", "F", "M", "F", "F", "M", "F", "F", "M", "F", "F", "M", "M", "M", "M", "M", "F", "M", "F", "F", "F", "M", "F", "M", "F", "F", "F", "F", "F", "M", "M", "F", "F", "F", "M", "F", "M"],
+    "date_inclusion": ["2025-04-21", "2025-08-14", "2025-11-04", "2025-03-03", "2025-06-20", "2025-10-07", "2026-01-23", "2025-05-09", "2025-10-07", "2025-08-25", "2025-08-26", "2025-08-24", "2025-05-27", "2025-10-09", "2025-02-17", "2025-06-24", "2025-11-18", "2025-07-24", "2025-07-22", "2025-08-19", "2025-11-04", "2025-06-14", "2025-05-15", "2025-08-12", "2025-07-11", "2025-10-09", "2025-07-29", "2025-07-19", "2025-09-17", "2025-12-14", "2025-10-07", "2025-03-06", "2025-05-31", "2025-06-05", "2026-01-07", "2025-06-21", "2025-07-17", "2025-12-16", "2025-08-10", "2025-10-26"],
+    "poids": ["57.6", "82.7", null, "77.2", "68.5", "76.3", "71.2", "999", "67.9", "77.2", "71.9", "77", "67.2", "86.2", "88.3", "51", null, "59.3", "62.8", "86.8", "57.8", "64.2", "73.2", "65.7", "999", "62.9", "82.2", "55.2", "69.2", "72", "999", "45.9", "75.3", "75.6", "71.2", "81.3", "86.9", "68.7", "89.9", "80.9"],
+    "fumeur": ["FALSE", "TRUE", "TRUE", "FALSE", "FALSE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "TRUE", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE", "FALSE", "TRUE", "TRUE", "FALSE", "FALSE", "FALSE", "FALSE", "TRUE", "FALSE", "FALSE", "FALSE", "TRUE", "TRUE", "FALSE", "TRUE", "FALSE", "TRUE", "TRUE", "FALSE", "TRUE", "TRUE", "TRUE", "FALSE", "TRUE"],
+    "groupe": ["1", "2", "2", "2", "2", "1", "1", "1", "1", "2", "1", "1", "1", "1", "2", "2", "1", "1", "1", "2", "1", "2", "2", "1", "1", "1", "1", "2", "1", "1", "1", "1", "1", "1", "1", "1", "1", "2", "2", "1"],
+    "score": ["fort", "faible", "faible", "fort", "moyen", "moyen", "fort", "moyen", "moyen", "faible", "moyen", "faible", "moyen", "fort", "fort", "fort", "moyen", "fort", "moyen", "faible", "fort", "fort", "moyen", "faible", "moyen", "moyen", "faible", "fort", "fort", "fort", "fort", "moyen", "fort", "faible", "fort", "fort", "fort", "faible", "fort", "moyen"],
+    "commentaire": ["RAS", "RAS", "dose > 2 mg", "dose > 2 mg", null, "HbA1c < 7 %", "RAS", "dose > 2 mg", "RAS", "RAS", null, "dose > 2 mg", "RAS", null, null, "perdu de vue & relancé", "dose > 2 mg", "HbA1c < 7 %", "RAS", "perdu de vue & relancé", "perdu de vue & relancé", "RAS", "RAS", "RAS", "HbA1c < 7 %", "dose > 2 mg", "HbA1c < 7 %", "dose > 2 mg", "RAS", "perdu de vue & relancé", "dose > 2 mg", "RAS", null, "perdu de vue & relancé", "RAS", "RAS", "perdu de vue & relancé", "HbA1c < 7 %", "HbA1c < 7 %", "HbA1c < 7 %"]
+  },
+  "sheets": ["patients", "dictionnaire"],
+  "dico_names": ["variable", "type", "unite", "min", "max", "reference", "libelle", "manquants", "modalites"],
+  "n_dico": 9,
+  "poids_missing_after": 5,
+  "groupe_labels": ["témoin", "traité", "traité", "traité", "traité", "témoin", "témoin", "témoin", "témoin", "traité", "témoin", "témoin", "témoin", "témoin", "traité", "traité", "témoin", "témoin", "témoin", "traité", "témoin", "traité", "traité", "témoin", "témoin", "témoin", "témoin", "traité", "témoin", "témoin", "témoin", "témoin", "témoin", "témoin", "témoin", "témoin", "témoin", "traité", "traité", "témoin"],
+  "_meta": {
+    "R": "R version 4.2.3 (2023-03-15)",
+    "generated": "2026-10-17",
+    "packages": [
+      "metafor 5.2.1",
+      "logistf 1.26.0",
+      "pROC 1.19.0.1",
+      "sandwich 3.1.0",
+      "car 3.1.3"
+    ]
+  }
+}

@@ -200,7 +200,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
                         : ds.dictionary[n]!.type == VarType.numeric)) (n, n)
         ], (v) => setState(() {
               outcome = v;
-              if (categoricalOutcome && v != null) levelOrder.text = ds.levels(v).join(' ; ');
+              if (categoricalOutcome && v != null) levelOrder.text = (ds.dictionary[v]?.order ?? ds.levels(v)).join(' ; ');
               if (!surv) event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
               terms = [for (final t in terms) if (t.variable != v) t];
             })),

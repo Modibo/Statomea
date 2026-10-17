@@ -32,6 +32,9 @@ class Variable {
   /// Vrai si le type a été déclaré par l'utilisateur (sinon inféré).
   bool declared;
 
+  /// Ordre déclaré des modalités (variable ordinale), par exemple depuis un dictionnaire de variables.
+  List<String>? order;
+
   Variable(this.name,
       {required this.type,
       this.unit = '',
@@ -39,7 +42,8 @@ class Variable {
       this.max,
       this.reference,
       this.label = '',
-      this.declared = false});
+      this.declared = false,
+      this.order});
 
   Map<String, Object?> toJson() => {
         'name': name,
@@ -50,6 +54,7 @@ class Variable {
         'reference': reference,
         'label': label,
         'declared': declared,
+        if (order != null) 'order': order,
       };
 
   factory Variable.fromJson(Map<String, Object?> j) => Variable(j['name'] as String,
@@ -59,7 +64,8 @@ class Variable {
       max: (j['max'] as num?)?.toDouble(),
       reference: j['reference'] as String?,
       label: (j['label'] as String?) ?? '',
-      declared: (j['declared'] as bool?) ?? false);
+      declared: (j['declared'] as bool?) ?? false,
+      order: (j['order'] as List?)?.cast<String>());
 }
 
 /// Opération de correction journalisée.
