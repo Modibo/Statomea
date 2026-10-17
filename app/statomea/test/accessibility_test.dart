@@ -55,7 +55,7 @@ Widget _app(AppState s, Widget home, {Brightness b = Brightness.light, double te
 
 void main() {
   late AppState state;
-  late Project demoAghbs, demoMeta, demoPred, rnaPlan, demoTb, demoGwas, demoPoly, demoMr;
+  late Project demoAghbs, demoMeta, demoPred, rnaPlan, demoTb, demoGwas, demoPoly, demoMr, demoSurv;
   late AnalysisResult ldsc, rgResult, prsResult, glmmResult, mrResult;
 
   setUpAll(() async {
@@ -72,6 +72,7 @@ void main() {
     demoPoly = buildDemoPolygenic(File('assets/demos/genotypes_dl_simule.bed').readAsBytesSync(), File('assets/demos/genotypes_dl_simule.bim').readAsStringSync(),
         File('assets/demos/genotypes_dl_simule.fam').readAsStringSync(), File('assets/demos/genotypes_dl_traits.csv').readAsStringSync());
     demoMr = buildDemoMr(File('assets/demos/mr_ldl_chd.csv').readAsStringSync());
+    demoSurv = buildDemoSurvivalAdvanced(File('assets/demos/risques_concurrents_simule.csv').readAsStringSync());
     state.projects.addAll([demoMeta, demoAghbs]);
     final ld = parsePlinkBed(File('assets/demos/genotypes_dl_simule.bed').readAsBytesSync(), File('assets/demos/genotypes_dl_simule.bim').readAsStringSync(),
         File('assets/demos/genotypes_dl_simule.fam').readAsStringSync());
@@ -120,6 +121,8 @@ void main() {
         'polygénie — audit': ProjectScreen(project: demoPoly, initialStep: PStep.audit),
         'causalité — calcul': ProjectScreen(project: demoMr, initialStep: PStep.computation),
         'causalité — interprétation': ProjectScreen(project: demoMr, initialStep: PStep.interpretation),
+        'survie avancée — calcul': ProjectScreen(project: demoSurv, initialStep: PStep.computation),
+        'survie avancée — interprétation': ProjectScreen(project: demoSurv, initialStep: PStep.interpretation),
         'leçon': LessonScreen(state.lessons.firstWhere((l) => l.id == 'or_rr')),
         for (final k in calculatorKinds.where((k) => k.$4 != 'Ateliers'))
           'calculateur ${k.$1}': Scaffold(body: SingleChildScrollView(child: CalculatorPanel(initialMethod: k.$1))),

@@ -171,6 +171,23 @@ analyses de sensibilité ont **confirmé** » (formulation catégorique ; les an
 faite » reconnaît désormais le leave-one-out). Erreur laissée à l'enseignant : « augmenter le HDL par un médicament
 réduira les infarctus » (extrapolation d'une exposition génétique à vie à une intervention, et effet direct nul).
 
+## Démo 8 — Survie avancée : risques concurrents et temps immortel
+
+Données : `demos/risques_concurrents_simule.csv` (400 patients **simulés**, rechute / décès sans rechute / censure)
+et données **réelles** publiées du programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R
+survival, embarquées dans le moteur). Question : le bras B réduit-il la rechute, sachant que des patients meurent avant
+de rechuter ?
+
+Journal : (1) Kaplan-Meier « naïf » de la rechute (décès censurés) ; (2) incidence cumulée d'Aalen-Johansen par bras,
+test de Gray, sHR du bras ; (3) Fine-Gray ajusté (bras, âge, sexe) avec Cox spécifique de cause en regard — l'âge en
+sens opposés ; (4) Cox de Stanford avec la greffe codée à l'inclusion (HR 0,18, biais du temps immortel) ; (5) la greffe
+en covariable dépendant du temps (HR ≈ 1).
+
+Brouillon à auditer : proportion de rechutes tirée de Kaplan-Meier, « l'âge protège », « la greffe réduit la mortalité
+de 82 % ». L'audit relève les deux pièges de survie (nouvelle famille « risques concurrents et temps immortel »), le
+langage causal et la formulation catégorique. `test/demos_test.dart` (groupe « Démo 8 ») vérifie la chaîne contre
+les références des scripts 40 et 41.
+
 ## Reproduire
 
 Dans l'application : Projets → Démonstrations. En ligne de commande :

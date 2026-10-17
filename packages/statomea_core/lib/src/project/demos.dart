@@ -13,6 +13,7 @@ import '../data/dataset.dart';
 import 'dart:typed_data';
 
 import '../genetics/alignment.dart';
+import '../genetics/examples.dart' show stanfordHeartExample;
 import '../genetics/association.dart';
 import '../genetics/genotype_io.dart';
 import '../genetics/genotype_kinship.dart';
@@ -22,6 +23,8 @@ import '../genetics/mendelian.dart';
 import '../genetics/pathogens.dart';
 import '../genetics/qpcr.dart';
 import '../inference/compare.dart';
+import '../inference/competing_risks.dart';
+import '../inference/survival.dart';
 import '../inference/proportion.dart';
 import '../inference/two_by_two.dart';
 import '../meta/meta.dart';
@@ -32,6 +35,8 @@ import '../prediction/external_validation.dart';
 import '../prediction/model_development.dart';
 import '../regression/design_matrix.dart';
 import '../regression/glm.dart';
+import '../regression/cox.dart';
+import '../regression/fine_gray.dart';
 import 'project.dart';
 
 String get simulatedNotice => tr(
@@ -538,3 +543,75 @@ Project buildDemoMr(String csv) {
     completed: {Step.question, Step.studyPlan, Step.analysisPlan, Step.dataControl, Step.methodChoice, Step.computation, Step.diagnostics, Step.interpretation},
   );
 }
+
+/// Démonstration 8 : survie avancée — rechute avec décès concurrent (données simulées) et biais du temps immortel
+/// (greffe cardiaque de Stanford, données réelles embarquées).
+Project buildDemoSurvivalAdvanced(String csv) {
+  final ds = parseCsv(csv, source: tr('risques_concurrents_simule.csv (simulé)', 'risques_concurrents_simule.csv (simulated)')).dataset;
+  final journal = <JournalEntry>[];
+  // 1) Erreur fréquente : Kaplan-Meier de la rechute, décès traités comme des censures.
+  final naive = survivalAnalysis(ds.numeric('mois'), [for (final v in ds.text('statut')) v == null ? null : (v == 'rechute' ? '1' : '0')], '1',
+      groupRaw: ds.text('bras'), horizon: 24, timeUnit: 'mois', groupName: 'bras');
+  journal.add(_entry(1, naive, data: ds, note: tr('Approche naïve : décès comptés comme censures — à comparer à l\'incidence cumulée.', 'Naive approach: deaths counted as censoring — to be compared with the cumulative incidence.')));
+  // 2) Incidence cumulée d'Aalen-Johansen, test de Gray, sHR du bras.
+  final cif = competingRisksAnalysis(ds.numeric('mois'), ds.text('statut'), 'rechute', {'censure'}, groupRaw: ds.text('bras'), horizon: 24, timeUnit: 'mois', groupName: 'bras');
+  journal.add(_entry(2, cif, data: ds, note: tr('Incidence cumulée de la rechute, le décès étant un événement concurrent.', 'Cumulative incidence of relapse, death being a competing event.')));
+  // 3) Fine-Gray ajusté, Cox spécifique de cause en regard.
+  final fg = fineGrayRegression(buildCompetingDesign(ds, 'mois', 'statut', 'rechute', {'censure'}, [
+    TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age'), TermSpec('sexe', categorical: true, reference: 'F'),
+  ]));
+  journal.add(_entry(3, fg, data: ds, note: tr('Modèle de Fine-Gray ajusté : l\'âge en sens opposés selon le modèle.', 'Adjusted Fine-Gray model: age in opposite directions depending on the model.')));
+  // 4–5) Stanford : greffe codée à l'inclusion, puis en covariable dépendant du temps.
+  final h = stanfordHeartExample;
+  final yes = tr('oui', 'yes'), no = tr('non', 'no');
+  final st = Dataset.fromColumns({
+    'jours': h.days,
+    'deces': [for (final d in h.died) d == 1 ? yes : no],
+    'attente_greffe': h.wait,
+    'greffe': [for (final w in h.wait) w == null ? no : yes],
+    'age': h.age,
+    'chirurgie': [for (final c in h.surgery) c == 1 ? yes : no],
+  }, source: tr('greffe cardiaque de Stanford (jasa, paquet R survival)', 'Stanford heart transplant (jasa, R package survival)'));
+  final terms = [TermSpec('greffe', categorical: true, reference: no), TermSpec('age'), TermSpec('chirurgie', categorical: true, reference: no)];
+  final coxNaive = coxRegression(buildSurvivalDesign(st, 'jours', 'deces', yes, terms));
+  journal.add(_entry(4, coxNaive, data: st, note: tr('Greffe codée à l\'inclusion : biais du temps immortel.', 'Transplant coded at inclusion: immortal time bias.')));
+  final long = splitAtSwitch(st, time: 'jours', status: 'deces', eventLevel: yes, switchTime: 'attente_greffe', covariate: 'greffe', yes: yes, no: no);
+  final coxTd = coxRegression(buildCountingDesign(long, 'debut', 'fin', 'deces', yes, terms));
+  journal.add(_entry(5, coxTd, data: long, note: tr('Greffe en covariable dépendant du temps : comparaison correcte à chaque décès.', 'Transplant as a time-dependent covariate: correct comparison at each death.')));
+  final naiveA = naive.estimates.firstWhere((e) => e.label.startsWith(tr('Survie à', 'Survival at')) && e.label.endsWith('— A'));
+  return Project(
+    id: 'demo-survie',
+    title: tr('Démo 8 — Survie avancée : risques concurrents et temps immortel', 'Demo 8 — Advanced survival: competing risks and immortal time'),
+    createdAt: tr('démonstration', 'demonstration'),
+    demoNotice: tr('Rechute et décès : données SIMULÉES (400 patients). Greffe : données RÉELLES publiées du programme de Stanford (103 patients, Crowley et Hu 1977).',
+        'Relapse and death: SIMULATED data (400 patients). Transplant: REAL published data from the Stanford programme (103 patients, Crowley and Hu 1977).'),
+    dataset: ds,
+    question: ResearchQuestion(
+      text: tr('Le bras B réduit-il la rechute après traitement d\'un cancer, sachant que des patients meurent avant de rechuter ?',
+          'Does arm B reduce relapse after cancer treatment, given that some patients die before relapsing?'),
+      population: tr('Patients traités pour un cancer, suivis jusqu\'à 72 mois', 'Patients treated for cancer, followed up to 72 months'),
+      exposure: tr('Bras B', 'Arm B'),
+      comparator: tr('Bras A', 'Arm A'),
+      outcome: tr('Rechute (décès sans rechute : événement concurrent)', 'Relapse (death without relapse: competing event)'),
+      horizon: tr('24 mois', '24 months'),
+      design: StudyDesign.cohort,
+      objective: StudyObjective.explanatory,
+      outcomeType: OutcomeType.timeToEvent,
+      exposureType: ExposureType.binary,
+      pairing: Pairing.independent,
+      dataLevel: DataLevel.individual,
+      needsAdjustment: true,
+      expectedEvents: 191,
+    ),
+    analysisPlan: tr(
+        '1) Kaplan-Meier « naïf » de la rechute (pour montrer l\'erreur). 2) Incidence cumulée d\'Aalen-Johansen par bras, test de Gray, sHR du bras. 3) Fine-Gray ajusté (bras, âge, sexe) avec Cox spécifique de cause en regard. 4–5) Exemple de la greffe de Stanford : greffe codée à l\'inclusion (biais du temps immortel), puis en covariable dépendant du temps.',
+        '1) "Naive" Kaplan-Meier of relapse (to show the error). 2) Aalen-Johansen cumulative incidence by arm, Gray test, sHR of the arm. 3) Adjusted Fine-Gray (arm, age, sex) with cause-specific Cox alongside. 4–5) Stanford transplant example: transplant coded at inclusion (immortal time bias), then as a time-dependent covariate.'),
+    journal: journal,
+    // Brouillon contenant des erreurs volontaires, à repérer avec l'audit et la leçon « risques concurrents et temps immortel ».
+    resultsText: tr(
+        'D\'après Kaplan-Meier, ${fmtPct(1 - naiveA.value)} des patients du bras A ont rechuté à 24 mois. L\'âge protège contre la rechute (sHR < 1). Dans la cohorte de Stanford, la greffe réduit la mortalité de ${fmtPct(1 - coxNaive.estimates.first.value, decimals: 0)} (HR = ${fmt(coxNaive.estimates.first.value)}), ce qui prouve son efficacité.',
+        'According to Kaplan-Meier, ${fmtPct(1 - naiveA.value)} of patients in arm A had relapsed at 24 months. Age protects against relapse (sHR < 1). In the Stanford cohort, transplantation reduces mortality by ${fmtPct(1 - coxNaive.estimates.first.value, decimals: 0)} (HR = ${fmt(coxNaive.estimates.first.value)}), which proves its efficacy.'),
+    completed: {Step.question, Step.studyPlan, Step.analysisPlan, Step.dataControl, Step.methodChoice, Step.computation, Step.diagnostics, Step.interpretation},
+  );
+}
+

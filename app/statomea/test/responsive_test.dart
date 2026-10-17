@@ -24,9 +24,10 @@ void main() {
       final cw = t.getSize(card).width, gw = t.getSize(grid).width;
       // Largeur d'une carte = (largeur de la grille − espacements) / colonnes : la ligne est remplie.
       expect(cw, closeTo((gw - 12 * (cols - 1)) / cols, 0.5));
-      // 7 démonstrations : la dernière ligne incomplète occupe aussi toute la largeur.
-      final last = find.ancestor(of: find.textContaining('Causalité : LDL, HDL et cœur'), matching: find.byType(Card)).first;
-      final lastCount = 7 % cols == 0 ? cols : 7 % cols;
+      // 8 démonstrations : la dernière ligne (même incomplète) occupe toute la largeur.
+      const demos = 8;
+      final last = find.ancestor(of: find.textContaining('Survie avancée'), matching: find.byType(Card)).first;
+      final lastCount = demos % cols == 0 ? cols : demos % cols;
       expect(t.getSize(last).width, closeTo((gw - 12 * (lastCount - 1)) / lastCount, 0.5));
       t.view.resetPhysicalSize();
       t.view.resetDevicePixelRatio();

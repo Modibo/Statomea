@@ -305,4 +305,35 @@ void main() {
       expect(Project.decode(p.encodeCompact()).encode(), p.encode());
     });
   });
+
+  group('Démo 8 — survie avancée (risques concurrents, temps immortel)', () {
+    final p = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
+    final rs = [for (final e in p.journal) analysisResultFromJson(e.result)];
+    final rc = loadRef('risques_concurrents'), ct = loadRef('cox_temps');
+
+    test('chaîne : KM naïf, incidence cumulée (= cuminc, test de Gray), Fine-Gray (= crr), Cox naïf et dépendant du temps (= coxph)', () {
+      expect([for (final r in rs) r.methodId], ['kaplan_meier', 'cumulative_incidence', 'fine_gray', 'cox', 'cox']);
+      expect(rs[1].statistics['cif_A'], closeRel(asD((rc['at24'] as Map)['A'])!, rel: 1e-12));
+      expect(rs[1].statistics['gray_chi2'], closeRel(asD(((rc['gray'] as Map)['stat'] as List).first)!, rel: 1e-10));
+      expect(rs[1].statistics['naive_A']!, greaterThan(rs[1].statistics['cif_A']!));
+      expect(rs[2].statistics['cs_beta_age']!, greaterThan(0));
+      expect(rs[2].statistics['beta_age']!, lessThan(0));
+      expect(rs[3].estimates.first.value, lessThan(0.25)); // biais du temps immortel
+      expect(rs[4].statistics['beta_greffe = oui (vs non)'], closeRel(asD(((ct['efron'] as Map)['coef'] as List).first)!, rel: 1e-8));
+    });
+
+    test('le brouillon contient les erreurs volontaires, et l\'audit en relève', () {
+      expect(p.resultsText, contains('Kaplan-Meier'));
+      final a = runAudit(question: p.question, results: rs, text: p.resultsText);
+      final surv = a.alerts.where((f) => f.family == AuditFamily.survivalPitfalls).toList();
+      expect(surv, hasLength(2)); // Kaplan-Meier malgré les décès concurrents ; HR de la greffe biaisé par le temps immortel
+      expect(surv.any((f) => f.message.contains('temps immortel')), isTrue);
+      expect(a.alerts.map((f) => f.family).toSet(), containsAll([AuditFamily.causalLanguage, AuditFamily.overPrecision]));
+    });
+
+    test('projet sérialisable', () {
+      expect(Project.decode(p.encodeCompact()).encode(), p.encode());
+    });
+  });
 }
+

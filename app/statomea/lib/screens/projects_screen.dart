@@ -59,6 +59,10 @@ class ProjectsScreen extends StatelessWidget {
           tr('Randomisation mendélienne sur 28 variants publiés : IVW, MR-Egger, médiane et mode, leave-one-out, multivariée.',
               'Mendelian randomization on 28 published variants: IVW, MR-Egger, median and mode, leave-one-out, multivariable.'),
           Icons.call_split),
+      ('survie', tr('Survie avancée', 'Advanced survival'),
+          tr('Rechute avec décès concurrent (incidence cumulée, test de Gray, Fine-Gray) et biais du temps immortel (greffe de Stanford).',
+              'Relapse with competing death (cumulative incidence, Gray test, Fine-Gray) and immortal time bias (Stanford transplant).'),
+          Icons.timeline),
     ];
     // En-tête : titre et description ; actions « Nouveau projet » (principale) et « Importer » côte à côte, à droite
     // du titre sur grand écran, en dessous et à parts égales sur téléphone.

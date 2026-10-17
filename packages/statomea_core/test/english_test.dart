@@ -368,7 +368,8 @@ void main() {
         File('$g5/gwas_covariables_simule.csv').readAsStringSync());
     final p6 = demo6();
     final p7 = buildDemoMr(File('test/reference/mr_ldl_chd.csv').readAsStringSync());
-    for (final p in [p1, p2, p3, p4, p5, p6, p7]) {
+    final p8 = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
+    for (final p in [p1, p2, p3, p4, p5, p6, p7, p8]) {
       final al = {
         ...dataTokens([p.dataset!]),
         for (final s in p.studies) ...[s.label, s.subgroup, for (final v in s.values.values) v.source, s.compatibility.comment],
@@ -416,6 +417,8 @@ void main() {
     expect(fam(p6), containsAll([AuditFamily.genomicInflation, AuditFamily.causalLanguage, AuditFamily.overPrecision, AuditFamily.announcedNotDone]));
     final p7 = buildDemoMr(File('test/reference/mr_ldl_chd.csv').readAsStringSync());
     expect(fam(p7), containsAll([AuditFamily.causalLanguage, AuditFamily.orAsRr, AuditFamily.overPrecision]));
+    final p8 = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
+    expect(fam(p8), containsAll([AuditFamily.survivalPitfalls, AuditFamily.causalLanguage, AuditFamily.overPrecision]));
   });
 
   test('une équation développée en français s\'applique en anglais, et inversement', () {

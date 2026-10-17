@@ -884,3 +884,12 @@ faible < moyenne < élevée). Tests `test/comptages_test.dart`, `test/ordinal_te
 Le test des cotes proportionnelles est approché par le rapport de vraisemblance contre le modèle multinomial (signalé
 comme approximation). Les IC sont de Wald (polr propose aussi des IC profilés, non repris).
 
+## Démonstration 8 et audit des pièges de survie — 1.45.0
+
+Démo 8 (survie avancée) construite par `buildDemoSurvivalAdvanced` : chaîne vérifiée contre les références des scripts
+40 (`cuminc`, test de Gray, `crr`) et 41 (`coxph` en processus de comptage). Nouvelle famille d'audit « Survie :
+risques concurrents et temps immortel » : (a) texte s'appuyant sur Kaplan-Meier alors qu'une analyse d'incidence
+cumulée montre un événement concurrent (avec les deux valeurs en regard) ; (b) HR significatif d'une covariable codée
+à l'inclusion que le modèle à covariable dépendant du temps ne confirme pas (temps immortel). Tests dans
+`demos_test.dart` et `english_test.dart` (huit démonstrations, audit de chacune).
+

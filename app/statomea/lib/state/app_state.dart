@@ -154,6 +154,8 @@ class AppState extends ChangeNotifier {
         final args = (await b('genotypes_dl_simule.bed'), await rootBundle.loadString('assets/demos/genotypes_dl_simule.bim'),
             await rootBundle.loadString('assets/demos/genotypes_dl_simule.fam'), await rootBundle.loadString('assets/demos/genotypes_dl_traits.csv'), currentLang);
         p = await compute(_buildPolygenic, args);
+      case 'survie':
+        p = buildDemoSurvivalAdvanced(await rootBundle.loadString('assets/demos/risques_concurrents_simule.csv'));
       case 'mr':
         p = buildDemoMr(await rootBundle.loadString('assets/demos/mr_ldl_chd.csv'));
       case 'tb':

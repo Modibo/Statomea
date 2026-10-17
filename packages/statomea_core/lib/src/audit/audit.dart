@@ -26,6 +26,7 @@ enum AuditFamily {
   announcedNotDone,
   overPrecision,
   genomicInflation,
+  survivalPitfalls,
 }
 
 String auditFamilyLabel(AuditFamily f) => switch (f) {
@@ -38,6 +39,7 @@ String auditFamilyLabel(AuditFamily f) => switch (f) {
       AuditFamily.announcedNotDone => tr('Analyse annoncée mais non effectuée', 'Analysis announced but not performed'),
       AuditFamily.overPrecision => tr('Conclusion dépassant la précision des données', 'Conclusion exceeding the precision of the data'),
       AuditFamily.genomicInflation => tr('Inflation génomique : polygénie ou confusion', 'Genomic inflation: polygenicity or confounding'),
+      AuditFamily.survivalPitfalls => tr('Survie : risques concurrents et temps immortel', 'Survival: competing risks and immortal time'),
     };
 
 enum AuditStatus { alert, ok, insufficient }
@@ -613,6 +615,54 @@ AuditReport runAudit({required ResearchQuestion question, required List<Analysis
     if (n == 0) {
       f.add(AuditFinding(AuditFamily.genomicInflation, AuditStatus.ok,
           tr("Aucune attribution de l'inflation à la polygénie contredite ou non étayée.", 'No attribution of the inflation to polygenicity that is contradicted or unsupported.'), lexical: hasText));
+    }
+  }
+  // ------------------------------------------------ 10. Survie : risques concurrents et temps immortel
+  final cifs = results.where((r) => r.methodId == 'cumulative_incidence' && (r.statistics['competing'] ?? 0) > 0).toList();
+  final coxes = results.where((r) => r.methodId == 'cox').toList();
+  bool isCounting(AnalysisResult r) => r.methodName.contains('dépendant du temps') || r.methodName.contains('time-dependent');
+  final naiveCox = coxes.where((r) => !isCounting(r)).toList(), tdCox = coxes.where(isCounting).toList();
+  if (cifs.isEmpty && tdCox.isEmpty) {
+    f.add(AuditFinding(AuditFamily.survivalPitfalls, AuditStatus.ok, tr('Sans objet : ni risques concurrents ni covariable dépendant du temps.', 'Not applicable: no competing risks and no time-dependent covariate.')));
+  } else {
+    var n = 0;
+    // a) 1 − Kaplan-Meier rapporté alors qu'un événement concurrent existe.
+    if (cifs.isNotEmpty && hasText) {
+      for (final h in _find(text, RegExp(r'kaplan[\s-]*meier'))) {
+        final r = cifs.first;
+        final groups = [for (final e in r.statistics.entries) if (e.key.startsWith('cif_')) e.key.substring(4)];
+        final ex = groups.isEmpty
+            ? ''
+            : tr(' Par exemple « ${groups.first} » : ${fmtPct(r.statistics['cif_${groups.first}'])} (Aalen-Johansen) contre ${fmtPct(r.statistics['naive_${groups.first}'])} (1 − KM).',
+                ' For example "${groups.first}": ${fmtPct(r.statistics['cif_${groups.first}'])} (Aalen-Johansen) versus ${fmtPct(r.statistics['naive_${groups.first}'])} (1 − KM).');
+        n++;
+        f.add(AuditFinding(AuditFamily.survivalPitfalls, AuditStatus.alert,
+            tr('Le texte s\'appuie sur Kaplan-Meier alors qu\'un événement concurrent est présent : 1 − KM surestime la proportion de sujets qui connaissent l\'événement.$ex',
+                'The text relies on Kaplan-Meier although a competing event is present: 1 − KM overestimates the proportion of subjects who experience the event.$ex'),
+            severity: Severity.serious, trigger: h.excerpt, lexical: true,
+            correction: tr('Rapporter l\'incidence cumulée d\'Aalen-Johansen (et le test de Gray pour comparer les groupes).', 'Report the Aalen-Johansen cumulative incidence (and the Gray test to compare groups).')));
+        break;
+      }
+    }
+    // b) HR d'une covariable codée à l'inclusion alors que le modèle dépendant du temps la contredit (temps immortel).
+    for (final td in tdCox) {
+      for (final nv in naiveCox) {
+        final e1 = nv.estimates.isEmpty ? null : nv.estimates.first, e2 = td.estimates.isEmpty ? null : td.estimates.first;
+        if (e1 == null || e2 == null || e1.label != e2.label || e1.lower == null || e2.lower == null) continue;
+        final naiveSig = e1.upper! < 1 || e1.lower! > 1, tdSig = e2.upper! < 1 || e2.lower! > 1;
+        if (!naiveSig || tdSig) continue;
+        final cited = hasText && text.contains(fmt(e1.value));
+        n++;
+        f.add(AuditFinding(AuditFamily.survivalPitfalls, AuditStatus.alert,
+            tr('« ${e1.label} » : HR = ${fmt(e1.value)} quand la covariable est codée à l\'inclusion, mais ${fmt(e2.value)} (IC ${fmt(e2.lower)} à ${fmt(e2.upper)}) en covariable dépendant du temps : l\'effet apparent vient du temps immortel${cited ? ', et c\'est le HR biaisé que le texte rapporte' : ''}.',
+                '"${e1.label}": HR = ${fmt(e1.value)} when the covariate is coded at inclusion, but ${fmt(e2.value)} (CI ${fmt(e2.lower)} to ${fmt(e2.upper)}) as a time-dependent covariate: the apparent effect comes from immortal time${cited ? ', and it is the biased HR that the text reports' : ''}.'),
+            severity: Severity.serious, trigger: cited ? fmt(e1.value) : nv.methodName, lexical: cited,
+            correction: tr('Rapporter le modèle avec covariable dépendant du temps (ou une analyse landmark).', 'Report the model with the time-dependent covariate (or a landmark analysis).')));
+      }
+    }
+    if (n == 0) {
+      f.add(AuditFinding(AuditFamily.survivalPitfalls, AuditStatus.ok,
+          tr('Aucune incidence de Kaplan-Meier en présence d\'un événement concurrent ni biais du temps immortel repéré.', 'No Kaplan-Meier incidence in the presence of a competing event and no immortal time bias found.'), lexical: hasText));
     }
   }
   return AuditReport(f);

@@ -131,6 +131,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 - Randomisation mendélienne : 28 variants publiés LDL-cholestérol / maladie coronarienne (Waterworth et al. 2010), jeu d'exemple du paquet R MendelianRandomization (`demos/mr_ldl_chd.csv`).
 - Comptages et issues ordinales (paquet MASS) : absences scolaires `quine` (`demos/absences_quine.csv`), sinistres `Insurance` avec offset (`demos/sinistres_assurance.csv`), satisfaction du logement `housing` (`demos/satisfaction_logement.csv`).
 - Mesures répétées : étude de privation de sommeil (18 sujets, 10 jours, jeu `sleepstudy` de lme4, `demos/sommeil_belenky.csv`) et essai simulé de suivi de l'HbA1c avec sorties d'étude (`demos/hba1c_longitudinal_simule.csv`).
+- Démo 8 (survie avancée) : rechute avec décès concurrent et greffe de Stanford, de la question au rapport, avec un brouillon à auditer.
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).
 - Randomisation mendélienne à partir de deux GWAS complets (simulés, 12 000 variants) : exposition au format GWAS-SSF, issue au format TwoSampleMR à harmoniser (`demos/gwas_exposition_simule.tsv`, `demos/gwas_issue_simule.tsv`).
