@@ -1,8 +1,10 @@
 # 03 — Maquettes des écrans (téléphone et ordinateur)
 
 Les maquettes sont des **captures de l'application réelle**, produites de façon reproductible par
-`app/statomea/test/maquettes_test.dart` aux tailles 390 × 844 (téléphone) et 1366 × 860 (ordinateur),
-avec les polices embarquées. Le même test échoue si un écran déborde : il a servi à corriger deux
+`app/statomea/test/maquettes_test.dart` aux tailles 390 × 844 (téléphone) et 1366 × 860 (ordinateur), en double densité (2 pixels par point,
+soit 780 × 1688 et 2732 × 1720 pixels) pour un texte net sur les écrans haute densité, avec les polices embarquées.
+Treize écrans par format, dont depuis la 1.47.0 la survie avancée (incidence cumulée), la courbe de puissance et les
+trajectoires du modèle mixte. Les captures téléphone de la page d'accueil (`deploy/landing/captures/`) en sont des copies. Le même test échoue si un écran déborde : il a servi à corriger deux
 débordements à 390 px (pied de page des étapes, en-tête du contrôle de qualité).
 
 Régénération :

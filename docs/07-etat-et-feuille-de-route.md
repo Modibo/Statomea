@@ -1,6 +1,6 @@
 # 07 — État du projet : opérationnel, testé, en développement
 
-État au 16 octobre 2026, moteur 1.46.0.
+État au 16 octobre 2026, moteur 1.47.0.
 
 ## Étape par étape
 
@@ -17,7 +17,7 @@
 | 8. Formation | 24 leçons (dont génétique et génomique, études pangénomiques, polygénie et scores polygéniques, causalité et randomisation mendélienne, risques concurrents et temps immortel, puissance en survie, cas-témoins et GWAS, mesures répétées), exercices, grilles TRIPOD+AI/PROBAST+AI/PRISMA | Exemples calculés par le moteur | Relecture par des enseignants ; suivi de progression |
 | 9. Audit contradictoire | 10 familles (dont inflation génomique : polygénie ou confusion ; survie : risques concurrents et temps immortel) + résultats non fiables | Corpus annoté de 17 phrases + scénarios | Couverture lexicale limitée au corpus |
 | 10. Exports | PDF, HTML, CSV, journal JSON, projet JSON | PDF et HTML générés en test | Import d'un projet exporté : contrôle d'intégrité par empreinte FNV (détecte une modification, pas une falsification délibérée) |
-| 11. Application | Web construite et vérifiée au navigateur ; 16 maquettes sans débordement ; accessibilité auditée (cibles tactiles, libellés, contraste WCAG AA en clair et sombre, texte à 200 %, titres et graphiques décrits pour les lecteurs d'écran) | 43 tests (dont 6 d'accessibilité) + 16 captures | Android construit (APK 1.36.5, seule permission Internet pour signaler les mises à jour, désactivable ; APK 1.16.0 sans permission) et vérifié sur émulateur API 37 : mise à jour depuis 1.10.0 sans perte de projets, démos 1, 3 et 4, atelier génomique (alignement, expression appariée avec corrélation intra-sujet, calculés en isolat), figures; iOS non construit (Xcode incomplet sur ce poste) ; version anglaise complète (relecture scientifique par un anglophone à prévoir) ; essai avec de vrais lecteurs d'écran (VoiceOver, TalkBack) à faire sur appareil |
+| 11. Application | Web construite et vérifiée au navigateur ; 26 maquettes sans débordement (double densité) ; accessibilité auditée (cibles tactiles, libellés, contraste WCAG AA en clair et sombre, texte à 200 %, titres et graphiques décrits pour les lecteurs d'écran) | 43 tests (dont 6 d'accessibilité) + 26 captures | Android construit (APK 1.36.5, seule permission Internet pour signaler les mises à jour, désactivable ; APK 1.16.0 sans permission) et vérifié sur émulateur API 37 : mise à jour depuis 1.10.0 sans perte de projets, démos 1, 3 et 4, atelier génomique (alignement, expression appariée avec corrélation intra-sujet, calculés en isolat), figures; iOS non construit (Xcode incomplet sur ce poste) ; version anglaise complète (relecture scientifique par un anglophone à prévoir) ; essai avec de vrais lecteurs d'écran (VoiceOver, TalkBack) à faire sur appareil |
 
 ## Prochaines étapes proposées (ordre à confirmer selon les besoins des utilisateurs)
 

@@ -18,6 +18,7 @@ import 'package:statomea/screens/lesson_screen.dart';
 import 'package:statomea/screens/project_screen.dart';
 import 'package:statomea/services/storage.dart';
 import 'package:statomea/state/app_state.dart';
+import 'package:statomea/widgets/calculators.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 Future<void> _loadFonts() async {
@@ -54,9 +55,12 @@ Widget _app(AppState s, Widget home) => ChangeNotifierProvider.value(
 
 const sizes = {'mobile': Size(390, 844), 'ordinateur': Size(1366, 860)};
 
+/// Densité des captures : 2 pixels par point, pour un texte net sur les écrans haute densité (page d'accueil, docs).
+const pixelRatio = 2.0;
+
 void main() {
   late AppState state;
-  late Project demoAghbs, demoMeta, demoPred, demoGwas, demoMr;
+  late Project demoAghbs, demoMeta, demoPred, demoGwas, demoMr, demoSurv, demoLong;
 
   setUpAll(() async {
     await _loadFonts();
@@ -68,13 +72,22 @@ void main() {
     demoGwas = buildDemoGwas(File('assets/demos/gwas_simule.bed').readAsBytesSync(), File('assets/demos/gwas_simule.bim').readAsStringSync(),
         File('assets/demos/gwas_simule.fam').readAsStringSync(), File('assets/demos/gwas_covariables_simule.csv').readAsStringSync());
     demoMr = buildDemoMr(File('assets/demos/mr_ldl_chd.csv').readAsStringSync());
+    demoSurv = buildDemoSurvivalAdvanced(File('assets/demos/risques_concurrents_simule.csv').readAsStringSync());
+    // Mesures répétées : projet construit à partir de l'essai simulé HbA1c (modèle mixte avec trajectoires).
+    final hb = parseCsv(File('test/hba1c_longitudinal_simule.csv').readAsStringSync(), source: 'hba1c_longitudinal_simule.csv').dataset;
+    final lmm = longitudinalMixedModel(hb, const ModelFormula('hba1c', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')], interactions: [('mois', 'bras')]),
+        subject: 'patient', slope: 'mois');
+    demoLong = state.createProject('Suivi de l\'HbA1c (mesures répétées)')
+      ..dataset = hb
+      ..journal.add(JournalEntry.fromResult(lmm, id: 'maquette-01', timestamp: 'maquette', data: hb));
+    state.projects.remove(demoLong);
     state.projects.addAll([demoMeta, demoAghbs]);
   });
 
   Future<void> shot(WidgetTester t, String name, Size size, Widget home, {Future<void> Function()? before, double scroll = 0, String? target, double after = 0}) async {
     await t.binding.setSurfaceSize(size);
-    t.view.physicalSize = size;
-    t.view.devicePixelRatio = 1;
+    t.view.physicalSize = size * pixelRatio;
+    t.view.devicePixelRatio = pixelRatio;
     await t.pumpWidget(_app(state, home));
     await t.pumpAndSettle();
     // Images (logo) : décodage réel avant la capture, sinon le cadre reste vide.
@@ -129,5 +142,14 @@ void main() {
     testWidgets('$tag — leçon', (t) => shot(t, '$tag-08-lecon', size, LessonScreen(state.lessons.firstWhere((l) => l.id == 'or_rr'))));
     testWidgets('$tag — GWAS', (t) => shot(t, '$tag-09-gwas', size, ProjectScreen(project: demoGwas, initialStep: PStep.interpretation), target: 'Manhattan plot'));
     testWidgets('$tag — causalité', (t) => shot(t, '$tag-10-causalite', size, ProjectScreen(project: demoMr, initialStep: PStep.interpretation), target: 'Randomisation mendélienne'));
+    testWidgets('$tag — survie avancée', (t) => shot(t, '$tag-11-survie', size, ProjectScreen(project: demoSurv, initialStep: PStep.interpretation), target: 'Incidence cumulée'));
+    testWidgets('$tag — puissance', (t) => shot(t, '$tag-12-puissance', size, const Scaffold(body: SingleChildScrollView(child: CalculatorPanel(initialMethod: 'power_survival'))),
+        before: () async {
+          await t.ensureVisible(find.text('Calculer'));
+          await t.pumpAndSettle();
+          await t.tap(find.text('Calculer'));
+          await t.pumpAndSettle();
+        }, target: 'Courbe de puissance'));
+    testWidgets('$tag — mesures répétées', (t) => shot(t, '$tag-13-mesures-repetees', size, ProjectScreen(project: demoLong, initialStep: PStep.interpretation), target: 'Trajectoires individuelles'));
   }
 }
