@@ -66,6 +66,7 @@ export 'src/regression/mixed.dart';
 export 'src/regression/gee.dart';
 export 'src/regression/counts.dart';
 export 'src/regression/ordinal.dart';
+export 'src/regression/glmm_long.dart';
 export 'src/inference/competing_risks.dart';
 export 'src/inference/survival.dart';
 export 'src/meta/meta_regression.dart';

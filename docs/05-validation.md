@@ -903,3 +903,23 @@ assorti d'une mise en garde) et « l'exposition peut-elle changer pendant le sui
 immortel et covariable dépendant du temps). Si elles ne sont pas renseignées, l'assistant pose la question au lieu de
 supposer. Scénarios dans `test/quality_advisor_audit_test.dart` ; textes anglais dans `english_test.dart`.
 
+## Modèle mixte logistique et de Poisson (intercept aléatoire) — 1.48.0
+
+Script `validation/r/47_glmm.R`. Trois niveaux de référence, parce que la déviance de `lme4::glmer` dépend de l'état
+final de son algorithme PIRLS : aux mêmes paramètres, `logLik`, `devfun` et le Laplace théorique diffèrent d'environ
+0,01 (constaté : 489,5435, 489,5365 et 489,5308 sur l'exemple binaire). Données : essai simulé HbA1c (contrôle
+glycémique), `grouseticks` de lme4 (tiques de poussins de lagopède, effet de la couvée ; `demos/tiques_lagopede.csv`),
+hypoglycémies (variance entre sujets nulle). Test `test/glmm_long_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Laplace exacte : log-vraisemblance | recalcul R (mode par optimize, maximum par optim BFGS, covariables centrées) | 2e-7 en absolu |
+| Laplace exacte : β (crête plate constante–âge), σ, ES | idem, ES par optimHess ramenés à l'échelle d'origine | 1e-3 ES, 1e-4, 5e-3 |
+| Quadrature de Gauss-Hermite adaptative à 25 points → maximum de vraisemblance exact | intégration numérique (integrate, rel.tol 1e-12) | β et σ 1e-3, log-vraisemblance 2e-5 |
+| Même modèle que glmer (nAGQ = 1 et 10) | `glmer` | β 2 %, ES 5 % |
+| Variance entre sujets nulle : σ négligeable, test de σ = 0 non significatif, β = glmer | `glmer` (frontière) | 1e-3 |
+
+Deux corrections ont été nécessaires et sont documentées dans le code : le mode conditionnel converge sur la dérivée
+(un critère sur la valeur de g bute sur l'arrondi et rend la vraisemblance bruitée à 5e-9), et la hessienne utilise un
+pas de 1e-4 (comme `deriv12` de lme4), les covariables étant centrées pour l'optimisation.
+

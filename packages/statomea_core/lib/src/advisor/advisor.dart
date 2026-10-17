@@ -332,8 +332,9 @@ void _explanatory(ResearchQuestion q, List<Clarification> ask, List<MethodOption
         opts.add(_opt('gee', tr('Effet moyen dans la population avec erreurs types robustes (≥ 40 sujets, données manquantes MCAR).', 'Population-average effect with robust standard errors (≥ 40 subjects, MCAR missing data).')));
       case OutcomeType.binary:
       case OutcomeType.count:
-        opts.add(_opt('gee', tr('Issue ${q.outcomeType == OutcomeType.binary ? 'binaire' : 'de comptage'} répétée : GEE (OR ou RR marginaux, variance robuste).', 'Repeated ${q.outcomeType == OutcomeType.binary ? 'binary' : 'count'} outcome: GEE (marginal ORs or RRs, robust variance).'), recommended: true));
-        notes.add(tr('Modèle mixte généralisé (effets propres au sujet) : non disponible ; les GEE estiment un effet moyen dans la population.', 'Generalized mixed model (subject-specific effects): not available; GEE estimate a population-average effect.'));
+        opts.add(_opt('gee', tr('Issue ${q.outcomeType == OutcomeType.binary ? 'binaire' : 'de comptage'} répétée : GEE (OR ou RR moyens dans la population, variance robuste).', 'Repeated ${q.outcomeType == OutcomeType.binary ? 'binary' : 'count'} outcome: GEE (population-average ORs or RRs, robust variance).'), recommended: true));
+        opts.add(_opt('glmm_longitudinal', tr('Effet pour un même sujet (OR ou RR conditionnels, plus éloignés de 1 que ceux des GEE) : modèle mixte à intercept aléatoire.', 'Effect for the same subject (conditional ORs or RRs, further from 1 than GEE ones): random-intercept mixed model.')));
+        notes.add(tr('GEE et modèle mixte répondent à deux questions : effet moyen dans la population (GEE) ou effet pour un même sujet (modèle mixte).', 'GEE and the mixed model answer two questions: population-average effect (GEE) or effect for the same subject (mixed model).'));
       default:
         notes.add(tr('Mesures répétées pour ce type d\'issue : résumer chaque sujet (pente, aire sous la courbe, dernier état) puis appliquer un test simple.', 'Repeated measures for this outcome type: summarize each subject (slope, area under the curve, last state), then apply a simple test.'));
     }

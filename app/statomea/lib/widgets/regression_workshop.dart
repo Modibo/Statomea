@@ -91,6 +91,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     'fine_gray' => 'fine_gray',
     'lmm_longitudinal' => 'mixed',
     'gee' => 'gee',
+    'glmm_longitudinal' => 'glmm',
     'count_regression' => 'counts',
     'ordinal_logistic' => 'ordinal',
     'multinomial_logistic' => 'multinomial',
@@ -107,6 +108,8 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   GeeFamily geeFamily = GeeFamily.gaussian;
   GeeCorrelation geeCorr = GeeCorrelation.exchangeable;
   bool geeSmall = false;
+  GlmmFamily glmmFamily = GlmmFamily.binomial;
+  int glmmAgq = 1;
   // Comptages : modèle et temps d'exposition (offset) ; issues ordinales : ordre des modalités.
   CountModel countModel = CountModel.negativeBinomial;
   String? exposureCol;
@@ -119,7 +122,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   List<(String, String)> interactions = [];
 
   bool get surv => model == 'cox' || model == 'fine_gray';
-  bool get binary => model == 'gee' ? geeFamily == GeeFamily.binomial : !const {'linear', 'mixed', 'counts', 'ordinal', 'multinomial'}.contains(model) && !surv;
+  bool get binary => model == 'glmm' ? glmmFamily == GlmmFamily.binomial : model == 'gee' ? geeFamily == GeeFamily.binomial : !const {'linear', 'mixed', 'counts', 'ordinal', 'multinomial'}.contains(model) && !surv;
 
   @override
   Widget build(BuildContext context) {
@@ -159,6 +162,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
         ('fine_gray', tr('Fine-Gray (risques concurrents)', 'Fine-Gray (competing risks)')),
         ('mixed', tr('Mesures répétées (modèle mixte)', 'Repeated measures (mixed model)')),
         ('gee', tr('Mesures répétées (GEE)', 'Repeated measures (GEE)')),
+        ('glmm', tr('Mesures répétées binaires ou comptages (modèle mixte)', 'Repeated binary or count outcomes (mixed model)')),
       ], (v) => setState(() {
             if (v == null || v == model) return;
             model = v;
@@ -175,6 +179,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             'counts' => tr('Nombre d\'événements (entier ≥ 0) ; IRR (rapports de taux) ; binomiale négative si la variance dépasse la moyenne ; temps d\'exposition en offset.', 'Number of events (integer ≥ 0); IRRs (rate ratios); negative binomial if the variance exceeds the mean; exposure time as offset.'),
             'ordinal' => tr('Issue à modalités ordonnées (≥ 3) ; un OR par facteur, commun à tous les seuils.', 'Outcome with ordered levels (≥ 3); one OR per factor, common to all thresholds.'),
             'multinomial' => tr('Issue à modalités non ordonnées (≥ 3) ; un RRR par modalité contre la référence.', 'Outcome with unordered levels (≥ 3); one RRR per level against the reference.'),
+            'glmm' => tr('Issue binaire ou de comptage mesurée plusieurs fois ; intercept aléatoire par sujet ; OR ou RR propres au sujet.', 'Binary or count outcome measured several times; random intercept per subject; subject-specific ORs or RRs.'),
             'gee' => tr('Plusieurs mesures par sujet ; effet moyen dans la population avec erreurs types robustes ; issue quantitative, binaire ou de comptage.', 'Several measurements per subject; population-average effect with robust standard errors; quantitative, binary or count outcome.'),
             'mixed' => tr('Plusieurs mesures par sujet (format long : une ligne par mesure) ; intercept et pente aléatoires par sujet, effets fixes avec tests t (ddl de nlme).', 'Several measurements per subject (long format: one row per measurement); random intercept and slope per subject, fixed effects with t tests (nlme df).'),
             'fine_gray' => tr('Délai jusqu\'à un événement quand un autre événement (p. ex. le décès) peut l\'empêcher ; sHR sur l\'incidence cumulée, HR spécifiques de cause en regard.', 'Time to an event when another event (e.g. death) can prevent it; sHRs on the cumulative incidence, cause-specific HRs alongside.'),
@@ -190,7 +195,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
                 : categoricalOutcome
                     ? ds.levels(n).length >= 3 && ds.levels(n).length <= 12
                     // Comptage : toute colonne à valeurs numériques, même typée qualitative (peu de valeurs).
-                    : ((model == 'gee' && geeFamily == GeeFamily.poisson) || model == 'counts'
+                    : ((model == 'gee' && geeFamily == GeeFamily.poisson) || (model == 'glmm' && glmmFamily == GlmmFamily.poisson) || model == 'counts'
                         ? ds.text(n).every((v) => v == null || parseNumber(v) != null)
                         : ds.dictionary[n]!.type == VarType.numeric)) (n, n)
         ], (v) => setState(() {
@@ -252,7 +257,20 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
           if (expert)
             Pick<bool>(tr('Convention', 'Convention'), geeSmall, [(false, 'geepack (φ = Σr²/N)'), (true, tr('gee, petits échantillons', 'gee, small samples'))], (v) => setState(() => geeSmall = v ?? false), width: 260),
         ],
-        if (model == 'mixed' || model == 'gee') ...[
+        if (model == 'glmm') ...[
+          Pick<GlmmFamily>(tr('Type d\'issue', 'Outcome type'), glmmFamily, [
+            (GlmmFamily.binomial, tr('Binaire (logistique)', 'Binary (logistic)')),
+            (GlmmFamily.poisson, tr('Comptage (Poisson)', 'Count (Poisson)')),
+          ], (v) => setState(() {
+                glmmFamily = v ?? glmmFamily;
+                outcome = null;
+                event = null;
+              }), width: 260),
+          if (expert)
+            Pick<int>(tr('Approximation', 'Approximation'), glmmAgq, [(1, 'Laplace'), (10, tr('Gauss-Hermite, 10 points', 'Gauss-Hermite, 10 points')), (25, tr('Gauss-Hermite, 25 points', 'Gauss-Hermite, 25 points'))],
+                (v) => setState(() => glmmAgq = v ?? 1), width: 260),
+        ],
+        if (model == 'mixed' || model == 'gee' || model == 'glmm') ...[
           Pick<String>(tr('Sujet (identifiant)', 'Subject (identifier)'), subjectCol, [for (final n in ds.names) if (n != outcome) (n, n)],
               (v) => setState(() => subjectCol = v), width: 260),
           if (model == 'mixed')
@@ -291,7 +309,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       PredictorEditor(ds, terms, (l) => setState(() {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
-          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee') ?subjectCol, if (model == 'counts') ?exposureCol}),
+          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee' || model == 'glmm') ?subjectCol, if (model == 'counts') ?exposureCol}),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),
@@ -351,6 +369,10 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               final known = ds.levels(outcome!);
               final lv = order.toSet().length == known.length && order.every(known.contains) ? order : known;
               return model == 'ordinal' ? ordinalRegression(ds, f, levels: lv) : multinomialRegression(ds, f, levels: lv);
+            }
+            if (model == 'glmm') {
+              if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));
+              return glmmLongitudinal(ds, f, subject: subjectCol!, family: glmmFamily, nAgq: glmmAgq);
             }
             if (model == 'gee') {
               if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));

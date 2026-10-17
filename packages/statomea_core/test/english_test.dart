@@ -266,6 +266,9 @@ void main() {
     const hsAllow = {'satisfaction', 'influence', 'faible', 'moyenne', 'forte', 'contact', 'fort', '1_faible', '2_moyenne', '3_elevee'};
     expectResult('ordinal', ordinalRegression(hsEn, hsF), hsAllow);
     expectResult('multinomial', multinomialRegression(hsEn, hsF), hsAllow);
+    final tkEn = parseCsv(File('test/reference/tiques_lagopede.csv').readAsStringSync()).dataset;
+    expectResult('glmm', glmmLongitudinal(tkEn, const ModelFormula('tiques', [TermSpec('annee', categorical: true, reference: 'a95'), TermSpec('altitude')]), subject: 'couvee', family: GlmmFamily.poisson),
+        const {'tiques', 'annee', 'a95', 'a96', 'a97', 'altitude', 'couvee'});
     expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
     expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [

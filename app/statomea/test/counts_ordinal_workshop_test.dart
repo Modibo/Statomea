@@ -59,4 +59,34 @@ void main() {
     expect(r!.methodId, 'multinomial_logistic');
     expect(t.takeException(), isNull);
   });
+
+  testWidgets('modèle mixte de Poisson (tiques par couvée) : intercept aléatoire', (t) async {
+    await t.binding.setSurfaceSize(const Size(1200, 2600));
+    final state = AppState(MemoryStorage());
+    await state.load();
+    final p = state.createProject('x');
+    p.dataset = parseCsv(File('test/tiques_lagopede.csv').readAsStringSync()).dataset;
+    AnalysisResult? got;
+    await t.pumpWidget(ChangeNotifierProvider.value(
+      value: state,
+      child: MaterialApp(home: Scaffold(body: SingleChildScrollView(child: RegressionWorkshop(project: p, onResult: (r, {options = const {}}) => got = r)))),
+    ));
+    await t.pumpAndSettle();
+    await pick(t, 'Modèle', 'Mesures répétées binaires ou comptages (modèle mixte)');
+    await t.tap(find.byWidgetPredicate((w) => w is DropdownButtonFormField && w.decoration.labelText == 'Type d\'issue'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Comptage (Poisson)').last);
+    await t.pumpAndSettle();
+    await pick(t, 'Issue', 'tiques');
+    await pick(t, 'Sujet (identifiant)', 'couvee');
+    await t.tap(find.text('Ajouter une variable'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('altitude (').last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Ajuster le modèle'));
+    await t.pumpAndSettle();
+    expect(got!.methodId, 'glmm_longitudinal');
+    expect(got!.statistics['sigma']!, greaterThan(0.5));
+    expect(t.takeException(), isNull);
+  });
 }

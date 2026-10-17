@@ -99,6 +99,7 @@ void main() {
       final rep = base.copyWith(pairing: Pairing.repeated);
       expect(ids(rep.copyWith(outcomeType: OutcomeType.continuous)), ['lmm_longitudinal', 'gee']);
       expect(rec(rep.copyWith(outcomeType: OutcomeType.binary)), 'gee');
+      expect(ids(rep.copyWith(outcomeType: OutcomeType.binary)), contains('glmm_longitudinal'));
       expect(rec(rep.copyWith(outcomeType: OutcomeType.count)), 'gee');
       expect(advise(rep.copyWith(outcomeType: OutcomeType.continuous)).notes.join(' '), isNot(contains('hors')));
       // Comptages, ordinal ajusté, nominal ajusté.

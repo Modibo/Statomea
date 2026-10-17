@@ -110,7 +110,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Risques concurrents : incidence cumulée d'Aalen-Johansen (variance de Gray), test de Gray, modèle de Fine-Gray et Cox spécifique de cause | ✅ | cmprsk, survival | validé |
 | Comptages (Poisson avec offset, quasi-Poisson, binomiale négative) ; issues ordinales (cotes proportionnelles) et nominales (multinomiale) | ✅ | glm, MASS, nnet | validé |
-| Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires ; GEE (gaussienne, binomiale, Poisson ; indépendance ou échangeable ; variance robuste) | ✅ | lme4, nlme, geepack, gee | validé |
+| Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires ; GEE (gaussienne, binomiale, Poisson ; indépendance ou échangeable ; variance robuste) ; modèle mixte logistique ou de Poisson (Laplace, Gauss-Hermite adaptative) | ✅ | lme4, nlme, geepack, gee, vraisemblance exacte (integrate) | validé |
 | Puissance et effectif : moyennes (groupes inégaux, apparié), proportions, cas-témoins, survie (Freedman, Schoenfeld), GWAS ; courbe de puissance | ✅ | pwr, powerSurvEpi, stats | validé |
 | Cox avec covariables dépendant du temps (processus de comptage, découpage à une date de changement) | ✅ | survival (coxph, tmerge) | validé |
 | Métaanalyse binaire et continue, forest plot, sensibilité, sous-groupes, méta-régression, métaanalyse diagnostique bivariée | ✅ | metafor, mada | validé |
