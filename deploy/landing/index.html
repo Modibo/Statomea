@@ -45,7 +45,7 @@
   .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; }
   .facts span::before { content: "✓ "; color: var(--green); font-weight: 700; }
   .phone { justify-self: center; width: min(300px, 80vw); border-radius: 34px; padding: 10px; background: #0d1626; box-shadow: 0 24px 60px rgba(11,42,94,.25); }
-  .phone img { display: block; width: 100%; border-radius: 26px; }
+  .phone img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; border-radius: 26px; }
   section { padding: 56px 0; }
   section.alt { background: var(--soft); }
   h2 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 8px; color: var(--navy); }
@@ -66,7 +66,7 @@
   @media (prefers-color-scheme: dark) { ol.steps li::before { background: #2f6fd6; } }
   .shots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
   .shots figure { margin: 0; }
-  .shots img { width: 100%; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
+  .shots img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; object-fit: contain; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
   .shots figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; }
   .demos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   .demo { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
