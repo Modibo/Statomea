@@ -865,3 +865,22 @@ HbA1c (539 mesures, 120 patients) : issue quantitative (HbA1c), binaire (contrô
 Non fait : la corrélation de travail AR(1) — avec des visites manquantes, geepack et gee la définissent différemment
 (rang ou temps) et aucune variante simple ne les reproduit ; elle n'est donc pas proposée.
 
+## Comptages, issues ordinales et nominales — 1.44.0
+
+Scripts `validation/r/45_comptages.R` (stats::glm, MASS 7.3 `glm.nb`, convergence 1e-14) et `46_ordinal.R`
+(MASS `polr`, nnet `multinom`, reltol 1e-14). Données publiques du paquet MASS : `quine` (146 élèves, jours d'absence),
+`Insurance` (64 cellules, sinistres avec offset log du nombre d'assurés), `housing` (1 681 locataires, satisfaction
+faible < moyenne < élevée). Tests `test/comptages_test.dart`, `test/ordinal_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Poisson : β, ES, déviance, χ² de Pearson, log-vraisemblance (avec et sans offset) | `glm(poisson)` | 1e-9, 1e-8, 1e-10 |
+| Quasi-Poisson : dispersion, ES | `glm(quasipoisson)` | 1e-10, 1e-8 |
+| Binomiale négative : β, ES, θ, ES(θ), log-vraisemblance ; RV contre Poisson | `glm.nb` | 1e-6, 1e-5, 1e-10, 1e-7 |
+| Absence de surdispersion (Insurance) : θ → ∞ signalé, β = Poisson | `glm.nb` (θ ≈ 2,6·10¹¹) | 1e-4 |
+| Cotes proportionnelles : β, seuils, ES, log-vraisemblance | `polr` | 1e-7, 1e-5, 1e-11 |
+| Multinomiale : coefficients, ES, log-vraisemblance | `multinom` | 1e-6, 1e-5, 1e-10 |
+
+Le test des cotes proportionnelles est approché par le rapport de vraisemblance contre le modèle multinomial (signalé
+comme approximation). Les IC sont de Wald (polr propose aussi des IC profilés, non repris).
+

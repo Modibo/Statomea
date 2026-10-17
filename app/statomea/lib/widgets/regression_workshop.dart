@@ -91,6 +91,9 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     'fine_gray' => 'fine_gray',
     'lmm_longitudinal' => 'mixed',
     'gee' => 'gee',
+    'count_regression' => 'counts',
+    'ordinal_logistic' => 'ordinal',
+    'multinomial_logistic' => 'multinomial',
     _ => 'linear',
   };
   String? outcome, event;
@@ -104,6 +107,11 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   GeeFamily geeFamily = GeeFamily.gaussian;
   GeeCorrelation geeCorr = GeeCorrelation.exchangeable;
   bool geeSmall = false;
+  // Comptages : modèle et temps d'exposition (offset) ; issues ordinales : ordre des modalités.
+  CountModel countModel = CountModel.negativeBinomial;
+  String? exposureCol;
+  final levelOrder = TextEditingController();
+  bool get categoricalOutcome => model == 'ordinal' || model == 'multinomial';
   bool efron = true;
   bool mi = false;
   final miM = TextEditingController(text: '20');
@@ -111,7 +119,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   List<(String, String)> interactions = [];
 
   bool get surv => model == 'cox' || model == 'fine_gray';
-  bool get binary => model == 'gee' ? geeFamily == GeeFamily.binomial : model != 'linear' && model != 'mixed' && !surv;
+  bool get binary => model == 'gee' ? geeFamily == GeeFamily.binomial : !const {'linear', 'mixed', 'counts', 'ordinal', 'multinomial'}.contains(model) && !surv;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +152,9 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
         ('logistic', tr('Logistique', 'Logistic')),
         if (design != StudyDesign.caseControl) ('poisson', tr('Poisson robuste', 'Robust Poisson')),
         ('firth', tr('Logistique de Firth', 'Firth logistic')),
+        ('counts', tr('Comptages (Poisson, binomiale négative)', 'Counts (Poisson, negative binomial)')),
+        ('ordinal', tr('Issue ordinale (cotes proportionnelles)', 'Ordinal outcome (proportional odds)')),
+        ('multinomial', tr('Issue nominale (multinomiale)', 'Nominal outcome (multinomial)')),
         ('cox', tr('Cox (survie)', 'Cox (survival)')),
         ('fine_gray', tr('Fine-Gray (risques concurrents)', 'Fine-Gray (competing risks)')),
         ('mixed', tr('Mesures répétées (modèle mixte)', 'Repeated measures (mixed model)')),
@@ -161,6 +172,9 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             'logistic' => tr('Issue binaire ; OR ajustés. Seule option en cas-témoins.', 'Binary outcome; adjusted ORs. The only option in case-control studies.'),
             'poisson' => tr('Issue binaire fréquente en cohorte, essai ou transversal ; RR (ou RP) ajustés.', 'Common binary outcome in a cohort, trial or cross-sectional study; adjusted RRs (or PRs).'),
             'cox' => tr('Délai jusqu\'à un événement avec censure ; HR ajustés, test de proportionnalité des risques.', 'Time to an event with censoring; adjusted HRs, proportional hazards test.'),
+            'counts' => tr('Nombre d\'événements (entier ≥ 0) ; IRR (rapports de taux) ; binomiale négative si la variance dépasse la moyenne ; temps d\'exposition en offset.', 'Number of events (integer ≥ 0); IRRs (rate ratios); negative binomial if the variance exceeds the mean; exposure time as offset.'),
+            'ordinal' => tr('Issue à modalités ordonnées (≥ 3) ; un OR par facteur, commun à tous les seuils.', 'Outcome with ordered levels (≥ 3); one OR per factor, common to all thresholds.'),
+            'multinomial' => tr('Issue à modalités non ordonnées (≥ 3) ; un RRR par modalité contre la référence.', 'Outcome with unordered levels (≥ 3); one RRR per level against the reference.'),
             'gee' => tr('Plusieurs mesures par sujet ; effet moyen dans la population avec erreurs types robustes ; issue quantitative, binaire ou de comptage.', 'Several measurements per subject; population-average effect with robust standard errors; quantitative, binary or count outcome.'),
             'mixed' => tr('Plusieurs mesures par sujet (format long : une ligne par mesure) ; intercept et pente aléatoires par sujet, effets fixes avec tests t (ddl de nlme).', 'Several measurements per subject (long format: one row per measurement); random intercept and slope per subject, fixed effects with t tests (nlme df).'),
             'fine_gray' => tr('Délai jusqu\'à un événement quand un autre événement (p. ex. le décès) peut l\'empêcher ; sHR sur l\'incidence cumulée, HR spécifiques de cause en regard.', 'Time to an event when another event (e.g. death) can prevent it; sHRs on the cumulative incidence, cause-specific HRs alongside.'),
@@ -173,12 +187,15 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
           for (final n in ds.names)
             if (binary
                 ? (ds.dictionary[n]!.type == VarType.binary)
-                // Comptage (GEE de Poisson) : toute colonne à valeurs numériques, même typée qualitative (peu de valeurs).
-                : (model == 'gee' && geeFamily == GeeFamily.poisson
-                    ? ds.text(n).every((v) => v == null || parseNumber(v) != null)
-                    : ds.dictionary[n]!.type == VarType.numeric)) (n, n)
+                : categoricalOutcome
+                    ? ds.levels(n).length >= 3 && ds.levels(n).length <= 12
+                    // Comptage : toute colonne à valeurs numériques, même typée qualitative (peu de valeurs).
+                    : ((model == 'gee' && geeFamily == GeeFamily.poisson) || model == 'counts'
+                        ? ds.text(n).every((v) => v == null || parseNumber(v) != null)
+                        : ds.dictionary[n]!.type == VarType.numeric)) (n, n)
         ], (v) => setState(() {
               outcome = v;
+              if (categoricalOutcome && v != null) levelOrder.text = ds.levels(v).join(' ; ');
               if (!surv) event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
               terms = [for (final t in terms) if (t.variable != v) t];
             })),
@@ -197,6 +214,27 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               [for (final l in ds.levels(surv ? status! : outcome!)) (l, l)], (v) => setState(() => event = v)),
         if (model == 'fine_gray' && status != null)
           Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
+        if (model == 'counts') ...[
+          Pick<CountModel>(tr('Modèle de comptage', 'Count model'), countModel, [
+            (CountModel.negativeBinomial, tr('Binomiale négative', 'Negative binomial')),
+            (CountModel.poisson, 'Poisson'),
+            (CountModel.quasiPoisson, 'Quasi-Poisson'),
+          ], (v) => setState(() => countModel = v ?? countModel), width: 240),
+          Pick<String>(tr('Temps d\'exposition (offset, facultatif)', 'Exposure time (offset, optional)'), exposureCol ?? '', [
+            ('', tr('— aucun —', '— none —')),
+            for (final n in ds.names)
+              if (n != outcome && ds.dictionary[n]!.type == VarType.numeric) (n, n)
+          ], (v) => setState(() => exposureCol = (v == null || v.isEmpty) ? null : v), width: 300),
+        ],
+        if (model == 'ordinal' && outcome != null)
+          SizedBox(
+              width: 360,
+              child: TextField(
+                  controller: levelOrder,
+                  decoration: InputDecoration(
+                      labelText: tr('Ordre des modalités (croissant, séparées par « ; »)', 'Order of the levels (increasing, separated by ";")'),
+                      border: const OutlineInputBorder(),
+                      isDense: true))),
         if (model == 'gee') ...[
           Pick<GeeFamily>(tr('Type d\'issue', 'Outcome type'), geeFamily, [
             (GeeFamily.gaussian, tr('Quantitative (gaussienne)', 'Quantitative (Gaussian)')),
@@ -253,7 +291,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       PredictorEditor(ds, terms, (l) => setState(() {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
-          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee') ?subjectCol}),
+          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee') ?subjectCol, if (model == 'counts') ?exposureCol}),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),
@@ -307,6 +345,13 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               return coxRegression(buildSurvivalDesign(ds, outcome!, status!, event!, terms), efron: efron);
             }
             final f = ModelFormula(outcome!, terms, interactions: interactions, eventLevel: event);
+            if (model == 'counts') return countRegression(ds, f, model: countModel, exposure: exposureCol);
+            if (categoricalOutcome) {
+              final order = [for (final s in levelOrder.text.split(';')) if (s.trim().isNotEmpty) s.trim()];
+              final known = ds.levels(outcome!);
+              final lv = order.toSet().length == known.length && order.every(known.contains) ? order : known;
+              return model == 'ordinal' ? ordinalRegression(ds, f, levels: lv) : multinomialRegression(ds, f, levels: lv);
+            }
             if (model == 'gee') {
               if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));
               return geeRegression(ds, f, subject: subjectCol!, family: geeFamily, corr: geeCorr, smallSample: geeSmall);

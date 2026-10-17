@@ -258,6 +258,14 @@ void main() {
     final hbEn = parseCsv(File('test/reference/hba1c_longitudinal_simule.csv').readAsStringSync()).dataset;
     final longEn = longitudinalMixedModel(hbEn, const ModelFormula('hba1c', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')], interactions: [('mois', 'bras')]), subject: 'patient', slope: 'mois');
     expectResult('gee', geeRegression(hbEn, const ModelFormula('hypoglycemies', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A')]), subject: 'patient', family: GeeFamily.poisson), const {'hypoglycemies', 'mois', 'bras', 'patient'});
+    final qEn = parseCsv(File('test/reference/absences_quine.csv').readAsStringSync()).dataset;
+    expectResult('count nb', countRegression(qEn, const ModelFormula('jours_absence', [TermSpec('origine', categorical: true, reference: 'aborigene'), TermSpec('sexe', categorical: true, reference: 'F')])),
+        const {'jours_absence', 'origine', 'aborigene', 'non_aborigene', 'sexe'});
+    final hsEn = parseCsv(File('test/reference/satisfaction_logement.csv').readAsStringSync()).dataset;
+    const hsF = ModelFormula('satisfaction', [TermSpec('influence', categorical: true, reference: 'faible'), TermSpec('contact', categorical: true, reference: 'faible')]);
+    const hsAllow = {'satisfaction', 'influence', 'faible', 'moyenne', 'forte', 'contact', 'fort', '1_faible', '2_moyenne', '3_elevee'};
+    expectResult('ordinal', ordinalRegression(hsEn, hsF), hsAllow);
+    expectResult('multinomial', multinomialRegression(hsEn, hsF), hsAllow);
     expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
     expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [

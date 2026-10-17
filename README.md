@@ -109,6 +109,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Risques concurrents : incidence cumulée d'Aalen-Johansen (variance de Gray), test de Gray, modèle de Fine-Gray et Cox spécifique de cause | ✅ | cmprsk, survival | validé |
+| Comptages (Poisson avec offset, quasi-Poisson, binomiale négative) ; issues ordinales (cotes proportionnelles) et nominales (multinomiale) | ✅ | glm, MASS, nnet | validé |
 | Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires ; GEE (gaussienne, binomiale, Poisson ; indépendance ou échangeable ; variance robuste) | ✅ | lme4, nlme, geepack, gee | validé |
 | Puissance et effectif : moyennes (groupes inégaux, apparié), proportions, cas-témoins, survie (Freedman, Schoenfeld), GWAS ; courbe de puissance | ✅ | pwr, powerSurvEpi, stats | validé |
 | Cox avec covariables dépendant du temps (processus de comptage, découpage à une date de changement) | ✅ | survival (coxph, tmerge) | validé |
@@ -128,6 +129,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
   `validation/r/`. Elles ne décrivent aucune population réelle.
 - Démo 2 : 13 essais publiés du BCG (Colditz et al., JAMA 1994 ; jeu public `dat.bcg` de metafor).
 - Randomisation mendélienne : 28 variants publiés LDL-cholestérol / maladie coronarienne (Waterworth et al. 2010), jeu d'exemple du paquet R MendelianRandomization (`demos/mr_ldl_chd.csv`).
+- Comptages et issues ordinales (paquet MASS) : absences scolaires `quine` (`demos/absences_quine.csv`), sinistres `Insurance` avec offset (`demos/sinistres_assurance.csv`), satisfaction du logement `housing` (`demos/satisfaction_logement.csv`).
 - Mesures répétées : étude de privation de sommeil (18 sujets, 10 jours, jeu `sleepstudy` de lme4, `demos/sommeil_belenky.csv`) et essai simulé de suivi de l'HbA1c avec sorties d'étude (`demos/hba1c_longitudinal_simule.csv`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).
