@@ -257,6 +257,7 @@ void main() {
     expectResult('steiger', stEn.result, const {'X', 'Y'});
     final hbEn = parseCsv(File('test/reference/hba1c_longitudinal_simule.csv').readAsStringSync()).dataset;
     final longEn = longitudinalMixedModel(hbEn, const ModelFormula('hba1c', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')], interactions: [('mois', 'bras')]), subject: 'patient', slope: 'mois');
+    expectResult('gee', geeRegression(hbEn, const ModelFormula('hypoglycemies', [TermSpec('mois'), TermSpec('bras', categorical: true, reference: 'A')]), subject: 'patient', family: GeeFamily.poisson), const {'hypoglycemies', 'mois', 'bras', 'patient'});
     expectResult('lmm longitudinal', longEn, const {'hba1c', 'mois', 'bras', 'age', 'patient'});
     expectEnglish('trajectories svg', trajectoriesSvg(longEn.figures['trajectories'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'hba1c', 'mois'});
     for (final r in [

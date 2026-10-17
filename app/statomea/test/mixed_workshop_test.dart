@@ -49,6 +49,37 @@ void main() {
     expect(t.takeException(), isNull);
   });
 
+  testWidgets('atelier de régression : GEE de Poisson (hypoglycémies), corrélation échangeable', (t) async {
+    await t.binding.setSurfaceSize(const Size(1200, 2600));
+    final state = AppState(MemoryStorage());
+    await state.load();
+    final p = state.createProject('GEE');
+    p.dataset = parseCsv(File('test/hba1c_longitudinal_simule.csv').readAsStringSync()).dataset;
+    AnalysisResult? got;
+    await t.pumpWidget(ChangeNotifierProvider.value(
+      value: state,
+      child: MaterialApp(home: Scaffold(body: SingleChildScrollView(child: RegressionWorkshop(project: p, onResult: (r, {options = const {}}) => got = r)))),
+    ));
+    await t.pumpAndSettle();
+    await pick(t, 'Modèle', 'Mesures répétées (GEE)');
+    await t.tap(find.byWidgetPredicate((w) => w is DropdownButtonFormField && w.decoration.labelText == 'Type d\'issue'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Comptage (Poisson)').last);
+    await t.pumpAndSettle();
+    await pick(t, 'Issue', 'hypoglycemies');
+    await pick(t, 'Sujet (identifiant)', 'patient');
+    await t.tap(find.text('Ajouter une variable'));
+    await t.pumpAndSettle();
+    await t.tap(find.textContaining('mois (').last);
+    await t.pumpAndSettle();
+    await t.tap(find.text('Ajuster le modèle'));
+    await t.pumpAndSettle();
+    expect(got!.methodId, 'gee');
+    expect(got!.statistics['subjects'], 120);
+    expect(got!.estimates.first.label, startsWith('RR'));
+    expect(t.takeException(), isNull);
+  });
+
   testWidgets('sélecteur de modèle à 390 px : aucun débordement', (t) async {
     await t.binding.setSurfaceSize(const Size(390, 1600));
     final state = AppState(MemoryStorage());

@@ -109,7 +109,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Risques concurrents : incidence cumulée d'Aalen-Johansen (variance de Gray), test de Gray, modèle de Fine-Gray et Cox spécifique de cause | ✅ | cmprsk, survival | validé |
-| Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires | ✅ | lme4, nlme | validé |
+| Mesures répétées : modèle linéaire mixte (intercept et pente aléatoires, REML, ddl de nlme), trajectoires ; GEE (gaussienne, binomiale, Poisson ; indépendance ou échangeable ; variance robuste) | ✅ | lme4, nlme, geepack, gee | validé |
 | Puissance et effectif : moyennes (groupes inégaux, apparié), proportions, cas-témoins, survie (Freedman, Schoenfeld), GWAS ; courbe de puissance | ✅ | pwr, powerSurvEpi, stats | validé |
 | Cox avec covariables dépendant du temps (processus de comptage, découpage à une date de changement) | ✅ | survival (coxph, tmerge) | validé |
 | Métaanalyse binaire et continue, forest plot, sensibilité, sous-groupes, méta-régression, métaanalyse diagnostique bivariée | ✅ | metafor, mada | validé |

@@ -90,6 +90,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
     'cox' => 'cox',
     'fine_gray' => 'fine_gray',
     'lmm_longitudinal' => 'mixed',
+    'gee' => 'gee',
     _ => 'linear',
   };
   String? outcome, event;
@@ -100,6 +101,9 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   String? startCol, switchCol, switchCov;
   // Mesures répétées : identifiant du sujet, pente aléatoire facultative (temps).
   String? subjectCol, slopeCol;
+  GeeFamily geeFamily = GeeFamily.gaussian;
+  GeeCorrelation geeCorr = GeeCorrelation.exchangeable;
+  bool geeSmall = false;
   bool efron = true;
   bool mi = false;
   final miM = TextEditingController(text: '20');
@@ -107,7 +111,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   List<(String, String)> interactions = [];
 
   bool get surv => model == 'cox' || model == 'fine_gray';
-  bool get binary => model != 'linear' && model != 'mixed' && !surv;
+  bool get binary => model == 'gee' ? geeFamily == GeeFamily.binomial : model != 'linear' && model != 'mixed' && !surv;
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +147,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
         ('cox', tr('Cox (survie)', 'Cox (survival)')),
         ('fine_gray', tr('Fine-Gray (risques concurrents)', 'Fine-Gray (competing risks)')),
         ('mixed', tr('Mesures répétées (modèle mixte)', 'Repeated measures (mixed model)')),
+        ('gee', tr('Mesures répétées (GEE)', 'Repeated measures (GEE)')),
       ], (v) => setState(() {
             if (v == null || v == model) return;
             model = v;
@@ -156,6 +161,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             'logistic' => tr('Issue binaire ; OR ajustés. Seule option en cas-témoins.', 'Binary outcome; adjusted ORs. The only option in case-control studies.'),
             'poisson' => tr('Issue binaire fréquente en cohorte, essai ou transversal ; RR (ou RP) ajustés.', 'Common binary outcome in a cohort, trial or cross-sectional study; adjusted RRs (or PRs).'),
             'cox' => tr('Délai jusqu\'à un événement avec censure ; HR ajustés, test de proportionnalité des risques.', 'Time to an event with censoring; adjusted HRs, proportional hazards test.'),
+            'gee' => tr('Plusieurs mesures par sujet ; effet moyen dans la population avec erreurs types robustes ; issue quantitative, binaire ou de comptage.', 'Several measurements per subject; population-average effect with robust standard errors; quantitative, binary or count outcome.'),
             'mixed' => tr('Plusieurs mesures par sujet (format long : une ligne par mesure) ; intercept et pente aléatoires par sujet, effets fixes avec tests t (ddl de nlme).', 'Several measurements per subject (long format: one row per measurement); random intercept and slope per subject, fixed effects with t tests (nlme df).'),
             'fine_gray' => tr('Délai jusqu\'à un événement quand un autre événement (p. ex. le décès) peut l\'empêcher ; sHR sur l\'incidence cumulée, HR spécifiques de cause en regard.', 'Time to an event when another event (e.g. death) can prevent it; sHRs on the cumulative incidence, cause-specific HRs alongside.'),
             _ => tr('Issue binaire avec peu d\'événements ou séparation ; OR pénalisés (IC profilés).', 'Binary outcome with few events or separation; penalized ORs (profile CIs).'),
@@ -165,7 +171,12 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       Wrap(spacing: 12, runSpacing: 12, children: [
         Pick<String>(surv ? tr('Durée de suivi', 'Follow-up time') : tr('Issue', 'Outcome'), outcome, [
           for (final n in ds.names)
-            if (binary ? (ds.dictionary[n]!.type == VarType.binary) : ds.dictionary[n]!.type == VarType.numeric) (n, n)
+            if (binary
+                ? (ds.dictionary[n]!.type == VarType.binary)
+                // Comptage (GEE de Poisson) : toute colonne à valeurs numériques, même typée qualitative (peu de valeurs).
+                : (model == 'gee' && geeFamily == GeeFamily.poisson
+                    ? ds.text(n).every((v) => v == null || parseNumber(v) != null)
+                    : ds.dictionary[n]!.type == VarType.numeric)) (n, n)
         ], (v) => setState(() {
               outcome = v;
               if (!surv) event = v == null ? null : (ds.levels(v).contains('1') ? '1' : null);
@@ -186,10 +197,28 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               [for (final l in ds.levels(surv ? status! : outcome!)) (l, l)], (v) => setState(() => event = v)),
         if (model == 'fine_gray' && status != null)
           Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
-        if (model == 'mixed') ...[
+        if (model == 'gee') ...[
+          Pick<GeeFamily>(tr('Type d\'issue', 'Outcome type'), geeFamily, [
+            (GeeFamily.gaussian, tr('Quantitative (gaussienne)', 'Quantitative (Gaussian)')),
+            (GeeFamily.binomial, tr('Binaire (logit)', 'Binary (logit)')),
+            (GeeFamily.poisson, tr('Comptage (Poisson)', 'Count (Poisson)')),
+          ], (v) => setState(() {
+                geeFamily = v ?? geeFamily;
+                outcome = null;
+                event = null;
+              }), width: 260),
+          Pick<GeeCorrelation>(tr('Corrélation de travail', 'Working correlation'), geeCorr, [
+            (GeeCorrelation.exchangeable, tr('Échangeable', 'Exchangeable')),
+            (GeeCorrelation.independence, tr('Indépendance', 'Independence')),
+          ], (v) => setState(() => geeCorr = v ?? geeCorr), width: 240),
+          if (expert)
+            Pick<bool>(tr('Convention', 'Convention'), geeSmall, [(false, 'geepack (φ = Σr²/N)'), (true, tr('gee, petits échantillons', 'gee, small samples'))], (v) => setState(() => geeSmall = v ?? false), width: 260),
+        ],
+        if (model == 'mixed' || model == 'gee') ...[
           Pick<String>(tr('Sujet (identifiant)', 'Subject (identifier)'), subjectCol, [for (final n in ds.names) if (n != outcome) (n, n)],
               (v) => setState(() => subjectCol = v), width: 260),
-          Pick<String>(tr('Pente aléatoire (temps, facultatif)', 'Random slope (time, optional)'), slopeCol ?? '', [
+          if (model == 'mixed')
+            Pick<String>(tr('Pente aléatoire (temps, facultatif)', 'Random slope (time, optional)'), slopeCol ?? '', [
             ('', tr('— aucune —', '— none —')),
             // Temps : toute colonne à valeurs numériques (un temps à quelques visites peut être typé qualitatif).
             for (final n in ds.names)
@@ -224,7 +253,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
       PredictorEditor(ds, terms, (l) => setState(() {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
-          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed') ?subjectCol}),
+          }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee') ?subjectCol}),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),
@@ -278,6 +307,10 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               return coxRegression(buildSurvivalDesign(ds, outcome!, status!, event!, terms), efron: efron);
             }
             final f = ModelFormula(outcome!, terms, interactions: interactions, eventLevel: event);
+            if (model == 'gee') {
+              if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));
+              return geeRegression(ds, f, subject: subjectCol!, family: geeFamily, corr: geeCorr, smallSample: geeSmall);
+            }
             if (model == 'mixed') {
               if (subjectCol == null) throw StatInputError('missing', tr('Choisir la colonne qui identifie le sujet.', 'Choose the column that identifies the subject.'));
               return longitudinalMixedModel(ds, f, subject: subjectCol!, slope: slopeCol);

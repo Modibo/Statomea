@@ -63,6 +63,7 @@ export 'src/regression/firth_profile.dart';
 export 'src/regression/cox.dart';
 export 'src/regression/fine_gray.dart';
 export 'src/regression/mixed.dart';
+export 'src/regression/gee.dart';
 export 'src/inference/competing_risks.dart';
 export 'src/inference/survival.dart';
 export 'src/meta/meta_regression.dart';

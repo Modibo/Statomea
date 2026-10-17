@@ -502,6 +502,11 @@ List<Lesson> buildLessons() {
             'remains valid under MAR, since dropout depends on observed values',
             'requires imputing the last observation (LOCF)',
           ], 1, 'MAR: missingness depends on observed values; the likelihood of the mixed model remains valid. LOCF is biased.'),
+          const Exercise.choice('Binary outcome measured monthly. GEE gives OR = 1.4; a logistic mixed model gives OR = 1.9 for the same factor. Why?', [
+            'One of the two is wrong',
+            'GEE estimate a population-average (marginal) OR, the mixed model a subject-specific (conditional) OR, further from 1',
+            'GEE ignore the correlation',
+          ], 1, 'Marginal and conditional ORs differ when the between-subject variance is large; they answer different questions.'),
         ],
         commonErrors: [
           'Analysing repeated measurements as independent observations.',
@@ -1206,6 +1211,11 @@ List<Lesson> buildLessons() {
           'reste valide sous MAR, puisque les sorties dépendent de valeurs observées',
           'impose d\'imputer la dernière observation (LOCF)',
         ], 1, 'MAR : le manque dépend de valeurs observées ; la vraisemblance du modèle mixte reste valide. La LOCF est biaisée.'),
+        const Exercise.choice('Issue binaire mesurée chaque mois. Les GEE donnent OR = 1,4 ; un modèle mixte logistique donne OR = 1,9 pour le même facteur. Pourquoi ?', [
+          'L\'un des deux est faux',
+          'Les GEE estiment un OR moyen dans la population (marginal), le modèle mixte un OR propre au sujet (conditionnel), plus éloigné de 1',
+          'Les GEE ignorent la corrélation',
+        ], 1, 'OR marginal et conditionnel diffèrent quand la variance entre sujets est grande ; ils répondent à des questions différentes.'),
       ],
       commonErrors: [
         'Analyser des mesures répétées comme des observations indépendantes.',

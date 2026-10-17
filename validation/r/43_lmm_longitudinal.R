@@ -6,7 +6,7 @@
 #    autres termes (et constante) → N − m − p_intra ; p bilatérale par la loi de Student.
 # DONNÉES : (1) sleepstudy (lme4 ; Belenky et al. 2003) : temps de réaction de 18 sujets sur 10 jours de privation de
 # sommeil ; (2) essai simulé (demos/hba1c_longitudinal_simule.csv) : 120 patients, HbA1c à 0, 3, 6, 9 et 12 mois,
-# bras A/B (pente plus forte sous B), âge ; sorties d'étude (visites manquantes).
+# bras A/B (pente plus forte sous B), âge ; sorties d'étude (visites manquantes) ; épisodes d'hypoglycémie (comptage).
 source("_common.R")
 suppressPackageStartupMessages({ library(lme4); library(nlme) })
 DEMO_DIR <- normalizePath(file.path("..", "..", "demos"))
@@ -22,6 +22,8 @@ hba1c <- 8.4 + 0.015 * (age - 55) + (-0.04 + b1) * mois - 0.035 * mois * (bras =
 d <- data.frame(patient = id, mois = mois, bras = bras, age = age, hba1c = round(hba1c, 2))
 drop <- sample(m, 30); for (p in drop) { k <- sample(2:4, 1); d$hba1c[d$patient == sprintf("P%03d", p) & d$mois >= vis[k + 1]] <- NA }
 d <- d[!is.na(d$hba1c), ]
+# Épisodes d'hypoglycémie depuis la visite précédente (comptage, pour les GEE de Poisson ; tirage après les autres).
+d$hypoglycemies <- rpois(nrow(d), exp(-0.6 + 0.04 * d$mois + 0.3 * (d$bras == "B")))
 write.csv(d, file.path(DEMO_DIR, "hba1c_longitudinal_simule.csv"), row.names = FALSE, quote = FALSE)
 
 grab <- function(fit, lmeFit, dat, between) {

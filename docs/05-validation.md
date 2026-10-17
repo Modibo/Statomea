@@ -850,3 +850,18 @@ inter-sujets (bras, âge). Leçon « Mesures répétées et modèles mixtes » (
 1,24 en régression ordinaire). L'atelier de régression choisit désormais le modèle dans une liste déroulante (lisible sur
 téléphone).
 
+## Mesures répétées : GEE — 1.43.0
+
+Script `validation/r/44_gee.R` : `geepack` 1.3.9 (`geeglm`, ε = 1e-12) et `gee` 4.13 (tol 1e-12), sur l'essai simulé
+HbA1c (539 mesures, 120 patients) : issue quantitative (HbA1c), binaire (contrôle : HbA1c < 7,8) et comptage
+(épisodes d'hypoglycémie, colonne ajoutée au script 43 sans modifier ses autres tirages). Test `test/gee_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Gaussienne échangeable : β, ES robustes, α, φ — convention geepack (φ = Σr²/N) et gee (correction − p) | `geeglm`, `gee` | 1e-8, 1e-7 |
+| Binomiale échangeable (deux conventions) et indépendance ; p de Wald | `geeglm`, `gee` | 1e-8, 1e-7, 1e-6 |
+| Poisson échangeable (deux conventions) | `geeglm`, `gee` | 1e-8, 1e-7 |
+
+Non fait : la corrélation de travail AR(1) — avec des visites manquantes, geepack et gee la définissent différemment
+(rang ou temps) et aucune variante simple ne les reproduit ; elle n'est donc pas proposée.
+
