@@ -261,6 +261,10 @@ void main() {
     expectEnglish('cif svg', cifSvg(crEn.figures['cumulativeIncidence'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'rechute', 'deces'});
     final fgEn = fineGrayRegression(buildCompetingDesign(crDs, 'mois', 'statut', 'rechute', {'censure'}, [TermSpec('bras', categorical: true, reference: 'A'), TermSpec('age')]));
     expectResult('fine-gray', fgEn, const {'rechute', 'deces', 'censure', 'mois', 'statut', 'bras', 'age'});
+    final st = parseCsv(File('test/reference/greffe_stanford.csv').readAsStringSync()).dataset;
+    final stLong = splitAtSwitch(st, time: 'jours', status: 'deces', eventLevel: 'oui', switchTime: 'attente_greffe', covariate: 'greffe', yes: 'yes', no: 'no');
+    final tdEn = coxRegression(buildCountingDesign(stLong, 'debut', 'fin', 'deces', 'oui', [TermSpec('greffe', categorical: true, reference: 'no'), TermSpec('age')]));
+    expectResult('time-dependent cox', tdEn, const {'greffe', 'debut', 'fin', 'deces', 'oui', 'non', 'age'});
     final gh = harmoniseGwas(parseGwasSumstats(File('test/reference/gwas_exposition_simule.tsv').readAsStringSync(), source: 'exposure.tsv'),
         parseGwasSumstats(File('test/reference/gwas_issue_simule.tsv').readAsStringSync(), source: 'outcome.tsv'));
     expectEnglish('gwas harmonisation', [...gh.summary(), gh.toDataset().source, for (final s in HarmonisationStatus.values) s.label].join('\n'), const {'exposure.tsv', 'outcome.tsv'});

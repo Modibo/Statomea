@@ -1,4 +1,5 @@
 # Risques concurrents : incidence cumulée (Aalen-Johansen) et modèle de Fine-Gray, références cmprsk 2.2 et survival.
+#  - test de Gray (comparaison des incidences cumulées entre groupes) : cuminc$Tests, rho = 0 et 1 ;
 #  - incidence cumulée : cmprsk::cuminc (estimation et variance de Gray, aux temps d'événement, par groupe et par cause) ;
 #    IC ponctuel par transformation log(−log) : F^exp(±z·√v/(F·log F)) (non fourni par cuminc, calculé ici) ;
 #    comparaison au 1 − Kaplan-Meier « naïf » (autres causes traitées comme censures) : survival::survfit ;
@@ -24,6 +25,9 @@ write.csv(d, file.path(DEMO_DIR, "risques_concurrents_simule.csv"), row.names = 
 
 code <- ifelse(d$statut == "rechute", 1, ifelse(d$statut == "deces", 2, 0))
 ci <- cuminc(d$mois, code, d$bras)
+# Test de Gray (cuminc$Tests, routine Fortran crstm) : 2 groupes, 3 groupes (tranches d'âge), et rho = 1.
+ci3 <- cuminc(d$mois, code, cut(d$age, c(-Inf, 50, 65, Inf), labels = c("a<50", "b50-65", "c>65")))
+ci1 <- cuminc(d$mois, code, d$bras, rho = 1)
 z <- qnorm(0.975)
 grab <- function(e) {
   # cuminc renvoie chaque temps deux fois (marche) : garder la valeur après le saut, aux temps d'événement toutes causes.
@@ -45,5 +49,8 @@ cs <- coxph(Surv(mois, statut == "rechute") ~ (bras == "B") + age + (sexe == "H"
 write_ref(list(n = n, events = as.list(table(d$statut)), cif = cif, naive = naive, at24 = h24,
                fg = list(coef = unname(fg$coef), se = unname(sqrt(diag(fg$var))), loglik = fg$loglik, loglik_null = fg$loglik.null, converged = fg$converged),
                fg_group = list(coef = unname(fg1$coef), se = unname(sqrt(diag(fg1$var)))),
-               cs = list(coef = unname(coef(cs)), se = unname(sqrt(diag(vcov(cs)))))), "risques_concurrents")
+               cs = list(coef = unname(coef(cs)), se = unname(sqrt(diag(vcov(cs))))),
+               gray = list(stat = unname(ci$Tests[, "stat"]), p = unname(ci$Tests[, "pv"])),
+               gray_age3 = list(stat = unname(ci3$Tests[, "stat"]), p = unname(ci3$Tests[, "pv"])),
+               gray_rho1 = unname(ci1$Tests[, "stat"])), "risques_concurrents")
 print(table(d$statut)); print(summary(fg)$coef); print(h24); print(ci$Tests)

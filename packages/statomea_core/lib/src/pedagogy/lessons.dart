@@ -11,6 +11,8 @@ import '../genetics/genotype_ldsc.dart';
 import '../genetics/examples.dart';
 import '../genetics/mendelian.dart';
 import '../inference/compare.dart';
+import '../inference/competing_risks.dart';
+import '../inference/survival.dart';
 import '../inference/diagnostic.dart';
 import '../inference/proportion.dart';
 import '../inference/sample_size.dart';
@@ -125,6 +127,31 @@ String _p1(double v) => fmtFixed(v * 100, 1);
   return (clean: ldscRegression(chi2(0), ell, n: n, m: m), confounded: ldscRegression(chi2(0.25), ell, n: n, m: m));
 }
 
+/// Exemple de la leçon « risques concurrents et temps immortel » : (1) 20 patients fictifs, rechute ou décès sans
+/// rechute ; (2) greffe cardiaque de Stanford, greffe codée à l'inclusion (biais du temps immortel) puis en covariable
+/// dépendant du temps.
+({double cif, double naive, double hrNaive, double hrTd, double pTd}) _competingExample() {
+  const times = <double>[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 24];
+  const codes = [1, 2, 1, 2, 1, 0, 2, 1, 2, 1, 0, 2, 1, 2, 0, 1, 2, 0, 0, 0];
+  final cif = cumulativeIncidence(times, codes, 1).steps.last.cif;
+  final km = kaplanMeier(times, [for (final c in codes) c == 1 ? 1.0 : 0.0]);
+  final naive = 1 - km.steps.where((s) => s.events > 0).last.surv;
+  final h = stanfordHeartExample;
+  final yes = tr('oui', 'yes'), no = tr('non', 'no');
+  final ds = Dataset.fromColumns({
+    'jours': h.days,
+    'deces': [for (final d in h.died) d == 1 ? yes : no],
+    'attente': h.wait,
+    'greffe': [for (final w in h.wait) w == null ? no : yes],
+    'age': h.age,
+  });
+  final terms = [TermSpec('greffe', categorical: true, reference: no), TermSpec('age')];
+  final naiveCox = coxRegression(buildSurvivalDesign(ds, 'jours', 'deces', yes, terms));
+  final long = splitAtSwitch(ds, time: 'jours', status: 'deces', eventLevel: yes, switchTime: 'attente', covariate: 'greffe', yes: yes, no: no);
+  final td = coxRegression(buildCountingDesign(long, 'debut', 'fin', 'deces', yes, terms));
+  return (cif: cif, naive: naive, hrNaive: naiveCox.estimates.first.value, hrTd: td.estimates.first.value, pTd: td.estimates.first.pValue!);
+}
+
 /// Exemple de la leçon « causalité » : données publiées LDL / HDL → maladie coronarienne (estimations ponctuelles ; les
 /// ES bootstrap ne sont pas affichées, d'où peu d'itérations).
 ({MrFit ldl, MrFit hdl, MvMrFit mv}) _mrExample() {
@@ -177,6 +204,7 @@ List<Lesson> buildLessons() {
   final gw = _gwasLambdaExample();
   final pg = _polygenicExample();
   final mx = _mrExample();
+  final cr = _competingExample();
   final ddct = qpcrRelativeQuantification(const [24.9, 25.3, 25.1], const [18.0, 18.2, 17.9], const [22.8, 23.1, 22.7], const [18.1, 17.9, 17.8]);
 
   if (currentLang == Lang.en) {
@@ -549,6 +577,45 @@ List<Lesson> buildLessons() {
           'Adjusting for a variable measured after the start of follow-up (immortal time bias).',
         ],
         calculatorId: 'kaplan_meier',
+      ),
+      Lesson(
+        id: 'competing_risks',
+        title: 'Competing risks and immortal time',
+        level: Level.advanced,
+        body: [
+          'A competing event prevents the event of interest from ever happening: a patient who dies cannot relapse afterwards. Treating death as censoring (1 − Kaplan-Meier) assumes the patient could still relapse later, and overestimates the incidence.',
+          'The Aalen-Johansen cumulative incidence gives the proportion of subjects who actually experience the event over time, given the competing event. The Gray test compares these incidences between groups.',
+          'Two models, two questions. The cause-specific Cox model (competing events censored) describes the rate of the event among subjects still exposed — the aetiological question. The Fine-Gray model describes the cumulative incidence (sHR) — the prognostic question, how many patients will have the event. A factor can increase the cause-specific rate yet decrease the incidence, if it also hastens the competing event.',
+          'Immortal time: a characteristic acquired during follow-up (transplant, treatment started later) cannot be coded at inclusion. The patient must survive until the transplant to be "transplanted": this waiting time, free of deaths by construction, is wrongly credited to the transplant.',
+          'The fix: a time-dependent covariate. Follow-up is split into (start, stop] intervals: "not transplanted" up to the transplant, "transplanted" after. At each death, each patient is compared with his status at that moment.',
+        ],
+        exampleTitle: 'Relapse with death as competing event; heart transplant at Stanford',
+        example: '20 fictitious patients: cumulative incidence of relapse at 24 months ${fmt(cr.cif * 100)}%, against ${fmt(cr.naive * 100)}% with the naive 1 − Kaplan-Meier. '
+            'Stanford heart transplant programme (103 patients): coded at inclusion, transplant seems protective, HR = ${fmt(cr.hrNaive)}; as a time-dependent covariate, HR = ${fmt(cr.hrTd)} (${fmtP(cr.pTd)}). The apparent benefit came from immortal time.',
+        exercises: [
+          const Exercise.numeric('100 patients, no censoring. Month 1: 10 die without relapse. Month 2: 10 relapse. Naive 1 − Kaplan-Meier for relapse at month 2, in % (two decimals)?', 11.11, 0.006,
+              'Deaths treated as censoring: 1 − (1 − 10/90) = 11.11%. The cumulative incidence is 10/100 = 10%: the naive estimate overestimates it.'),
+          const Exercise.numeric('Same example: cumulative incidence of relapse at month 2, in %?', 10, 0.01, 'Aalen-Johansen: S(1) × 10/90 = 0.90 × 0.111 = 10%.'),
+          const Exercise.choice('Age: cause-specific HR of relapse 1.03 per year, sHR 0.99. Interpretation?', [
+            'One of the two models is wrong',
+            'Age speeds up relapse among those still alive, but older patients die before relapsing, so the share who relapse does not increase',
+            'Age has no effect',
+          ], 1, 'Both are correct: they answer two different questions.'),
+          Exercise.numeric('In the Stanford example, HR of transplant coded at inclusion (two decimals)?', double.parse(cr.hrNaive.toStringAsFixed(2)), 0.006,
+              'HR = ${fmt(cr.hrNaive)}: spectacular but biased, since transplanted patients had by definition survived until their transplant.'),
+          const Exercise.choice('To estimate the effect of a treatment started during follow-up, we should…', [
+            'compare patients who ever received it with the others',
+            'exclude patients who died before being able to receive it',
+            'code it as a time-dependent covariate (or use a landmark analysis)',
+          ], 2, 'The first two options create or worsen immortal time bias.'),
+        ],
+        commonErrors: [
+          'Reporting 1 − Kaplan-Meier as a probability of the event when deaths are frequent.',
+          'Interpreting an sHR as an effect on the rate of the event, or a cause-specific HR as an effect on the proportion of patients.',
+          'Coding at inclusion a characteristic acquired during follow-up (immortal time bias).',
+          'Excluding patients who died early "because they could not be treated".',
+        ],
+        calculatorId: 'cumulative_incidence',
       ),
       Lesson(
         id: 'genetics',
@@ -1130,6 +1197,45 @@ List<Lesson> buildLessons() {
         'Ajuster sur une variable mesurée après le début du suivi (biais du temps immortel).',
       ],
       calculatorId: 'kaplan_meier',
+    ),
+    Lesson(
+      id: 'competing_risks',
+      title: 'Risques concurrents et temps immortel',
+      level: Level.advanced,
+      body: [
+        'Un événement concurrent empêche définitivement l\'événement d\'intérêt : un patient décédé ne peut plus rechuter. Traiter le décès comme une censure (1 − Kaplan-Meier) suppose que le patient pourrait encore rechuter plus tard, et surestime l\'incidence.',
+        'L\'incidence cumulée d\'Aalen-Johansen donne la proportion de sujets qui connaissent réellement l\'événement au cours du temps, compte tenu de l\'événement concurrent. Le test de Gray compare ces incidences entre groupes.',
+        'Deux modèles, deux questions. Le Cox spécifique de cause (événements concurrents censurés) décrit la vitesse de survenue chez les sujets encore exposés — question étiologique. Le modèle de Fine-Gray décrit l\'incidence cumulée (sHR) — question pronostique : combien de patients auront l\'événement. Un facteur peut augmenter la vitesse de survenue et diminuer l\'incidence s\'il précipite aussi l\'événement concurrent.',
+        'Temps immortel : une caractéristique acquise en cours de suivi (greffe, traitement commencé plus tard) ne peut pas être codée à l\'inclusion. Le patient doit survivre jusqu\'à la greffe pour être « greffé » : ce temps d\'attente, sans décès par construction, est attribué à tort à la greffe.',
+        'La correction : une covariable dépendant du temps. Le suivi est découpé en intervalles (début, fin] : « non greffé » jusqu\'à la greffe, « greffé » ensuite. À chaque décès, chaque patient est comparé avec son statut à ce moment.',
+      ],
+      exampleTitle: 'Rechute avec décès concurrent ; greffe cardiaque à Stanford',
+      example: '20 patients fictifs : incidence cumulée de rechute à 24 mois ${fmt(cr.cif * 100)} %, contre ${fmt(cr.naive * 100)} % avec le 1 − Kaplan-Meier naïf. '
+          'Programme de greffe cardiaque de Stanford (103 patients) : codée à l\'inclusion, la greffe paraît protectrice, HR = ${fmt(cr.hrNaive)} ; en covariable dépendant du temps, HR = ${fmt(cr.hrTd)} (${fmtP(cr.pTd)}). Le bénéfice apparent venait du temps immortel.',
+      exercises: [
+        const Exercise.numeric('100 patients, aucune censure. Mois 1 : 10 décès sans rechute. Mois 2 : 10 rechutes. 1 − Kaplan-Meier naïf de la rechute au mois 2, en % (deux décimales) ?', 11.11, 0.006,
+            'Décès traités comme censures : 1 − (1 − 10/90) = 11,11 %. L\'incidence cumulée vaut 10/100 = 10 % : l\'estimation naïve la surestime.'),
+        const Exercise.numeric('Même exemple : incidence cumulée de la rechute au mois 2, en % ?', 10, 0.01, 'Aalen-Johansen : S(1) × 10/90 = 0,90 × 0,111 = 10 %.'),
+        const Exercise.choice('Âge : HR spécifique de cause de la rechute 1,03 par an, sHR 0,99. Interprétation ?', [
+          'Un des deux modèles est faux',
+          'L\'âge accélère la rechute chez les patients encore vivants, mais les patients âgés meurent avant de rechuter : la proportion de rechutes n\'augmente pas',
+          'L\'âge n\'a aucun effet',
+        ], 1, 'Les deux sont justes : ils répondent à deux questions différentes.'),
+        Exercise.numeric('Dans l\'exemple de Stanford, HR de la greffe codée à l\'inclusion (deux décimales) ?', double.parse(cr.hrNaive.toStringAsFixed(2)), 0.006,
+            'HR = ${fmt(cr.hrNaive)} : spectaculaire mais biaisé, car les greffés avaient par définition survécu jusqu\'à leur greffe.'),
+        const Exercise.choice('Pour estimer l\'effet d\'un traitement commencé en cours de suivi, il faut…', [
+          'comparer les patients qui l\'ont reçu un jour aux autres',
+          'exclure les patients décédés avant d\'avoir pu le recevoir',
+          'le coder en covariable dépendant du temps (ou faire une analyse « landmark »)',
+        ], 2, 'Les deux premières options créent ou aggravent le biais du temps immortel.'),
+      ],
+      commonErrors: [
+        'Rapporter 1 − Kaplan-Meier comme une probabilité d\'événement quand les décès sont fréquents.',
+        'Lire un sHR comme un effet sur la vitesse de survenue, ou un HR spécifique de cause comme un effet sur la proportion de patients.',
+        'Coder à l\'inclusion une caractéristique acquise en cours de suivi (biais du temps immortel).',
+        'Exclure les patients décédés tôt « parce qu\'ils n\'ont pas pu être traités ».',
+      ],
+      calculatorId: 'cumulative_incidence',
     ),
     Lesson(
       id: 'genetics',

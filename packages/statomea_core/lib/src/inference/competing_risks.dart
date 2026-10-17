@@ -1,7 +1,7 @@
 /// Risques concurrents, partie descriptive : incidence cumulée d'Aalen-Johansen par cause et par groupe, avec la variance
 /// de Gray (1988) comme `cmprsk::cuminc` (correction des ex aequo comprise), IC ponctuel par transformation log(−log),
 /// comparaison au « 1 − Kaplan-Meier » naïf (événements concurrents traités comme des censures), et comparaison des
-/// groupes par un modèle de Fine-Gray (variance robuste). Validé contre validation/r/40_risques_concurrents.R.
+/// groupes par le test de Gray et un modèle de Fine-Gray (variance robuste). Validé contre validation/r/40_risques_concurrents.R.
 library;
 
 import 'dart:math' as math;
@@ -93,6 +93,144 @@ CifCurve cumulativeIncidence(List<double> time, List<int> code, int cause, {Stri
   return CifCurve(group, n, code.where((c) => c == cause).length, code.where((c) => c != 0 && c != cause).length, code.where((c) => c == 0).length, steps);
 }
 
+/// Test de Gray (1988) d'égalité des incidences cumulées d'une cause entre k groupes : traduction de la routine
+/// Fortran `crst` de cmprsk (R. Gray, GPL), une strate. [code] : 1 = cause d'intérêt, 2 = autre cause, 0 = censure ;
+/// [group] : 0 … k−1. Statistique sᵀV⁻¹s sur les k − 1 premiers groupes, χ² à k − 1 ddl.
+({double stat, int df, double p, List<double> scores}) grayTest(List<double> time, List<int> code, List<int> group, int ng, {double rho = 0}) {
+  final n = time.length;
+  final order = List<int>.generate(n, (i) => i)..sort((a, b) => time[a].compareTo(time[b]));
+  final ng1 = ng - 1;
+  final rs = List<int>.filled(ng, 0);
+  for (final g in group) {
+    rs[g]++;
+  }
+  final s = List<double>.filled(ng1, 0);
+  final v = List<double>.filled(ng1 * ng1, 0); // triangle inférieur (i ≥ j) utilisé
+  final f1m = List<double>.filled(ng, 0), f1 = List<double>.filled(ng, 0);
+  final skmm = List<double>.filled(ng, 1), skm = List<double>.filled(ng, 1);
+  final v3 = List<double>.filled(ng, 0);
+  final v2 = List<double>.filled(ng1 * ng, 0);
+  final c = List<double>.filled(ng * ng, 0), a = List<double>.filled(ng * ng, 0);
+  var fm = 0.0, f = 0.0;
+  var ll = 0;
+  while (ll < n) {
+    var lu = ll;
+    while (lu + 1 < n && time[order[lu + 1]] == time[order[ll]]) {
+      lu++;
+    }
+    final d1 = List<int>.filled(ng, 0), d2 = List<int>.filled(ng, 0);
+    for (var q = ll; q <= lu; q++) {
+      final i = order[q];
+      if (code[i] == 1) d1[group[i]]++;
+      if (code[i] == 2) d2[group[i]]++;
+    }
+    final nd1 = d1.fold(0, (x, y) => x + y), nd2 = d2.fold(0, (x, y) => x + y);
+    if (nd1 > 0 || nd2 > 0) {
+      var tr0 = 0.0, tq = 0.0;
+      for (var i = 0; i < ng; i++) {
+        if (rs[i] <= 0) continue;
+        final td = d1[i] + d2[i];
+        skm[i] = skmm[i] * (rs[i] - td) / rs[i];
+        f1[i] = f1m[i] + skmm[i] * d1[i] / rs[i];
+        tr0 += rs[i] / skmm[i];
+        tq += rs[i] * (1 - f1m[i]) / skmm[i];
+      }
+      f = fm + nd1 / tr0;
+      final fb = math.pow(1 - fm, rho).toDouble();
+      for (var i = 0; i < ng; i++) {
+        for (var j = i; j < ng; j++) {
+          a[i * ng + j] = 0;
+        }
+        if (rs[i] <= 0) continue;
+        final t1 = rs[i] / skmm[i];
+        a[i * ng + i] = fb * t1 * (1 - t1 / tr0);
+        c[i * ng + i] += a[i * ng + i] * nd1 / (tr0 * (1 - fm));
+        for (var j = i + 1; j < ng; j++) {
+          if (rs[j] <= 0) continue;
+          a[i * ng + j] = -fb * t1 * rs[j] / (skmm[j] * tr0);
+          c[i * ng + j] += a[i * ng + j] * nd1 / (tr0 * (1 - fm));
+        }
+      }
+      for (var i = 1; i < ng; i++) {
+        for (var j = 0; j < i; j++) {
+          a[i * ng + j] = a[j * ng + i];
+          c[i * ng + j] = c[j * ng + i];
+        }
+      }
+      for (var i = 0; i < ng1; i++) {
+        if (rs[i] <= 0) continue;
+        s[i] += fb * (d1[i] - nd1 * rs[i] * (1 - f1m[i]) / (skmm[i] * tq));
+      }
+      if (nd1 > 0) {
+        for (var k = 0; k < ng; k++) {
+          if (rs[k] <= 0) continue;
+          var t4 = 1.0;
+          if (skm[k] > 0) t4 = 1 - (1 - f) / skm[k];
+          var t5 = 1.0;
+          if (nd1 > 1) t5 = 1 - (nd1 - 1) / (tr0 * skmm[k] - 1);
+          final t3 = t5 * skmm[k] * nd1 / (tr0 * rs[k]);
+          v3[k] += t4 * t4 * t3;
+          for (var i = 0; i < ng1; i++) {
+            final t1 = a[i * ng + k] - t4 * c[i * ng + k];
+            v2[i * ng + k] += t1 * t4 * t3;
+            for (var j = 0; j <= i; j++) {
+              final t2 = a[j * ng + k] - t4 * c[j * ng + k];
+              v[i * ng1 + j] += t1 * t2 * t3;
+            }
+          }
+        }
+      }
+      if (nd2 > 0) {
+        for (var k = 0; k < ng; k++) {
+          if (skm[k] <= 0 || d2[k] <= 0) continue;
+          final t4 = (1 - f) / skm[k];
+          var t5 = 1.0;
+          if (d2[k] > 1) t5 = 1 - (d2[k] - 1) / (rs[k] - 1);
+          final t3 = t5 * (skmm[k] * skmm[k] * d2[k]) / (rs[k] * rs[k]);
+          v3[k] += t4 * t4 * t3;
+          for (var i = 0; i < ng1; i++) {
+            final t1 = t4 * c[i * ng + k];
+            v2[i * ng + k] -= t1 * t4 * t3;
+            for (var j = 0; j <= i; j++) {
+              final t2 = t4 * c[j * ng + k];
+              v[i * ng1 + j] += t1 * t2 * t3;
+            }
+          }
+        }
+      }
+    }
+    for (var q = ll; q <= lu; q++) {
+      rs[group[order[q]]]--;
+    }
+    fm = f;
+    for (var i = 0; i < ng; i++) {
+      f1m[i] = f1[i];
+      skmm[i] = skm[i];
+    }
+    ll = lu + 1;
+  }
+  final vs = Matrix(ng1, ng1);
+  for (var i = 0; i < ng1; i++) {
+    for (var j = 0; j <= i; j++) {
+      var x = v[i * ng1 + j];
+      for (var k = 0; k < ng; k++) {
+        x += c[i * ng + k] * c[j * ng + k] * v3[k] + c[i * ng + k] * v2[j * ng + k] + c[j * ng + k] * v2[i * ng + k];
+      }
+      vs.set(i, j, x);
+      vs.set(j, i, x);
+    }
+  }
+  final sol = solveSpd(vs, s);
+  var stat = double.nan;
+  if (sol != null) {
+    stat = 0;
+    for (var i = 0; i < ng1; i++) {
+      stat += s[i] * sol[i];
+    }
+  }
+  return (stat: stat, df: ng1, p: stat.isNaN ? double.nan : chiSquareUpper(stat, ng1.toDouble()), scores: s);
+}
+
 /// Analyse descriptive des risques concurrents à partir des colonnes brutes.
 /// [censorLevels] : modalités de censure ; toute modalité autre que [causeLevel] et la censure est un événement concurrent.
 AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statusRaw, String causeLevel, Set<String> censorLevels,
@@ -179,6 +317,7 @@ AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statu
             }()
         ];
   final fgP = fgWald == null ? null : chiSquareUpper(fgWald, (levels.length - 1).toDouble());
+  final gray = levels.length > 1 ? grayTest(t, c, [for (final x in g) levels.indexOf(x)], levels.length) : null;
   final alerts = <Alert>[
     if (dropped > 0) Alert('missing_values', Severity.caution, tr('$dropped ligne(s) incomplète(s) exclue(s).', '$dropped incomplete row(s) excluded.')),
     if (!c.contains(2))
@@ -197,9 +336,9 @@ AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statu
     inputs: {'n': t.length, 'dropped': dropped, 'groups': levels, 'horizon': h, 'level': level, 'cause': causeLevel, 'censoring': censorLevels.toList()..sort(), 'competing': others.toList()..sort()},
     formula: tr(
         'Aalen-Johansen : F₁(t) = Σ_{t_j ≤ t} Ŝ(t_j⁻)·d₁ⱼ/nⱼ, Ŝ = Kaplan-Meier toutes causes ; variance de Gray (1988), correction des ex aequo comme cuminc ; IC ponctuel F^exp(±z·√v/(F·log F)). '
-            '1 − Kaplan-Meier « naïf » : événements concurrents comptés comme censures (surestime l\'incidence).${groupsTxt ? ' Comparaison des groupes : modèle de Fine-Gray (sHR, variance sandwich), test de Wald.' : ''}',
+            '1 − Kaplan-Meier « naïf » : événements concurrents comptés comme censures (surestime l\'incidence).${groupsTxt ? ' Comparaison des groupes : test de Gray (1988, égalité des incidences cumulées, χ² à k − 1 ddl, comme cuminc) ; modèle de Fine-Gray (sHR, variance sandwich).' : ''}',
         'Aalen-Johansen: F₁(t) = Σ_{t_j ≤ t} Ŝ(t_j⁻)·d₁ⱼ/nⱼ, Ŝ = all-cause Kaplan-Meier; Gray (1988) variance, tie correction as in cuminc; pointwise CI F^exp(±z·√v/(F·log F)). '
-            '"Naive" 1 − Kaplan-Meier: competing events counted as censoring (overestimates the incidence).${groupsTxt ? ' Group comparison: Fine-Gray model (sHR, sandwich variance), Wald test.' : ''}'),
+            '"Naive" 1 − Kaplan-Meier: competing events counted as censoring (overestimates the incidence).${groupsTxt ? ' Group comparison: Gray (1988) test (equality of cumulative incidences, χ² with k − 1 df, as in cuminc); Fine-Gray model (sHR, sandwich variance).' : ''}'),
     estimates: [
       for (var k = 0; k < levels.length; k++)
         if (cause[k].at(h, lastTime[levels[k]]!) case final st?)
@@ -214,6 +353,8 @@ AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statu
       'horizon': h,
       for (final o in overestimate) 'cif_${o.$1}': o.$2,
       for (final o in overestimate) 'naive_${o.$1}': o.$3,
+      if (gray != null) 'gray_chi2': gray.stat,
+      if (gray != null) 'gray_p': gray.p,
       'fg_wald': ?fgWald,
       'fg_wald_p': ?fgP,
     },
@@ -240,6 +381,9 @@ AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statu
             ];
           }()
       ]),
+      if (gray != null)
+        ResultTable(tr('Test de Gray (incidences cumulées de « $causeLevel »)', 'Gray test (cumulative incidences of "$causeLevel")'), ['χ²', tr('ddl', 'df'), 'p'],
+            [[fmt(gray.stat), '${gray.df}', fmtP(gray.p)]]),
       if (fg != null)
         ResultTable(tr('Comparaison des groupes (Fine-Gray)', 'Group comparison (Fine-Gray)'), [groupName, 'sHR', tr('IC $pct %', '$pct% CI'), 'p'], [
           [levels.first, '1', tr('référence', 'reference'), ''],
@@ -281,6 +425,7 @@ AnalysisResult competingRisksAnalysis(List<double?> timeRaw, List<String?> statu
       whatItMeans: [
         for (final o in overestimate)
           tr('« ${o.$1} » : ${fmt(o.$2 * 100)} % à ${fmt(h)}$u (1 − Kaplan-Meier naïf : ${fmt(o.$3 * 100)} %).', '"${o.$1}": ${fmt(o.$2 * 100)}% at ${fmt(h)}$u (naive 1 − Kaplan-Meier: ${fmt(o.$3 * 100)}%).'),
+        if (gray != null) tr('Test de Gray : χ² = ${fmt(gray.stat)} (ddl ${gray.df}), ${fmtP(gray.p)}.', 'Gray test: χ² = ${fmt(gray.stat)} (df ${gray.df}), ${fmtP(gray.p)}.'),
         for (final s in shr) tr('sHR ${s.$1} vs ${levels.first} = ${fmt(s.$2)} (IC ${fmt(s.$3)} à ${fmt(s.$4)}), ${fmtP(s.$5)}.', 'sHR ${s.$1} vs ${levels.first} = ${fmt(s.$2)} (CI ${fmt(s.$3)} to ${fmt(s.$4)}), ${fmtP(s.$5)}.'),
       ].join(' '),
       notJustified: tr(

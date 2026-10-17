@@ -790,7 +790,26 @@ mois au dixième (ex aequo). Tests `test/risques_concurrents_test.dart` (moteur)
 Sur ces données, l'âge augmente le risque spécifique de rechute (HR > 1) mais diminue son incidence cumulée (sHR < 1) :
 les patients âgés meurent plus souvent avant de rechuter. L'application le signale (alerte « sens opposés »).
 
-Non fait : le test de Gray (comparaison des incidences cumulées, `cuminc$Tests`). Une linéarisation de sa variance donne
-une statistique à 0,1–0,2 % de celle de `cuminc` sans l'égaler ; la comparaison des groupes passe donc par un modèle de
-Fine-Gray avec le groupe (Wald robuste), validé exactement.
+Le test de Gray, d'abord approché à 0,1–0,2 %, est reproduit exactement en 1.40.0 (voir ci-dessous).
+
+## Test de Gray, Cox avec covariable dépendant du temps et leçon — 1.40.0
+
+**Test de Gray.** Traduction en Dart de la routine Fortran `crst` de cmprsk 2.2-11 (`src/crstm.f`, R. Gray, GPL),
+lue dans le source CRAN : score par groupe Σ[d₁ⱼ − d₁·Rⱼ/ΣR], Rⱼ = nⱼ(1 − F̂ⱼ(t⁻))/Ŝⱼ(t⁻), et variance de Gray (1988)
+avec correction des ex aequo ; une strate, rho au choix. Comparé à `cuminc$Tests` (script 40) : 2 groupes (bras),
+3 groupes (tranches d'âge), rho = 0 et 1, pour chacune des deux causes — tolérance 1e-10.
+
+**Cox avec covariable dépendant du temps.** Script `validation/r/41_cox_temps.R`, données réelles du programme de greffe
+cardiaque de Stanford (`survival::jasa`, 103 patients, 69 greffés ; `demos/greffe_stanford.csv`), préparées comme la
+vignette de survival. Test `test/cox_temps_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Découpage au changement (greffe) : 170 intervalles (début, fin], statut et covariable | `tmerge(tdc())` | exact |
+| Cox en processus de comptage, Efron et Breslow : coefficients, ES | `coxph(Surv(début, fin, statut))` | 1e-8 |
+| Log-vraisemblances, score, Wald | `coxph` | 1e-11, 1e-9, 1e-7 |
+| Analyse naïve (greffe codée à l'inclusion) : HR 0,18 (biais du temps immortel) contre 1,01 (p = 0,96) | `coxph` | 1e-8 |
+
+En processus de comptage, la concordance et le test de cox.zph ne sont pas calculés (signalé dans le résultat).
+Leçon « Risques concurrents et temps immortel » (5 exercices), exemple calculé par le moteur sur les données de Stanford.
 

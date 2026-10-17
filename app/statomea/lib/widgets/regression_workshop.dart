@@ -94,6 +94,9 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
   String? outcome, event;
   String? status; // Cox et Fine-Gray : variable de statut
   String? censor; // Fine-Gray : modalité de censure (les autres modalités sont des événements concurrents)
+  // Cox avec covariable dépendant du temps : données en intervalles (colonne de début), ou découpage à une date de
+  // changement (colonne du temps de changement + covariable binaire concernée).
+  String? startCol, switchCol, switchCov;
   bool efron = true;
   bool mi = false;
   final miM = TextEditingController(text: '20');
@@ -176,6 +179,27 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
               [for (final l in ds.levels(surv ? status! : outcome!)) (l, l)], (v) => setState(() => event = v)),
         if (model == 'fine_gray' && status != null)
           Pick<String>(tr('Modalité « censure »', 'Censoring level'), censor, [for (final l in ds.levels(status!)) (l, l)], (v) => setState(() => censor = v)),
+        if (model == 'cox')
+          Pick<String>(tr('Début d\'intervalle (données (début, fin])', 'Interval start ((start, stop] data)'), startCol ?? '', [
+            ('', tr('— aucun : suivi depuis 0 —', '— none: follow-up from 0 —')),
+            for (final n in ds.names)
+              if (ds.dictionary[n]!.type == VarType.numeric && n != outcome) (n, n)
+          ], (v) => setState(() {
+                startCol = (v == null || v.isEmpty) ? null : v;
+                if (startCol != null) switchCol = switchCov = null;
+              }), width: 300),
+        if (model == 'cox' && startCol == null) ...[
+          Pick<String>(tr('Changement en cours de suivi : temps', 'Change during follow-up: time'), switchCol ?? '', [
+            ('', tr('— aucun —', '— none —')),
+            for (final n in ds.names)
+              if (ds.dictionary[n]!.type == VarType.numeric && n != outcome) (n, n)
+          ], (v) => setState(() => switchCol = (v == null || v.isEmpty) ? null : v), width: 300),
+          if (switchCol != null)
+            Pick<String>(tr('Covariable qui change (non → oui)', 'Covariate that changes (no → yes)'), switchCov, [
+              for (final n in ds.names)
+                if (ds.dictionary[n]!.type == VarType.binary && n != status) (n, n)
+            ], (v) => setState(() => switchCov = v), width: 300),
+        ],
         if (model == 'cox' && expert)
           Pick<bool>(tr('Ex aequo', 'Ties'), efron, [(true, tr('Efron (défaut de coxph)', 'Efron (coxph default)')), (false, 'Breslow')], (v) => setState(() => efron = v ?? true), width: 220),
       ]),
@@ -226,6 +250,14 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             }
             if (model == 'cox') {
               if (status == null) throw StatInputError('missing', tr('Choisir la variable de statut.', 'Choose the status variable.'));
+              if (startCol != null) return coxRegression(buildCountingDesign(ds, startCol!, outcome!, status!, event!, terms), efron: efron);
+              if (switchCol != null) {
+                if (switchCov == null) throw StatInputError('missing', tr('Choisir la covariable qui change au temps « $switchCol ».', 'Choose the covariate that changes at time "$switchCol".'));
+                final yes = tr('oui', 'yes'), no = tr('non', 'no');
+                final long = splitAtSwitch(ds, time: outcome!, status: status!, eventLevel: event!, switchTime: switchCol!, covariate: switchCov!, yes: yes, no: no);
+                final tdTerms = [for (final t in terms) if (t.variable != switchCov && t.variable != switchCol) t, TermSpec(switchCov!, categorical: true, reference: no)];
+                return coxRegression(buildCountingDesign(long, 'debut', 'fin', status!, event!, tdTerms), efron: efron);
+              }
               return coxRegression(buildSurvivalDesign(ds, outcome!, status!, event!, terms), efron: efron);
             }
             final f = ModelFormula(outcome!, terms, interactions: interactions, eventLevel: event);

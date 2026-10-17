@@ -25,7 +25,11 @@ class SurvivalDesign {
 
   /// Termes du modèle (pour réappliquer l'équation à d'autres données).
   final List<TermSpec> terms;
-  SurvivalDesign(this.design, this.status, this.timeName, this.statusName, this.eventLevel, {this.terms = const []});
+
+  /// Début d'intervalle (processus de comptage (début, fin]) ; null = suivi depuis 0.
+  final List<double>? start;
+  final String? startName;
+  SurvivalDesign(this.design, this.status, this.timeName, this.statusName, this.eventLevel, {this.terms = const [], this.start, this.startName});
   List<double> get time => design.y;
   int get events => status.where((s) => s == 1).length;
 }
@@ -71,6 +75,66 @@ SurvivalDesign buildSurvivalDesign(Dataset ds, String time, String status, Strin
   return SurvivalDesign(d, [for (final k in keep) st[d0.rows[k]] == eventLevel ? 1.0 : 0.0], time, status, eventLevel, terms: terms);
 }
 
+/// Données en processus de comptage : une ligne par intervalle (début, fin], statut à la fin de l'intervalle.
+SurvivalDesign buildCountingDesign(Dataset ds, String start, String stop, String status, String eventLevel, List<TermSpec> terms) {
+  final s = buildSurvivalDesign(ds, stop, status, eventLevel, terms);
+  final st = ds.numeric(start);
+  final rows = s.design.rows;
+  final bad = [for (var k = 0; k < rows.length; k++) if (st[rows[k]] == null || !(st[rows[k]]! < s.time[k])) rows[k] + 1];
+  if (bad.isNotEmpty) {
+    throw StatInputError('bad_interval', tr('${bad.length} intervalle(s) avec un début manquant ou ≥ à la fin (lignes ${bad.take(5).join(', ')}${bad.length > 5 ? '…' : ''}).',
+        '${bad.length} interval(s) with a missing start or start ≥ stop (rows ${bad.take(5).join(', ')}${bad.length > 5 ? '…' : ''}).'));
+  }
+  final d = s.design;
+  final dm = DesignMatrix(
+    columns: d.columns,
+    termOfColumn: d.termOfColumn,
+    x: d.x,
+    y: d.y,
+    rows: d.rows,
+    excludedBy: d.excludedBy,
+    excludedByCorrection: d.excludedByCorrection,
+    codingNotes: d.codingNotes,
+    alerts: d.alerts,
+    formula: 'Surv($start, $stop, $status) ~ ${d.formula.split('~').last.trim()}',
+  );
+  return SurvivalDesign(dm, s.status, stop, status, eventLevel, terms: terms, start: [for (final r in rows) st[r]!], startName: start);
+}
+
+/// Découpe le suivi de chaque sujet à la date de changement d'une covariable binaire (p. ex. une greffe) : intervalle
+/// (0, changement] avec la covariable à « non », puis (changement, fin] avec « oui » ; le statut n'est porté que par le
+/// dernier intervalle. Changement absent ou ≥ fin : une seule ligne à « non » ; changement ≤ 0 : une seule ligne à
+/// « oui » (comme survival::tmerge avec tdc()). Les autres colonnes sont recopiées sur chaque intervalle.
+Dataset splitAtSwitch(Dataset ds, {required String time, required String status, required String eventLevel, required String switchTime, required String covariate,
+    String startName = 'debut', String stopName = 'fin', String yes = 'oui', String no = 'non'}) {
+  final t = ds.numeric(time), sw = ds.numeric(switchTime), st = ds.text(status);
+  final keep = [for (final n in ds.names) if (n != time && n != switchTime && n != status && n != covariate) n];
+  // Statut des intervalles non terminaux : la modalité de non-événement la plus fréquente.
+  final others = [for (final l in ds.levels(status)) if (l != eventLevel) l];
+  if (others.isEmpty) throw StatInputError('no_censor_level', tr('« $status » n\'a pas de modalité autre que « $eventLevel ».', '"$status" has no level other than "$eventLevel".'));
+  others.sort((a, b) => st.where((v) => v == b).length.compareTo(st.where((v) => v == a).length));
+  final censorLevel = others.first;
+  final names = [...keep, startName, stopName, status, covariate];
+  final rows = <List<String?>>[];
+  for (var i = 0; i < ds.rowCount; i++) {
+    final ti = t[i];
+    if (ti == null) continue;
+    final base = [for (final n in keep) ds.cell(i, n)];
+    final si = sw[i];
+    if (si == null || si >= ti) {
+      rows.add([...base, '0', _num(ti), st[i], no]);
+    } else if (si <= 0) {
+      rows.add([...base, '0', _num(ti), st[i], yes]);
+    } else {
+      rows.add([...base, '0', _num(si), censorLevel, no]);
+      rows.add([...base, _num(si), _num(ti), st[i], yes]);
+    }
+  }
+  return Dataset(names, rows, source: tr('${ds.source} découpé au changement de « $covariate » (« $switchTime »)', '${ds.source} split at the change of "$covariate" ("$switchTime")'));
+}
+
+String _num(double v) => v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+
 class CoxFit {
   final List<double> beta;
   final Matrix cov;
@@ -99,7 +163,8 @@ List<List<int>> _timeGroups(List<double> t) {
 
 /// Log-vraisemblance partielle, score et information en β.
 ({double ll, List<double> u, Matrix info}) coxEval(List<List<double>> x, List<double> t, List<double> d, List<double> beta,
-    {bool efron = true}) {
+    {bool efron = true, List<double>? start}) {
+  if (start != null) return _coxEvalCounting(x, start, t, d, beta, efron: efron);
   final p = beta.length;
   final eta = [
     for (final row in x)
@@ -167,15 +232,105 @@ List<List<int>> _timeGroups(List<double> t) {
   return (ll: ll, u: u, info: info);
 }
 
+/// Vraisemblance partielle en processus de comptage : à un temps d'événement t, l'ensemble à risque est formé des
+/// intervalles (début, fin] avec début < t ≤ fin (comme coxph avec Surv(début, fin, statut)). Balayage par fin
+/// décroissante : un intervalle entre quand t ≤ fin, sort quand t ≤ début.
+({double ll, List<double> u, Matrix info}) _coxEvalCounting(List<List<double>> x, List<double> start, List<double> t, List<double> d, List<double> beta,
+    {bool efron = true}) {
+  final n = t.length, p = beta.length;
+  final r = List<double>.filled(n, 0);
+  final eta = List<double>.filled(n, 0);
+  for (var i = 0; i < n; i++) {
+    var e = 0.0;
+    for (var j = 0; j < p; j++) {
+      e += x[i][j] * beta[j];
+    }
+    eta[i] = e;
+    r[i] = math.exp(e);
+  }
+  final byStop = List<int>.generate(n, (i) => i)..sort((a, b) => t[b].compareTo(t[a]));
+  final byStart = List<int>.generate(n, (i) => i)..sort((a, b) => start[b].compareTo(start[a]));
+  var s0 = 0.0;
+  final s1 = List<double>.filled(p, 0);
+  final s2 = Matrix(p, p);
+  void acc(int i, double sign) {
+    final w = sign * r[i];
+    s0 += w;
+    for (var a = 0; a < p; a++) {
+      s1[a] += w * x[i][a];
+      for (var b = 0; b <= a; b++) {
+        s2.data[a * p + b] += w * x[i][a] * x[i][b];
+      }
+    }
+  }
+
+  var ll = 0.0;
+  final u = List<double>.filled(p, 0);
+  final info = Matrix(p, p);
+  var q = 0, out = 0;
+  while (q < n) {
+    final tt = t[byStop[q]];
+    var m = q;
+    final ev = <int>[];
+    while (m < n && t[byStop[m]] == tt) {
+      final i = byStop[m];
+      acc(i, 1);
+      if (d[i] == 1) ev.add(i);
+      m++;
+    }
+    q = m;
+    if (ev.isEmpty) continue;
+    // Retirer les intervalles qui commencent à t ou après (début ≥ t).
+    while (out < n && start[byStart[out]] >= tt) {
+      acc(byStart[out], -1);
+      out++;
+    }
+    final nd = ev.length;
+    var d0 = 0.0;
+    final d1 = List<double>.filled(p, 0);
+    final d2 = Matrix(p, p);
+    for (final i in ev) {
+      d0 += r[i];
+      ll += eta[i];
+      for (var a = 0; a < p; a++) {
+        u[a] += x[i][a];
+        d1[a] += r[i] * x[i][a];
+        for (var b = 0; b <= a; b++) {
+          d2.data[a * p + b] += r[i] * x[i][a] * x[i][b];
+        }
+      }
+    }
+    for (var l = 0; l < nd; l++) {
+      final f = efron ? l / nd : 0.0;
+      final z0 = s0 - f * d0;
+      ll -= math.log(z0);
+      for (var a = 0; a < p; a++) {
+        final za = s1[a] - f * d1[a];
+        u[a] -= za / z0;
+        for (var b = 0; b <= a; b++) {
+          final zb = s1[b] - f * d1[b];
+          info.data[a * p + b] += (s2.data[a * p + b] - f * d2.data[a * p + b]) / z0 - za * zb / (z0 * z0);
+        }
+      }
+    }
+  }
+  for (var a = 0; a < p; a++) {
+    for (var b = 0; b < a; b++) {
+      info.data[b * p + a] = info.data[a * p + b];
+    }
+  }
+  return (ll: ll, u: u, info: info);
+}
+
 /// Ajustement par Newton-Raphson avec demi-pas (critère de coxph : variation
 /// relative de la log-vraisemblance < 1e-9 ; ici 1e-12).
-CoxFit fitCox(List<List<double>> x, List<double> t, List<double> d, {bool efron = true, int maxIter = 50}) {
+CoxFit fitCox(List<List<double>> x, List<double> t, List<double> d, {bool efron = true, int maxIter = 50, List<double>? start}) {
   final p = x.first.length;
   // Centrage des covariables (stabilité numérique ; β inchangés).
   final means = [for (var j = 0; j < p; j++) x.fold(0.0, (a, r) => a + r[j]) / x.length];
   final xc = [for (final r in x) [for (var j = 0; j < p; j++) r[j] - means[j]]];
   var beta = List<double>.filled(p, 0);
-  var cur = coxEval(xc, t, d, beta, efron: efron);
+  var cur = coxEval(xc, t, d, beta, efron: efron, start: start);
   final ll0 = cur.ll;
   final cov0 = invertSpd(cur.info);
   var score = 0.0;
@@ -192,12 +347,12 @@ CoxFit fitCox(List<List<double>> x, List<double> t, List<double> d, {bool efron 
     var step = solveSpd(cur.info, cur.u);
     if (step == null) break;
     var next = [for (var j = 0; j < p; j++) beta[j] + step[j]];
-    var ev = coxEval(xc, t, d, next, efron: efron);
+    var ev = coxEval(xc, t, d, next, efron: efron, start: start);
     var h = 0;
     while ((ev.ll.isNaN || ev.ll < cur.ll - 1e-12 * (1 + cur.ll.abs())) && h < 30) {
       step = [for (final s in step!) s / 2];
       next = [for (var j = 0; j < p; j++) beta[j] + step[j]];
-      ev = coxEval(xc, t, d, next, efron: efron);
+      ev = coxEval(xc, t, d, next, efron: efron, start: start);
       h++;
     }
     final change = (ev.ll - cur.ll).abs();
@@ -367,7 +522,8 @@ CoxFit fitCox(List<List<double>> x, List<double> t, List<double> d, {bool efron 
 /// Analyse complète de Cox.
 AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level = 0.95}) {
   final d = s.design;
-  final fit = fitCox(d.x, s.time, s.status, efron: efron);
+  final counting = s.start != null;
+  final fit = fitCox(d.x, s.time, s.status, efron: efron, start: s.start);
   final p = d.p;
   final z = normalQuantile(1 - (1 - level) / 2);
   final coefs = [
@@ -397,7 +553,7 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
         return t;
       }()
   ];
-  final conc = coxConcordance(s.time, s.status, eta);
+  final conc = counting ? null : coxConcordance(s.time, s.status, eta);
   final events = s.events;
   final alerts = <Alert>[...d.alerts];
   final checks = <Check>[];
@@ -411,13 +567,18 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
         tr('Non-convergence ou vraisemblance monotone : les HR concernés sont infinis ou arbitraires et ne doivent pas être rapportés.', 'Non-convergence or monotone likelihood: the HRs involved are infinite or arbitrary and must not be reported.'),
         suggestion: tr('Regrouper des modalités justifiées a priori, retirer le terme, ou utiliser une pénalisation (hors V1).', 'Merge levels justified a priori, remove the term, or use penalization (outside V1).')));
   }
-  final zph = (fit.converged && huge.isEmpty) ? coxZph(s, fit, efron: efron) : null;
+  final zph = (fit.converged && huge.isEmpty && !counting) ? coxZph(s, fit, efron: efron) : null;
   if (zph != null) {
     final bad = [for (final t in zph.terms) if (t.$4 < 0.05) t.$1];
     checks.add(Check('proportional_hazards', tr('Risques proportionnels (test de cox.zph, transformation KM)', 'Proportional hazards (cox.zph test, KM transform)'),
         zph.globalP < 0.05 || bad.isNotEmpty ? CheckStatus.warning : CheckStatus.ok,
         tr("Global : χ² = ${fmt(zph.globalChi2)} (ddl ${zph.globalDf}), ${fmtP(zph.globalP)}. ${bad.isEmpty ? "Aucun terme en écart significatif." : "Écart pour : ${bad.join(", ")} — le HR varie peut-être dans le temps ; examiner les résidus de Schoenfeld, stratifier ou modéliser une interaction avec le temps."} Un test non significatif ne prouve pas la proportionnalité (faible puissance avec peu d'événements).",
             'Global: χ² = ${fmt(zph.globalChi2)} (df ${zph.globalDf}), ${fmtP(zph.globalP)}. ${bad.isEmpty ? "No term with a significant departure." : "Departure for: ${bad.join(", ")} — the HR may vary over time; examine Schoenfeld residuals, stratify or model an interaction with time."} A non-significant test does not prove proportionality (low power with few events).')));
+  }
+  if (counting) {
+    checks.add(Check('proportional_hazards', tr('Risques proportionnels', 'Proportional hazards'), CheckStatus.notAssessed,
+        tr('Test de cox.zph non calculé en processus de comptage : examiner les résidus de Schoenfeld dans un logiciel dédié, ou ajouter une interaction avec le temps.',
+            'cox.zph test not computed for counting-process data: examine Schoenfeld residuals in dedicated software, or add an interaction with time.')));
   }
   checks.add(collinearityCheck(gvif(d)));
   checks.add(Check('censoring', tr('Censure non informative', 'Non-informative censoring'), CheckStatus.notAssessed,
@@ -438,14 +599,19 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
   final fu = [...s.time]..sort();
   return AnalysisResult(
     methodId: 'cox',
-    methodName: tr('Régression de Cox (risques proportionnels)', 'Cox regression (proportional hazards)'),
+    methodName: counting
+        ? tr('Régression de Cox avec covariable(s) dépendant du temps (processus de comptage)', 'Cox regression with time-dependent covariate(s) (counting process)')
+        : tr('Régression de Cox (risques proportionnels)', 'Cox regression (proportional hazards)'),
     inputs: {'model': d.describe(), 'ties': efron ? 'efron' : 'breslow', 'level': level, 'events': events},
-    formula: tr("h(t | x) = h₀(t)·exp(xᵀβ) ; vraisemblance partielle (ex aequo : ${efron ? "Efron" : "Breslow"}), Newton-Raphson ; HR = exp(β), IC de Wald ; tests RV, Wald, score ; concordance de Harrell ; test de proportionnalité de cox.zph (score de l'ajout de x·g(t), g = 1 − S_KM(t⁻) centré).",
+    formula: counting
+        ? tr("h(t | x(t)) = h₀(t)·exp(x(t)ᵀβ) ; données en intervalles (début, fin] : à chaque temps d'événement, l'ensemble à risque contient les intervalles avec début < t ≤ fin, chaque sujet y figurant avec la valeur de ses covariables à ce moment ; vraisemblance partielle (ex aequo : ${efron ? "Efron" : "Breslow"}), Newton-Raphson ; HR = exp(β), IC de Wald ; tests RV, Wald, score.",
+            "h(t | x(t)) = h₀(t)·exp(x(t)ᵀβ); data in (start, stop] intervals: at each event time, the risk set contains the intervals with start < t ≤ stop, each subject entering with its covariate values at that moment; partial likelihood (ties: ${efron ? "Efron" : "Breslow"}), Newton-Raphson; HR = exp(β), Wald CI; LR, Wald and score tests.")
+        : tr("h(t | x) = h₀(t)·exp(xᵀβ) ; vraisemblance partielle (ex aequo : ${efron ? "Efron" : "Breslow"}), Newton-Raphson ; HR = exp(β), IC de Wald ; tests RV, Wald, score ; concordance de Harrell ; test de proportionnalité de cox.zph (score de l'ajout de x·g(t), g = 1 − S_KM(t⁻) centré).",
         "h(t | x) = h₀(t)·exp(xᵀβ); partial likelihood (ties: ${efron ? "Efron" : "Breslow"}), Newton-Raphson; HR = exp(β), Wald CI; LR, Wald and score tests; Harrell's concordance; cox.zph proportionality test (score for adding x·g(t), g = 1 − S_KM(t⁻) centred)."),
     estimates: [
       for (final c in coefs)
         Estimate('HR — ${c.name}', math.exp(c.estimate), lower: math.exp(c.lower), upper: math.exp(c.upper), level: level, pValue: c.p, se: c.se),
-      Estimate(tr('Concordance (C de Harrell)', "Concordance (Harrell's C)"), conc.c),
+      if (conc != null) Estimate(tr('Concordance (C de Harrell)', "Concordance (Harrell's C)"), conc.c),
     ],
     statistics: {
       'n': d.n.toDouble(),
@@ -458,7 +624,7 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
       'wald_p': chiSquareUpper(wald, p.toDouble()),
       'score': fit.scoreTest,
       'score_p': chiSquareUpper(fit.scoreTest, p.toDouble()),
-      'concordance': conc.c,
+      'concordance': ?conc?.c,
       'iterations': fit.iterations.toDouble(),
       for (var j = 0; j < p; j++) 'beta_${d.columns[j]}': fit.beta[j],
       for (var j = 0; j < p; j++) 'se_${d.columns[j]}': coefs[j].se,
@@ -483,7 +649,7 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
         ]),
       ResultTable(tr('Codage et observations', 'Coding and observations'), [tr('Élément', 'Item'), tr('Détail', 'Detail')], [
         [tr('Modèle', 'Model'), d.formula],
-        [tr('Observations / événements / censurés', 'Observations / events / censored'), '${d.n} / $events / ${d.n - events}'],
+        if (counting) [tr('Intervalles (début, fin] / événements', '(start, stop] intervals / events'), '${d.n} / $events'] else [tr('Observations / événements / censurés', 'Observations / events / censored'), '${d.n} / $events / ${d.n - events}'],
         [tr('Durée de suivi (min – médiane – max)', 'Follow-up time (min – median – max)'), '${fmt(fu.first)} – ${fmt(fu[fu.length ~/ 2])} – ${fmt(fu.last)}'],
         [tr("Ex aequo de temps d'événement", 'Tied event times'), hasTies ? tr('oui (méthode ${efron ? "d'Efron" : "de Breslow"})', 'yes (${efron ? "Efron" : "Breslow"} method)') : tr('non', 'no')],
         for (final c in d.codingNotes) [tr('Codage', 'Coding'), c],
@@ -493,8 +659,8 @@ AnalysisResult coxRegression(SurvivalDesign s, {bool efron = true, double level 
     interpretation: Interpretation(
       whyThisMethod: tr("Délai jusqu'à un événement avec censure : le modèle de Cox compare les taux instantanés d'événement (hazards) sans supposer de forme pour le risque de base, sous l'hypothèse que leur rapport est constant dans le temps.",
           'Time to an event with censoring: the Cox model compares instantaneous event rates (hazards) without assuming a form for the baseline hazard, under the assumption that their ratio is constant over time.'),
-      whatItMeans: tr('« ${main.name} » : HR = ${fmt(math.exp(main.estimate))} (IC ${fmt(math.exp(main.lower))} à ${fmt(math.exp(main.upper))}), ${fmtP(main.p)}, à autres variables fixées. Concordance C = ${fmt(conc.c)} (0,5 = pas de discrimination).',
-          '"${main.name}": HR = ${fmt(math.exp(main.estimate))} (CI ${fmt(math.exp(main.lower))} to ${fmt(math.exp(main.upper))}), ${fmtP(main.p)}, holding the other variables fixed. Concordance C = ${fmt(conc.c)} (0.5 = no discrimination).'),
+      whatItMeans: tr('« ${main.name} » : HR = ${fmt(math.exp(main.estimate))} (IC ${fmt(math.exp(main.lower))} à ${fmt(math.exp(main.upper))}), ${fmtP(main.p)}, à autres variables fixées.${conc == null ? '' : ' Concordance C = ${fmt(conc.c)} (0,5 = pas de discrimination).'}',
+          '"${main.name}": HR = ${fmt(math.exp(main.estimate))} (CI ${fmt(math.exp(main.lower))} to ${fmt(math.exp(main.upper))}), ${fmtP(main.p)}, holding the other variables fixed.${conc == null ? '' : ' Concordance C = ${fmt(conc.c)} (0.5 = no discrimination).'}'),
       notJustified: tr("Lire un HR comme un risque relatif cumulé ou comme une différence de survie à une date donnée ; interpréter causalement un HR d'étude observationnelle ; ignorer un écart à la proportionnalité ; conclure à la proportionnalité parce que le test n'est pas significatif.",
           'Reading an HR as a cumulative risk ratio or as a survival difference at a given date; interpreting an HR from an observational study causally; ignoring a departure from proportionality; concluding proportionality because the test is not significant.'),
     ),

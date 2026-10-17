@@ -40,6 +40,24 @@ void main() {
     }
   });
 
+  test('test de Gray (traduction de crstm) = cuminc\$Tests : 2 groupes, 3 groupes, rho = 1, les deux causes', () {
+    List<int> codeFor(int cause) => [for (final x in st) x == 'censure' ? 0 : ((x == 'rechute') == (cause == 1) ? 1 : 2)];
+    final g2 = [for (final b in bras) b == 'A' ? 0 : 1];
+    final ages = [for (final a in ds.numeric('age')) a!];
+    final g3 = [for (final a in ages) a <= 50 ? 0 : (a <= 65 ? 1 : 2)];
+    final r2 = ref['gray'] as Map, r3 = ref['gray_age3'] as Map, r1 = v(ref['gray_rho1']);
+    for (final cause in [1, 2]) {
+      final a = grayTest(t, codeFor(cause), g2, 2);
+      expect(a.stat, closeRel(v(r2['stat'])[cause - 1], rel: 1e-10));
+      expect(a.p, closeRel(v(r2['p'])[cause - 1], rel: 1e-8));
+      final b = grayTest(t, codeFor(cause), g3, 3);
+      expect(b.stat, closeRel(v(r3['stat'])[cause - 1], rel: 1e-10));
+      expect(b.df, 2);
+      final c = grayTest(t, codeFor(cause), g2, 2, rho: 1);
+      expect(c.stat, closeRel(r1[cause - 1], rel: 1e-10));
+    }
+  });
+
   test('analyse complète : incidence à 24 mois, 1 − Kaplan-Meier naïf (surestimation), sHR du bras = crr', () {
     final r = competingRisksAnalysis(ds.numeric('mois'), st, 'rechute', {'censure'}, groupRaw: bras, horizon: 24, timeUnit: 'mois', groupName: 'bras');
     final a = ref['at24'] as Map;
@@ -53,6 +71,7 @@ void main() {
     expect(shr.value, closeRel(math.exp(asD(fg['coef'])!), rel: 1e-8));
     final se = asD(fg['se'])!;
     expect(r.statistics['fg_wald'], closeRel(asD(fg['coef'])! * asD(fg['coef'])! / (se * se), rel: 1e-7));
+    expect(r.statistics['gray_chi2'], closeRel(v((ref['gray'] as Map)['stat']).first, rel: 1e-10));
     expect(r.figures['cumulativeIncidence'], isNotNull);
     expect(r.inputs['competing'], ['deces']);
   });
