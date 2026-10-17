@@ -116,8 +116,23 @@ class _ProjectScreenState extends State<ProjectScreen> {
               backgroundColor: demoBannerColors(Theme.of(context).brightness).background,
               actions: const [SizedBox.shrink()],
             );
+      // Rappel de ce qu'on fait à cette étape (brève description).
+      final cs = Theme.of(context).colorScheme;
+      final hint = Container(
+        width: double.infinity,
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(stepIcon(step), size: 18, color: cs.primary),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text('${tr('Étape', 'Step')} ${idx + 1} — ${stepHint(step)}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
+        ]),
+      );
       final content = Column(children: [
         demoBanner,
+        hint,
         Expanded(child: _content(p)),
         const Divider(height: 1),
         footerFor(c.maxWidth),

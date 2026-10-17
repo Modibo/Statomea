@@ -94,6 +94,8 @@ class ProjectsScreen extends StatelessWidget {
         ]);
       }),
       const SizedBox(height: 12),
+      const _StepsGuide(),
+      const SizedBox(height: 12),
       if (user.isEmpty)
         Card(
           margin: EdgeInsets.zero,
@@ -272,3 +274,54 @@ Future<bool> confirmDelete(BuildContext context, Project p) async {
   }
   return false;
 }
+
+/// Guide de démarrage : nouveau projet ou projet importé, puis les 10 étapes en une phrase chacune. Ouvert tant
+/// qu'aucun projet n'existe.
+class _StepsGuide extends StatelessWidget {
+  const _StepsGuide();
+  @override
+  Widget build(BuildContext context) {
+    final empty = context.watch<AppState>().projects.every((p) => p.demoNotice.isNotEmpty);
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: empty,
+        leading: Icon(Icons.route_outlined, color: theme.colorScheme.primary),
+        title: Text(tr('Comment faire : les 10 étapes d\'un projet', 'How it works: the 10 steps of a project'), style: theme.textTheme.titleMedium),
+        subtitle: Text(tr('Nouveau projet ou projet importé', 'New or imported project'), style: theme.textTheme.bodySmall),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final (icon, text) in [(Icons.add_circle_outline, guideNewProject), (Icons.file_open_outlined, guideImportedProject)])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Icon(icon, size: 20, color: theme.colorScheme.secondary),
+                const SizedBox(width: 10),
+                Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
+              ]),
+            ),
+          const Divider(),
+          for (final s in PStep.values)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                CircleAvatar(radius: 13, backgroundColor: theme.colorScheme.primaryContainer,
+                    child: Text('${PStep.values.indexOf(s) + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: theme.colorScheme.onPrimaryContainer))),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(text: '${stepLabel(s)} — ', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    TextSpan(text: stepHint(s)),
+                  ]), style: theme.textTheme.bodyMedium),
+                ),
+              ]),
+            ),
+        ],
+      ),
+    );
+  }
+}
+

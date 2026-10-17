@@ -27,6 +27,40 @@ String stepLabel(Step s) => switch (s) {
       Step.export => 'Export',
     };
 
+/// Ce qu'on fait à chaque étape (brève description, affichée dans le guide de démarrage et le parcours du projet).
+String stepHint(Step s) => switch (s) {
+      Step.question => tr('Formuler la question (population, exposition, comparateur, critère de jugement) et déclarer le type de l\'issue et de l\'exposition : ces réponses guident tout le reste.',
+          'State the question (population, exposure, comparator, outcome) and declare the type of the outcome and of the exposure: these answers guide everything else.'),
+      Step.studyPlan => tr('Préciser le plan (essai randomisé, cohorte, cas-témoins, transversal) et l\'objectif (décrire, expliquer, diagnostiquer, prédire) : ils fixent les mesures d\'effet légitimes.',
+          'Specify the design (randomized trial, cohort, case-control, cross-sectional) and the aim (describe, explain, diagnose, predict): they set the legitimate effect measures.'),
+      Step.analysisPlan => tr('Écrire, avant de voir les résultats, l\'analyse principale, les facteurs d\'ajustement et les analyses de sensibilité prévues.',
+          'Write, before seeing the results, the main analysis, the adjustment factors and the planned sensitivity analyses.'),
+      Step.dataControl => tr('Importer les données (CSV ou Excel, avec un dictionnaire de variables si possible), repérer les anomalies et les corriger avec une justification ; les données d\'origine ne sont jamais modifiées.',
+          'Import the data (CSV or Excel, with a variable dictionary if possible), spot anomalies and correct them with a justification; the original data are never modified.'),
+      Step.methodChoice => tr('L\'assistant propose les méthodes adaptées à la question déclarée, avec leurs conditions ; s\'il manque une information, il pose la question.',
+          'The assistant proposes the methods suited to the declared question, with their conditions; if information is missing, it asks.'),
+      Step.computation => tr('Lancer la méthode choisie (calculateur ou atelier) ; chaque résultat est ajouté au journal du projet avec ses entrées.',
+          'Run the chosen method (calculator or workshop); each result is added to the project log with its inputs.'),
+      Step.diagnostics => tr('Vérifier les conditions d\'application (normalité, proportionnalité des risques, événements par variable…) et lire les alertes.',
+          'Check the conditions of application (normality, proportional hazards, events per variable…) and read the alerts.'),
+      Step.interpretation => tr('Lire l\'interprétation proposée et rédiger la vôtre : ce que le résultat permet de conclure, et ce qu\'il ne permet pas.',
+          'Read the proposed interpretation and write your own: what the result allows you to conclude, and what it does not.'),
+      Step.audit => tr('Faire relire votre texte par l\'audit contradictoire : OR lu comme un RR, langage causal, p mal interprétée, analyse annoncée mais non faite…',
+          'Have your text reviewed by the adversarial audit: OR read as an RR, causal language, misread p-value, analysis announced but not done…'),
+      Step.export => tr('Produire le rapport PDF ou HTML, le journal des analyses et le fichier du projet (.json) pour le partager ou l\'archiver.',
+          'Produce the PDF or HTML report, the analysis log and the project file (.json) to share or archive it.'),
+    };
+
+/// Démarrer un nouveau projet.
+String get guideNewProject => tr(
+    'Nouveau projet : « Nouveau projet », puis suivre les étapes 1 à 10 dans l\'ordre. Les données (CSV ou Excel) s\'importent à l\'étape 4. Marquer chaque étape « Terminée » pour suivre l\'avancement ; on peut revenir à une étape à tout moment.',
+    'New project: "New project", then follow steps 1 to 10 in order. Data (CSV or Excel) are imported at step 4. Mark each step "Done" to track progress; you can return to any step at any time.');
+
+/// Reprendre un projet importé.
+String get guideImportedProject => tr(
+    'Projet importé : « Importer » un fichier de projet (.json) exporté depuis Statoméa (étape 10). Tout est restauré — question, plans, données et corrections, journal, texte — après un contrôle d\'intégrité. Reprendre à l\'étape en cours ; si les données ou le texte changent, refaire les calculs puis relancer l\'audit.',
+    'Imported project: "Import" a project file (.json) exported from Statoméa (step 10). Everything is restored — question, plans, data and corrections, log, text — after an integrity check. Resume at the current step; if the data or the text change, redo the computations and run the audit again.');
+
 /// Empreinte FNV-1a 32 bits (identifie une version de données dans le journal).
 String fingerprint(String s) {
   var h = 0x811c9dc5;

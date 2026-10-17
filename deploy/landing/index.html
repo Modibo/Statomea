@@ -64,6 +64,10 @@
   ol.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 14px; }
   ol.steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; margin-right: 8px; }
   @media (prefers-color-scheme: dark) { ol.steps li::before { background: #2f6fd6; } }
+  ol.steps li b { font-weight: 700; }
+  ol.steps li .sd { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .howto { margin-top: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
+  .howto p { margin: 0; } .howto strong { color: var(--ink); }
   .shots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
   .shots figure { margin: 0; }
   .shots img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; object-fit: contain; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
@@ -88,7 +92,7 @@
     .stats { grid-template-columns: repeat(2, 1fr); } nav.links { display: none; }
   }
   @media (max-width: 600px) {
-    .cards, .dl, .demos { grid-template-columns: 1fr; } .shots { grid-template-columns: repeat(2, 1fr); }
+    .cards, .dl, .demos, ol.steps { grid-template-columns: 1fr; } .shots { grid-template-columns: repeat(2, 1fr); }
     .hero { padding-top: 32px; } .bar .open { display: none; } .ctas .btn { flex: 1 1 100%; }
   }
 </style>
@@ -146,17 +150,21 @@
     <h2 data-fr="Un parcours en 10 étapes" data-en="A 10-step pathway">Un parcours en 10 étapes</h2>
     <p class="sub" data-fr="Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables." data-en="Each step conditions the next: the method follows from the question and the study design, never from variable names.">Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables.</p>
     <ol class="steps">
-      <li data-fr="Question biomédicale" data-en="Biomedical question">Question biomédicale</li>
-      <li data-fr="Plan d'étude" data-en="Study design">Plan d'étude</li>
-      <li data-fr="Plan d'analyse" data-en="Analysis plan">Plan d'analyse</li>
-      <li data-fr="Contrôle des données" data-en="Data control">Contrôle des données</li>
-      <li data-fr="Choix de la méthode" data-en="Choice of method">Choix de la méthode</li>
-      <li data-fr="Calcul" data-en="Computation">Calcul</li>
-      <li data-fr="Diagnostics" data-en="Diagnostics">Diagnostics</li>
-      <li data-fr="Interprétation" data-en="Interpretation">Interprétation</li>
-      <li data-fr="Audit contradictoire" data-en="Adversarial audit">Audit contradictoire</li>
-      <li data-fr="Rapport PDF / HTML" data-en="PDF / HTML report">Rapport PDF / HTML</li>
+      <li><b data-fr="Question biomédicale" data-en="Biomedical question">Question biomédicale</b><span class="sd" data-fr="Formuler la question (population, exposition, comparateur, critère) et déclarer le type de l&#x27;issue et de l&#x27;exposition." data-en="State the question (population, exposure, comparator, outcome) and declare the type of the outcome and the exposure.">Formuler la question (population, exposition, comparateur, critère) et déclarer le type de l&#x27;issue et de l&#x27;exposition.</span></li>
+      <li><b data-fr="Plan d&#x27;étude" data-en="Study design">Plan d&#x27;étude</b><span class="sd" data-fr="Essai, cohorte, cas-témoins ou transversal, et l&#x27;objectif : ils fixent les mesures d&#x27;effet légitimes." data-en="Trial, cohort, case-control or cross-sectional, and the aim: they set the legitimate effect measures.">Essai, cohorte, cas-témoins ou transversal, et l&#x27;objectif : ils fixent les mesures d&#x27;effet légitimes.</span></li>
+      <li><b data-fr="Plan d&#x27;analyse" data-en="Analysis plan">Plan d&#x27;analyse</b><span class="sd" data-fr="Écrire avant les résultats l&#x27;analyse principale, les ajustements et les analyses de sensibilité." data-en="Write before the results the main analysis, the adjustments and the sensitivity analyses.">Écrire avant les résultats l&#x27;analyse principale, les ajustements et les analyses de sensibilité.</span></li>
+      <li><b data-fr="Contrôle des données" data-en="Data control">Contrôle des données</b><span class="sd" data-fr="Importer CSV ou Excel (et un dictionnaire), repérer les anomalies, corriger avec justification." data-en="Import CSV or Excel (and a dictionary), spot anomalies, correct with a justification.">Importer CSV ou Excel (et un dictionnaire), repérer les anomalies, corriger avec justification.</span></li>
+      <li><b data-fr="Choix de la méthode" data-en="Choice of method">Choix de la méthode</b><span class="sd" data-fr="L&#x27;assistant propose les méthodes adaptées à la question, avec leurs conditions." data-en="The assistant proposes the methods suited to the question, with their conditions.">L&#x27;assistant propose les méthodes adaptées à la question, avec leurs conditions.</span></li>
+      <li><b data-fr="Calcul" data-en="Computation">Calcul</b><span class="sd" data-fr="Lancer la méthode ; chaque résultat entre au journal du projet." data-en="Run the method; each result enters the project log.">Lancer la méthode ; chaque résultat entre au journal du projet.</span></li>
+      <li><b data-fr="Diagnostics" data-en="Diagnostics">Diagnostics</b><span class="sd" data-fr="Vérifier les conditions d&#x27;application et lire les alertes." data-en="Check the conditions of application and read the alerts.">Vérifier les conditions d&#x27;application et lire les alertes.</span></li>
+      <li><b data-fr="Interprétation" data-en="Interpretation">Interprétation</b><span class="sd" data-fr="Rédiger ce que le résultat permet de conclure, et ce qu&#x27;il ne permet pas." data-en="Write what the result allows you to conclude, and what it does not.">Rédiger ce que le résultat permet de conclure, et ce qu&#x27;il ne permet pas.</span></li>
+      <li><b data-fr="Audit contradictoire" data-en="Adversarial audit">Audit contradictoire</b><span class="sd" data-fr="Faire relire le texte : OR lu comme un RR, langage causal, p mal interprétée…" data-en="Have the text reviewed: OR read as an RR, causal language, misread p-value…">Faire relire le texte : OR lu comme un RR, langage causal, p mal interprétée…</span></li>
+      <li><b data-fr="Rapport PDF / HTML" data-en="PDF / HTML report">Rapport PDF / HTML</b><span class="sd" data-fr="Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver." data-en="Export the report, the log and the project file (.json) to share or archive.">Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver.</span></li>
     </ol>
+    <div class="howto">
+      <p><strong data-fr="Nouveau projet" data-en="New project">Nouveau projet</strong> — <span data-fr="créer le projet, puis suivre les étapes 1 à 10 dans l&#x27;ordre ; les données s&#x27;importent à l&#x27;étape 4." data-en="create the project, then follow steps 1 to 10 in order; data are imported at step 4.">créer le projet, puis suivre les étapes 1 à 10 dans l&#x27;ordre ; les données s&#x27;importent à l&#x27;étape 4.</span></p>
+      <p><strong data-fr="Projet importé" data-en="Imported project">Projet importé</strong> — <span data-fr="ouvrir un fichier de projet (.json) exporté depuis Statoméa ; tout est restauré après un contrôle d&#x27;intégrité, et l&#x27;on reprend à l&#x27;étape en cours." data-en="open a project file (.json) exported from Statoméa; everything is restored after an integrity check, and you resume at the current step.">ouvrir un fichier de projet (.json) exporté depuis Statoméa ; tout est restauré après un contrôle d&#x27;intégrité, et l&#x27;on reprend à l&#x27;étape en cours.</span></p>
+    </div>
   </div>
 </section>
 
