@@ -49,6 +49,12 @@ class ResearchQuestion {
   final bool referenceStandardAvailable;
   final int? expectedEvents;
 
+  /// Survie : un autre événement (p. ex. le décès) peut-il empêcher l'événement étudié ?
+  final bool? competingRisk;
+
+  /// Survie : l'exposition peut-elle survenir ou changer pendant le suivi (traitement commencé plus tard, greffe) ?
+  final bool? timeVaryingExposure;
+
   const ResearchQuestion({
     this.text = '',
     this.population = '',
@@ -68,6 +74,8 @@ class ResearchQuestion {
     this.agreementQuestion = false,
     this.referenceStandardAvailable = false,
     this.expectedEvents,
+    this.competingRisk,
+    this.timeVaryingExposure,
   });
 
   Map<String, Object?> toJson() => {
@@ -89,6 +97,8 @@ class ResearchQuestion {
         'agreementQuestion': agreementQuestion,
         'referenceStandardAvailable': referenceStandardAvailable,
         'expectedEvents': expectedEvents,
+        'competingRisk': competingRisk,
+        'timeVaryingExposure': timeVaryingExposure,
       };
 
   factory ResearchQuestion.fromJson(Map<String, Object?> j) => ResearchQuestion(
@@ -110,6 +120,8 @@ class ResearchQuestion {
         agreementQuestion: (j['agreementQuestion'] as bool?) ?? false,
         referenceStandardAvailable: (j['referenceStandardAvailable'] as bool?) ?? false,
         expectedEvents: j['expectedEvents'] as int?,
+        competingRisk: j['competingRisk'] as bool?,
+        timeVaryingExposure: j['timeVaryingExposure'] as bool?,
       );
 
   ResearchQuestion copyWith({
@@ -131,6 +143,8 @@ class ResearchQuestion {
     bool? agreementQuestion,
     bool? referenceStandardAvailable,
     int? expectedEvents,
+    bool? competingRisk,
+    bool? timeVaryingExposure,
   }) =>
       ResearchQuestion(
         text: text ?? this.text,
@@ -151,6 +165,8 @@ class ResearchQuestion {
         agreementQuestion: agreementQuestion ?? this.agreementQuestion,
         referenceStandardAvailable: referenceStandardAvailable ?? this.referenceStandardAvailable,
         expectedEvents: expectedEvents ?? this.expectedEvents,
+        competingRisk: competingRisk ?? this.competingRisk,
+        timeVaryingExposure: timeVaryingExposure ?? this.timeVaryingExposure,
       );
 }
 
@@ -238,7 +254,11 @@ Advice advise(ResearchQuestion q) {
   switch (q.objective) {
     case StudyObjective.descriptive:
       if (q.outcomeType == OutcomeType.timeToEvent) {
-        opts.add(_opt('kaplan_meier', tr('Décrire la survie (courbe, médiane, survie à un horizon) malgré la censure.', 'Describe survival (curve, median, survival at a horizon) despite censoring.'), recommended: true));
+        if (q.competingRisk == true) {
+          opts.add(_opt('cumulative_incidence', tr('Un événement concurrent peut empêcher l\'événement : incidence cumulée d\'Aalen-Johansen plutôt que 1 − Kaplan-Meier.', 'A competing event can prevent the event: Aalen-Johansen cumulative incidence rather than 1 − Kaplan-Meier.'), recommended: true));
+        }
+        opts.add(_opt('kaplan_meier', tr('Décrire la survie (courbe, médiane, survie à un horizon) malgré la censure.', 'Describe survival (curve, median, survival at a horizon) despite censoring.'), recommended: q.competingRisk != true));
+        if (q.competingRisk == null) ask.add(_competingQuestion());
       }
       if (q.outcomeType == OutcomeType.binary) {
         opts.add(_opt('proportion_ci', tr('Estimer une prévalence ou une fréquence avec son IC.', 'Estimate a prevalence or a frequency with its CI.'), recommended: true,
@@ -283,6 +303,10 @@ Advice advise(ResearchQuestion q) {
   return Advice(ask, opts, notes);
 }
 
+Clarification _competingQuestion() => Clarification('competingRisk',
+    tr('Un autre événement (p. ex. le décès) peut-il empêcher l\'événement étudié de survenir ?', 'Can another event (e.g. death) prevent the studied event from occurring?'),
+    tr('Si oui, 1 − Kaplan-Meier surestime l\'incidence : il faut l\'incidence cumulée (Aalen-Johansen) et, pour l\'ajustement, le modèle de Fine-Gray.', 'If so, 1 − Kaplan-Meier overestimates the incidence: the cumulative incidence (Aalen-Johansen) is needed and, for adjustment, the Fine-Gray model.'));
+
 void _explanatory(ResearchQuestion q, List<Clarification> ask, List<MethodOption> opts, List<String> notes) {
   if (q.design == StudyDesign.unknown) {
     ask.add(Clarification('design', tr("Quel est le plan d'étude : essai randomisé, cohorte, transversal, cas-témoins ?", 'What is the study design: randomized trial, cohort, cross-sectional, case-control?'),
@@ -301,7 +325,18 @@ void _explanatory(ResearchQuestion q, List<Clarification> ask, List<MethodOption
         tr('Une comparaison brute dans une étude observationnelle est exposée à la confusion.', 'A crude comparison in an observational study is exposed to confounding.')));
   }
   if (q.pairing == Pairing.repeated) {
-    notes.add(tr("Mesures répétées sur plus de deux temps : modèles mixtes ou GEE, hors du périmètre de la V1. Un résumé par sujet (pente, aire sous la courbe) suivi d'un test simple est une alternative défendable.", 'Repeated measures over more than two times: mixed models or GEE, outside the V1 scope. A per-subject summary (slope, area under the curve) followed by a simple test is a defensible alternative.'));
+    switch (q.outcomeType) {
+      case OutcomeType.continuous:
+        opts.add(_opt('lmm_longitudinal', tr('Issue quantitative mesurée plusieurs fois : intercept (et pente) aléatoires par sujet ; utilise toutes les mesures, valide sous MAR.', 'Quantitative outcome measured several times: random intercept (and slope) per subject; uses all measurements, valid under MAR.'), recommended: true,
+            cautions: [tr('L\'effet du traitement sur l\'évolution est l\'interaction temps × traitement.', 'The treatment effect on the evolution is the time × treatment interaction.')]));
+        opts.add(_opt('gee', tr('Effet moyen dans la population avec erreurs types robustes (≥ 40 sujets, données manquantes MCAR).', 'Population-average effect with robust standard errors (≥ 40 subjects, MCAR missing data).')));
+      case OutcomeType.binary:
+      case OutcomeType.count:
+        opts.add(_opt('gee', tr('Issue ${q.outcomeType == OutcomeType.binary ? 'binaire' : 'de comptage'} répétée : GEE (OR ou RR marginaux, variance robuste).', 'Repeated ${q.outcomeType == OutcomeType.binary ? 'binary' : 'count'} outcome: GEE (marginal ORs or RRs, robust variance).'), recommended: true));
+        notes.add(tr('Modèle mixte généralisé (effets propres au sujet) : non disponible ; les GEE estiment un effet moyen dans la population.', 'Generalized mixed model (subject-specific effects): not available; GEE estimate a population-average effect.'));
+      default:
+        notes.add(tr('Mesures répétées pour ce type d\'issue : résumer chaque sujet (pente, aire sous la courbe, dernier état) puis appliquer un test simple.', 'Repeated measures for this outcome type: summarize each subject (slope, area under the curve, last state), then apply a simple test.'));
+    }
     return;
   }
   final paired = q.pairing == Pairing.paired;
@@ -362,20 +397,39 @@ void _explanatory(ResearchQuestion q, List<Clarification> ask, List<MethodOption
       if (paired) {
         opts.add(_opt('wilcoxon_signed_rank', tr('Issue ordinale appariée.', 'Paired ordinal outcome.'), recommended: true));
       } else if (multi) {
-        opts.add(_opt('kruskal_wallis', tr('Issue ordinale, k groupes.', 'Ordinal outcome, k groups.'), recommended: true));
+        opts.add(_opt('kruskal_wallis', tr('Issue ordinale, k groupes, analyse brute.', 'Ordinal outcome, k groups, crude analysis.'), recommended: !adjust));
       } else {
-        opts.add(_opt('mann_whitney', tr('Issue ordinale, deux groupes.', 'Ordinal outcome, two groups.'), recommended: true));
+        opts.add(_opt('mann_whitney', tr('Issue ordinale, deux groupes, analyse brute.', 'Ordinal outcome, two groups, crude analysis.'), recommended: !adjust));
       }
-      if (adjust) notes.add(tr("Ajustement d'une issue ordinale : régression logistique ordinale, hors V1.", 'Adjusting an ordinal outcome: ordinal logistic regression, outside V1.'));
+      if (!paired) {
+        opts.add(_opt('ordinal_logistic', tr('Issue ordinale ajustée (ou plusieurs facteurs) : un OR par facteur, commun à tous les seuils.', 'Adjusted ordinal outcome (or several factors): one OR per factor, common to all thresholds.'), recommended: adjust,
+            cautions: [tr('Vérifier les cotes proportionnelles (comparaison au modèle multinomial fournie).', 'Check proportional odds (comparison with the multinomial model provided).')]));
+      }
     case OutcomeType.categorical:
       opts.add(_opt('chi_square_rxc', tr('Issue qualitative à plusieurs modalités, analyse brute.', 'Categorical outcome with several levels, crude analysis.'), recommended: !adjust));
-      if (adjust) notes.add(tr("Ajustement d'une issue multinomiale : hors V1.", 'Adjusting a multinomial outcome: outside V1.'));
+      if (adjust) opts.add(_opt('multinomial_logistic', tr('Issue nominale ajustée : un RRR par modalité contre une référence.', 'Adjusted nominal outcome: one RRR per level against a reference.'), recommended: true));
     case OutcomeType.count:
-      notes.add(tr("Issue de comptage (nombre d'épisodes) : régression de Poisson ou binomiale négative avec temps d'exposition, hors V1.", 'Count outcome (number of episodes): Poisson or negative binomial regression with exposure time, outside V1.'));
+      opts.add(_opt('count_regression', tr('Nombre d\'événements par sujet : rapports de taux (IRR) ; binomiale négative si surdispersion.', 'Number of events per subject: rate ratios (IRR); negative binomial if overdispersion.'), recommended: true,
+          cautions: [tr('Indiquer le temps d\'exposition (offset) si les durées d\'observation diffèrent.', 'Give the exposure time (offset) if observation durations differ.')]));
     case OutcomeType.timeToEvent:
-      opts.add(_opt('kaplan_meier', tr('Description de la survie et comparaison brute des groupes (log-rank).', 'Description of survival and crude comparison of groups (log-rank).'), recommended: !adjust));
-      opts.add(_opt('cox', tr("Délai jusqu'à un événement avec censure ; HR ajusté.", 'Time to an event with censoring; adjusted HR.'), recommended: adjust,
-          cautions: [tr('Vérifier la proportionnalité des risques (test fourni) ; un test non significatif ne la prouve pas.', 'Check proportional hazards (test provided); a non-significant test does not prove it.')]));
+      final competing = q.competingRisk == true;
+      if (competing) {
+        opts.add(_opt('cumulative_incidence', tr('Événement concurrent : incidence cumulée par groupe et test de Gray (et non 1 − Kaplan-Meier).', 'Competing event: cumulative incidence by group and Gray test (not 1 − Kaplan-Meier).'), recommended: !adjust));
+        opts.add(_opt('fine_gray', tr('Événement concurrent, analyse ajustée : sHR sur l\'incidence cumulée, avec le Cox spécifique de cause en regard.', 'Competing event, adjusted analysis: sHR on the cumulative incidence, with the cause-specific Cox model alongside.'), recommended: adjust));
+      }
+      opts.add(_opt('kaplan_meier', tr('Description de la survie et comparaison brute des groupes (log-rank).', 'Description of survival and crude comparison of groups (log-rank).'), recommended: !adjust && !competing,
+          cautions: [if (competing) tr('Avec un événement concurrent, 1 − Kaplan-Meier surestime l\'incidence.', 'With a competing event, 1 − Kaplan-Meier overestimates the incidence.')]));
+      opts.add(_opt('cox', tr("Délai jusqu'à un événement avec censure ; HR ajusté.", 'Time to an event with censoring; adjusted HR.'), recommended: adjust && !competing,
+          cautions: [tr('Vérifier la proportionnalité des risques (test fourni) ; un test non significatif ne la prouve pas.', 'Check proportional hazards (test provided); a non-significant test does not prove it.'),
+            if (q.timeVaryingExposure == true)
+              tr('Exposition acquise pendant le suivi : la coder en covariable dépendant du temps (intervalles début–fin), jamais à l\'inclusion (biais du temps immortel).', 'Exposure acquired during follow-up: code it as a time-dependent covariate (start–stop intervals), never at inclusion (immortal time bias).'),
+            if (competing) tr('Avec un événement concurrent, le HR de Cox est spécifique de cause (vitesse de survenue), pas un effet sur l\'incidence.', 'With a competing event, the Cox HR is cause-specific (rate of occurrence), not an effect on the incidence.')]));
+      if (q.competingRisk == null) ask.add(_competingQuestion());
+      if (q.timeVaryingExposure == null) {
+        ask.add(Clarification('timeVaryingExposure', tr('L\'exposition peut-elle survenir ou changer pendant le suivi (traitement commencé plus tard, greffe, hospitalisation) ?', 'Can the exposure occur or change during follow-up (treatment started later, transplant, hospitalization)?'),
+            tr('Une exposition acquise pendant le suivi, codée à l\'inclusion, crée un biais du temps immortel ; elle doit être une covariable dépendant du temps.', 'An exposure acquired during follow-up, coded at inclusion, creates immortal time bias; it must be a time-dependent covariate.')));
+      }
+      notes.add(tr('Planification : l\'atelier de puissance calcule les événements et patients nécessaires (Freedman, Schoenfeld).', 'Planning: the power workshop computes the events and patients needed (Freedman, Schoenfeld).'));
       notes.add(tr('Ne pas analyser un délai censuré comme une issue binaire sans horizon commun de suivi complet.', 'Do not analyse a censored time as a binary outcome without a common horizon of complete follow-up.'));
     case OutcomeType.unknown:
       break;

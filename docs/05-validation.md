@@ -893,3 +893,13 @@ cumulée montre un événement concurrent (avec les deux valeurs en regard) ; (b
 à l'inclusion que le modèle à covariable dépendant du temps ne confirme pas (temps immortel). Tests dans
 `demos_test.dart` et `english_test.dart` (huit démonstrations, audit de chacune).
 
+## Assistant de choix enrichi — 1.46.0
+
+L'assistant propose désormais les méthodes ajoutées depuis la 1.39 : mesures répétées (modèle mixte pour une issue
+quantitative, GEE pour une issue binaire ou de comptage), comptages (Poisson / binomiale négative), issues ordinales et
+nominales ajustées. Deux caractéristiques déclarées s'ajoutent à la question de recherche pour une issue de survie :
+« un autre événement peut-il empêcher l'événement étudié ? » (→ incidence cumulée, test de Gray, Fine-Gray ; Kaplan-Meier
+assorti d'une mise en garde) et « l'exposition peut-elle changer pendant le suivi ? » (→ mise en garde sur le temps
+immortel et covariable dépendant du temps). Si elles ne sont pas renseignées, l'assistant pose la question au lieu de
+supposer. Scénarios dans `test/quality_advisor_audit_test.dart` ; textes anglais dans `english_test.dart`.
+

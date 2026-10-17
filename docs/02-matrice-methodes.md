@@ -1,6 +1,6 @@
 # 02 — Matrice « question → données requises → méthode → conditions → diagnostics → résultat »
 
-Générée automatiquement depuis le registre du moteur (`lib/src/advisor/registry.dart`, statomea_core 1.45.0) : elle ne peut pas diverger du code. L'assistant de choix (`advisor.dart`) n'utilise que les caractéristiques déclarées de la question ; il demande les informations manquantes au lieu de supposer.
+Générée automatiquement depuis le registre du moteur (`lib/src/advisor/registry.dart`, statomea_core 1.46.0) : elle ne peut pas diverger du code. L'assistant de choix (`advisor.dart`) n'utilise que les caractéristiques déclarées de la question ; il demande les informations manquantes au lieu de supposer.
 
 | Question | Données requises | Méthode | Conditions | Diagnostics | Résultat | Statut | Référence de validation |
 |---|---|---|---|---|---|---|---|
@@ -78,4 +78,5 @@ Générée automatiquement depuis le registre du moteur (`lib/src/advisor/regist
 - Explicatif : plan, type d'exposition, appariement et besoin d'ajustement demandés ;
   - binaire apparié → McNemar ; binaire brut → 2 × 2 ; ajusté en cohorte/essai/transversal → Poisson robuste (RR/RP) recommandé, logistique en alternative ; cas-témoins → logistique seule ; peu d'événements → Firth proposé ;
   - continu apparié → t apparié / Wilcoxon ; deux groupes → Welch / Mann-Whitney (question sur la normalité si inconnue) ; k groupes → ANOVA / Kruskal-Wallis ; ajusté → régression linéaire ;
-  - délai avec censure → Kaplan-Meier et log-rank (brut), Cox (ajusté) ; mesures répétées, comptages, issues ordinales ou multinomiales ajustées → hors V1, expliqué.
+  - délai avec censure → Kaplan-Meier et log-rank (brut), Cox (ajusté) ; l'assistant demande s'il existe un événement concurrent (→ incidence cumulée, test de Gray, Fine-Gray) et si l'exposition change pendant le suivi (→ covariable dépendant du temps, contre le biais du temps immortel) ;
+  - mesures répétées → modèle linéaire mixte (quantitative) ou GEE (binaire, comptage) ; comptage → Poisson / binomiale négative (offset) ; issue ordinale ajustée → cotes proportionnelles ; issue nominale ajustée → multinomiale.

@@ -1,6 +1,6 @@
 # 07 — État du projet : opérationnel, testé, en développement
 
-État au 16 octobre 2026, moteur 1.45.0.
+État au 16 octobre 2026, moteur 1.46.0.
 
 ## Étape par étape
 

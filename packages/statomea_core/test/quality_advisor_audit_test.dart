@@ -90,6 +90,36 @@ void main() {
       expect(cox.options.map((o) => o.methodId), ['kaplan_meier', 'cox']);
       expect(cox.options.firstWhere((o) => o.recommended).methodId, 'cox');
     });
+    test('assistant enrichi : mesures répétées, comptages, ordinal, nominal, risques concurrents, temps immortel', () {
+      const base = ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort,
+          exposureType: ExposureType.binary, pairing: Pairing.independent, needsAdjustment: true);
+      List<String> ids(ResearchQuestion q) => [for (final o in advise(q).options) o.methodId];
+      String? rec(ResearchQuestion q) => advise(q).options.where((o) => o.recommended).map((o) => o.methodId).firstOrNull;
+      // Mesures répétées : modèle mixte (quantitative), GEE (binaire, comptage) ; plus de « hors V1 ».
+      final rep = base.copyWith(pairing: Pairing.repeated);
+      expect(ids(rep.copyWith(outcomeType: OutcomeType.continuous)), ['lmm_longitudinal', 'gee']);
+      expect(rec(rep.copyWith(outcomeType: OutcomeType.binary)), 'gee');
+      expect(rec(rep.copyWith(outcomeType: OutcomeType.count)), 'gee');
+      expect(advise(rep.copyWith(outcomeType: OutcomeType.continuous)).notes.join(' '), isNot(contains('hors')));
+      // Comptages, ordinal ajusté, nominal ajusté.
+      expect(rec(base.copyWith(outcomeType: OutcomeType.count)), 'count_regression');
+      expect(rec(base.copyWith(outcomeType: OutcomeType.ordinal)), 'ordinal_logistic');
+      expect(rec(base.copyWith(outcomeType: OutcomeType.categorical)), 'multinomial_logistic');
+      // Survie : l'assistant demande s'il y a un événement concurrent et si l'exposition change pendant le suivi.
+      final surv = base.copyWith(outcomeType: OutcomeType.timeToEvent);
+      expect(advise(surv).questions.map((c) => c.field), containsAll(['competingRisk', 'timeVaryingExposure']));
+      final cr = surv.copyWith(competingRisk: true, timeVaryingExposure: false);
+      expect(ids(cr), ['cumulative_incidence', 'fine_gray', 'kaplan_meier', 'cox']);
+      expect(rec(cr), 'fine_gray');
+      expect(rec(cr.copyWith(needsAdjustment: false)), 'cumulative_incidence');
+      final tv = surv.copyWith(competingRisk: false, timeVaryingExposure: true);
+      expect(advise(tv).options.firstWhere((o) => o.methodId == 'cox').cautions.join(' '), contains('temps immortel'));
+      expect(advise(tv).questions, isEmpty);
+      // Description d'une survie avec événement concurrent.
+      expect(rec(const ResearchQuestion(objective: StudyObjective.descriptive, dataLevel: DataLevel.individual, outcomeType: OutcomeType.timeToEvent, competingRisk: true)), 'cumulative_incidence');
+      // Sérialisation des nouveaux champs.
+      expect(ResearchQuestion.fromJson(cr.toJson()).competingRisk, isTrue);
+    });
     test('matrice question → méthode générée depuis le registre', () {
       final md = methodMatrixMarkdown();
       expect(md, contains('| Question |'));

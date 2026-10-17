@@ -602,6 +602,8 @@ Project buildDemoSurvivalAdvanced(String csv) {
       dataLevel: DataLevel.individual,
       needsAdjustment: true,
       expectedEvents: 191,
+      competingRisk: true,
+      timeVaryingExposure: false,
     ),
     analysisPlan: tr(
         '1) Kaplan-Meier « naïf » de la rechute (pour montrer l\'erreur). 2) Incidence cumulée d\'Aalen-Johansen par bras, test de Gray, sHR du bras. 3) Fine-Gray ajusté (bras, âge, sexe) avec Cox spécifique de cause en regard. 4–5) Exemple de la greffe de Stanford : greffe codée à l\'inclusion (biais du temps immortel), puis en covariable dépendant du temps.',

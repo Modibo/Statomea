@@ -18,5 +18,6 @@ void main() {
 - Explicatif : plan, type d'exposition, appariement et besoin d'ajustement demandés ;
   - binaire apparié → McNemar ; binaire brut → 2 × 2 ; ajusté en cohorte/essai/transversal → Poisson robuste (RR/RP) recommandé, logistique en alternative ; cas-témoins → logistique seule ; peu d'événements → Firth proposé ;
   - continu apparié → t apparié / Wilcoxon ; deux groupes → Welch / Mann-Whitney (question sur la normalité si inconnue) ; k groupes → ANOVA / Kruskal-Wallis ; ajusté → régression linéaire ;
-  - délai avec censure → Kaplan-Meier et log-rank (brut), Cox (ajusté) ; mesures répétées, comptages, issues ordinales ou multinomiales ajustées → hors V1, expliqué.''');
+  - délai avec censure → Kaplan-Meier et log-rank (brut), Cox (ajusté) ; l'assistant demande s'il existe un événement concurrent (→ incidence cumulée, test de Gray, Fine-Gray) et si l'exposition change pendant le suivi (→ covariable dépendant du temps, contre le biais du temps immortel) ;
+  - mesures répétées → modèle linéaire mixte (quantitative) ou GEE (binaire, comptage) ; comptage → Poisson / binomiale négative (offset) ; issue ordinale ajustée → cotes proportionnelles ; issue nominale ajustée → multinomiale.''');
 }

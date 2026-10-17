@@ -149,6 +149,12 @@ class _StudyPlanStepState extends State<StudyPlanStep> {
       chips(tr('Facteurs de confusion à prendre en compte ?', 'Confounders to account for?'), [(true, 'oui'), (false, tr('non / essai randomisé', 'no / randomized trial'))], triState(q.needsAdjustment),
           (v) => q.copyWith(needsAdjustment: v)),
       chips(tr('Distribution de l\'issue ~ symétrique ou n ≥ 30 par groupe ?', 'Outcome distribution ~ symmetric or n ≥ 30 per group?'), [(true, 'oui'), (false, 'non')], triState(q.approxNormal), (v) => q.copyWith(approxNormal: v)),
+      if (q.outcomeType == OutcomeType.timeToEvent) ...[
+        chips(tr('Un autre événement (p. ex. le décès) peut-il empêcher l\'événement étudié ?', 'Can another event (e.g. death) prevent the studied event?'), [(true, tr('oui', 'yes')), (false, tr('non', 'no'))],
+            triState(q.competingRisk), (v) => q.copyWith(competingRisk: v)),
+        chips(tr('L\'exposition peut-elle survenir ou changer pendant le suivi ?', 'Can the exposure occur or change during follow-up?'), [(true, tr('oui', 'yes')), (false, tr('non', 'no'))],
+            triState(q.timeVaryingExposure), (v) => q.copyWith(timeVaryingExposure: v)),
+      ],
       const SizedBox(height: 12),
       Wrap(spacing: 12, runSpacing: 12, children: [
         SizedBox(

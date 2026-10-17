@@ -326,6 +326,12 @@ void main() {
       const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort, outcomeType: OutcomeType.timeToEvent,
           exposureType: ExposureType.binary, pairing: Pairing.repeated),
       const ResearchQuestion(dataLevel: DataLevel.aggregatedStudies, outcomeType: OutcomeType.binary, referenceStandardAvailable: true),
+      const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort, outcomeType: OutcomeType.timeToEvent,
+          exposureType: ExposureType.binary, pairing: Pairing.independent, needsAdjustment: true),
+      const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort, outcomeType: OutcomeType.timeToEvent,
+          exposureType: ExposureType.binary, pairing: Pairing.independent, needsAdjustment: true, competingRisk: true, timeVaryingExposure: true),
+      const ResearchQuestion(objective: StudyObjective.explanatory, dataLevel: DataLevel.individual, design: StudyDesign.cohort, outcomeType: OutcomeType.count,
+          exposureType: ExposureType.binary, pairing: Pairing.repeated, needsAdjustment: true),
     ]) {
       final a = advise(q);
       expectEnglish('advisor', [

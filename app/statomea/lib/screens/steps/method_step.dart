@@ -35,6 +35,8 @@ class _MethodStepState extends State<MethodStep> {
       'needsAdjustment' => [('oui', q.copyWith(needsAdjustment: true)), ('non', q.copyWith(needsAdjustment: false))],
       'approxNormal' => [('oui', q.copyWith(approxNormal: true)), ('non', q.copyWith(approxNormal: false))],
       'referenceStandardAvailable' => [('oui', q.copyWith(referenceStandardAvailable: true))],
+      'competingRisk' => [(tr('oui', 'yes'), q.copyWith(competingRisk: true)), (tr('non', 'no'), q.copyWith(competingRisk: false))],
+      'timeVaryingExposure' => [(tr('oui', 'yes'), q.copyWith(timeVaryingExposure: true)), (tr('non', 'no'), q.copyWith(timeVaryingExposure: false))],
       _ => [],
     };
     return Card(
