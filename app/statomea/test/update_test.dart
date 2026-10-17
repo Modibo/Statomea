@@ -61,7 +61,7 @@ void main() {
 
   testWidgets('APK publié (Android) : le bandeau propose de télécharger', (t) async {
     await mount(t, published: '9.9.9', url: 'https://statomea.komodi-labo.org/telecharger/statomea.apk');
-    expect(find.text('Télécharger'), findsOneWidget);
+    expect(find.text('Télécharger et installer'), findsOneWidget);
     expect(find.text('Recharger'), findsNothing);
   });
 

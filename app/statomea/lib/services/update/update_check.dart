@@ -57,5 +57,18 @@ UpdateInfo? parseUpdate(String body, {String current = appVersion, String? abi})
   }
 }
 
-/// Applique la mise à jour : la version web vide ses caches et se recharge ; Android ouvre le lien de l'APK.
+/// Applique la mise à jour : la version web vide ses caches et se recharge ; Android ouvre le lien de l'APK dans le
+/// navigateur (solution de repli).
 Future<void> applyUpdate(UpdateInfo u) => kIsWeb ? platform.reloadFresh() : platform.openExternal(u.url ?? '$statomeaSite/telecharger/statomea.apk');
+
+/// Android : télécharge l'APK dans l'application puis ouvre l'installateur (« ok » ou « permission »). En cas d'échec,
+/// ouvre le lien dans le navigateur et renvoie « browser ».
+Future<String> installUpdate(UpdateInfo u, void Function(double) onProgress) async {
+  final url = u.url ?? '$statomeaSite/telecharger/statomea.apk';
+  try {
+    return await platform.downloadAndInstall(url, u.version, onProgress);
+  } catch (_) {
+    await platform.openExternal(url);
+    return 'browser';
+  }
+}

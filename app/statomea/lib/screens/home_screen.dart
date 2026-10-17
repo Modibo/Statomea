@@ -168,29 +168,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 }
 
-/// Bandeau « nouvelle version » : recharger (web) ou télécharger l'APK (Android), ou écarter cette version.
-class _UpdateBanner extends StatelessWidget {
+/// Bandeau « nouvelle version » : recharger (web) ou télécharger et installer l'APK (Android, dans l'application, avec
+/// progression), ou écarter cette version.
+class _UpdateBanner extends StatefulWidget {
   final UpdateInfo u;
   const _UpdateBanner(this.u);
   @override
+  State<_UpdateBanner> createState() => _UpdateBannerState();
+}
+
+class _UpdateBannerState extends State<_UpdateBanner> {
+  double? progress; // null = au repos
+  String? note;
+
+  Future<void> _go() async {
+    final u = widget.u;
+    if (u.url == null) {
+      await applyUpdate(u);
+      return;
+    }
+    setState(() {
+      progress = 0;
+      note = null;
+    });
+    final r = await installUpdate(u, (p) {
+      if (mounted) setState(() => progress = p);
+    });
+    if (!mounted) return;
+    setState(() {
+      progress = null;
+      note = switch (r) {
+        'permission' => tr('Autorisez Statoméa à installer des applications (réglage ouvert), revenez ici puis appuyez sur « Installer ».',
+            'Allow Statoméa to install apps (settings opened), come back here and tap "Install".'),
+        'browser' => tr('Téléchargement ouvert dans le navigateur : ouvrez ensuite le fichier téléchargé pour l\'installer.',
+            'Download opened in the browser: then open the downloaded file to install it.'),
+        _ => tr('Installateur ouvert : confirmez la mise à jour.', 'Installer opened: confirm the update.'),
+      };
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final u = widget.u;
     final cs = Theme.of(context).colorScheme;
+    final busy = progress != null;
     return Material(
       color: cs.primaryContainer,
       child: SafeArea(
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-          child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
-            Icon(Icons.system_update_alt_rounded, color: cs.onPrimaryContainer),
-            Text(tr('Nouvelle version ${u.version} disponible (installée : $appVersion).', 'New version ${u.version} available (installed: $appVersion).'),
-                style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w600)),
-            TextButton(onPressed: () => context.read<AppState>().dismissUpdate(), child: Text(tr('Plus tard', 'Later'))),
-            FilledButton.icon(
-              onPressed: () => applyUpdate(u),
-              icon: Icon(u.url == null ? Icons.refresh_rounded : Icons.download_rounded),
-              label: Text(u.url == null ? tr('Recharger', 'Reload') : tr('Télécharger', 'Download')),
-            ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 8, runSpacing: 4, children: [
+              Icon(Icons.system_update_alt_rounded, color: cs.onPrimaryContainer),
+              Text(tr('Nouvelle version ${u.version} disponible (installée : $appVersion).', 'New version ${u.version} available (installed: $appVersion).'),
+                  style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w600)),
+              if (!busy) TextButton(onPressed: () => context.read<AppState>().dismissUpdate(), child: Text(tr('Plus tard', 'Later'))),
+              FilledButton.icon(
+                onPressed: busy ? null : _go,
+                icon: Icon(u.url == null ? Icons.refresh_rounded : Icons.download_rounded),
+                label: Text(u.url == null
+                    ? tr('Recharger', 'Reload')
+                    : busy
+                        ? tr('Téléchargement… ${(progress! * 100).round()} %', 'Downloading… ${(progress! * 100).round()}%')
+                        : (note == null ? tr('Télécharger et installer', 'Download and install') : tr('Installer', 'Install'))),
+              ),
+            ]),
+            if (busy) Padding(padding: const EdgeInsets.only(top: 6, right: 8), child: LinearProgressIndicator(value: progress! > 0 ? progress : null)),
+            if (note != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(note!, style: TextStyle(color: cs.onPrimaryContainer))),
           ]),
         ),
       ),

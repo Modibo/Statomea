@@ -47,3 +47,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // FileProvider : ouverture de l'installateur pour une mise à jour téléchargée par l'application.
+    implementation("androidx.core:core-ktx:1.13.1")
+}

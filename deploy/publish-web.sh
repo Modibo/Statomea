@@ -34,13 +34,16 @@ if [ "${BUILD_APK:-0}" = "1" ]; then
   # de ~75 Mo pour l'APK universel. statomea.apk reste le lien générique (lien symbolique vers arm64).
   (cd "$B/app/statomea" && flutter build apk --release --split-per-abi)
   rm -rf "$WT/site/telecharger" && mkdir -p "$WT/site/telecharger" "$ROOT/dist"
+  # Fichiers nommés avec la version (statomea-1.40.0-arm64-v8a.apk) : un téléphone qui a déjà téléchargé une version
+  # précédente ne rouvre pas l'ancien fichier homonyme. Les anciens noms restent en liens symboliques.
   for abi in arm64-v8a armeabi-v7a; do
-    cp "$B/app/statomea/build/app/outputs/flutter-apk/app-$abi-release.apk" "$WT/site/telecharger/statomea-$abi.apk"
-    cp "$WT/site/telecharger/statomea-$abi.apk" "$ROOT/dist/statomea-$VERSION-$abi.apk"
+    cp "$B/app/statomea/build/app/outputs/flutter-apk/app-$abi-release.apk" "$WT/site/telecharger/statomea-$VERSION-$abi.apk"
+    cp "$WT/site/telecharger/statomea-$VERSION-$abi.apk" "$ROOT/dist/statomea-$VERSION-$abi.apk"
+    (cd "$WT/site/telecharger" && ln -s "statomea-$VERSION-$abi.apk" "statomea-$abi.apk")
   done
-  (cd "$WT/site/telecharger" && ln -s statomea-arm64-v8a.apk statomea.apk)
-  printf '{"version":"%s","url":"telecharger/statomea.apk","urls":{"arm64-v8a":"telecharger/statomea-arm64-v8a.apk","armeabi-v7a":"telecharger/statomea-armeabi-v7a.apk"}}\n' "$VERSION" > "$WT/site/android.json"
-  echo "APK $VERSION publiés : $(cd "$WT/site/telecharger" && du -hL statomea-*.apk | tr '\n' ' ')"
+  (cd "$WT/site/telecharger" && ln -s "statomea-$VERSION-arm64-v8a.apk" statomea.apk)
+  printf '{"version":"%s","url":"telecharger/statomea-%s-arm64-v8a.apk","urls":{"arm64-v8a":"telecharger/statomea-%s-arm64-v8a.apk","armeabi-v7a":"telecharger/statomea-%s-armeabi-v7a.apk"}}\n' "$VERSION" "$VERSION" "$VERSION" "$VERSION" > "$WT/site/android.json"
+  echo "APK $VERSION publiés : $(cd "$WT/site/telecharger" && du -h statomea-$VERSION-*.apk | tr '\n' ' ')"
 fi
 cp "$ROOT/deploy/docker-compose.yml" "$ROOT/deploy/Caddyfile.static" "$ROOT/deploy/caddy-site.conf" "$ROOT/deploy/install.sh" "$WT/"
 cat > "$WT/README.md" <<MD

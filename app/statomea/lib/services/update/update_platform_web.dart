@@ -33,3 +33,5 @@ Future<void> openExternal(String url) async {
 }
 
 String? androidAbi() => null;
+
+Future<String> downloadAndInstall(String url, String version, void Function(double) onProgress) async => throw UnsupportedError('web');

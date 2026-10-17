@@ -264,7 +264,15 @@
     if (apkV) document.getElementById('apkv').textContent = t('Version : ', 'Version: ') + apkV;
   }
   fetch('app/version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { if (j) { webV = j.version; showVersions(); } }).catch(() => {});
-  fetch('android.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { if (j) { apkV = j.version; showVersions(); } }).catch(() => {});
+  fetch('android.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => {
+    if (!j) return;
+    apkV = j.version; showVersions();
+    // Liens nommés avec la version (évite de rouvrir un ancien fichier homonyme déjà téléchargé).
+    if (j.urls) document.querySelectorAll('a[href^="telecharger/statomea-arm"]').forEach(a => {
+      const abi = a.getAttribute('href').includes('armeabi-v7a') ? 'armeabi-v7a' : 'arm64-v8a';
+      if (j.urls[abi]) a.setAttribute('href', j.urls[abi]);
+    });
+  }).catch(() => {});
   apply();
 </script>
 </body>
