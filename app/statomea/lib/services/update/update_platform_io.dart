@@ -21,7 +21,7 @@ Future<String?> getText(String url) async {
   }
 }
 
-Future<void> reloadFresh() async {}
+Future<void> reloadFresh(String version) async {}
 
 /// Architecture Android de l'appareil, d'après la version de la VM Dart (« … on "android_arm64" »).
 String? androidAbi() {

@@ -23,6 +23,11 @@ fi
 mkdir -p "$WT/site/app"
 rsync -a --delete --exclude 'app/' --exclude 'telecharger/' --exclude 'android.json' "$ROOT/deploy/landing/" "$WT/site/"
 rsync -a --delete --exclude '*.symbols' "$ROOT/app/statomea/build/web/" "$WT/site/app/"
+# Adresses des scripts marquées de la version : chaque version a ses propres URL (main.dart.js?v=1.50.2), qu'aucun
+# navigateur ne peut resservir depuis son cache (Safari rechargeait sinon l'ancien code malgré Cache-Control: no-cache).
+sed -i '' -e "s|\"mainJsPath\":\"main.dart.js\"|\"mainJsPath\":\"main.dart.js?v=$VERSION\"|" "$WT/site/app/flutter_bootstrap.js"
+sed -i '' -e "s|href=\"main.dart.js\"|href=\"main.dart.js?v=$VERSION\"|" -e "s|src=\"flutter_bootstrap.js\"|src=\"flutter_bootstrap.js?v=$VERSION\"|" "$WT/site/app/index.html"
+grep -q "main.dart.js?v=$VERSION" "$WT/site/app/flutter_bootstrap.js" || { echo "mainJsPath non versionné : format de flutter_bootstrap.js changé ?" >&2; exit 1; }
 # Copie à la racine : les pages 1.36.x ouvertes à l'ancienne adresse (racine) y lisent la version et proposent
 # « Recharger », qui mène à la page d'accueil.
 cp "$WT/site/app/version.json" "$WT/site/version.json"

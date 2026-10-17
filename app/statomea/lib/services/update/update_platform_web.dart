@@ -13,8 +13,10 @@ Future<String?> getText(String url) async {
   }
 }
 
-/// Désinscrit le service worker, vide les caches puis recharge : la nouvelle version est servie d'emblée.
-Future<void> reloadFresh() async {
+/// Désinscrit le service worker, vide les caches puis rouvre l'application à une adresse marquée de la nouvelle
+/// [version] (« /app/?v=1.50.2 ») : Safari (Mac, iPhone) resservait l'ancien code sur un simple location.reload().
+/// La page ainsi rechargée référence `main.dart.js?v=<version>` (deploy/publish-web.sh), adresse jamais mise en cache.
+Future<void> reloadFresh(String version) async {
   try {
     final regs = (await web.window.navigator.serviceWorker.getRegistrations().toDart).toDart;
     for (final r in regs) {
@@ -25,7 +27,8 @@ Future<void> reloadFresh() async {
       await web.window.caches.delete(k.toDart).toDart;
     }
   } catch (_) {}
-  web.window.location.reload();
+  final loc = web.window.location;
+  loc.replace('${loc.pathname}?v=${Uri.encodeQueryComponent(version)}');
 }
 
 Future<void> openExternal(String url) async {
