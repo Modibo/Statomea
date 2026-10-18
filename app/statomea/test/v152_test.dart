@@ -85,4 +85,45 @@ void main() {
     expect(find.textContaining('Répétabilité annoncée vérifiée'), findsWidgets);
     expect(t.takeException(), isNull);
   });
+
+  testWidgets('équivalence (saisie directe) : TOST puis non-infériorité ; proportions', (t) async {
+    await panel(t, method: 'equivalence_tost');
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Test d\'équivalence (TOST'), findsWidgets);
+    await t.tap(find.text('Non-inf. (↑ meilleur)'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Test de non-infériorité'), findsWidgets);
+    await t.tap(find.text('Proportions'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('équivalence de deux proportions'), findsWidgets);
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('valeur E (RR)', (t) async {
+    await panel(t, method: 'e_value');
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Valeur E (confusion non mesurée)'), findsWidgets);
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('série interrompue (comptages, population)', (t) async {
+    await panel(t, method: 'interrupted_time_series', ds: parseCsv(File('test/serie_interrompue_simule.csv').readAsStringSync()).dataset);
+    await t.tap(find.text('Comptages'));
+    await t.pumpAndSettle();
+    await pick(t, 'Temps (période)', 'mois');
+    await pick(t, 'Indicateur', 'admissions');
+    await pick(t, 'Population (facultatif)', 'population');
+    await t.enterText(find.widgetWithText(TextField, 'Début de l\'intervention (temps)'), '25');
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Série chronologique interrompue (régression segmentée, quasi-Poisson)'), findsWidgets);
+    expect(find.text('Série chronologique interrompue'), findsWidgets);
+    expect(t.takeException(), isNull);
+  });
 }

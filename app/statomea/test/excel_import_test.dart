@@ -23,7 +23,7 @@ void main() {
     final state = AppState(MemoryStorage());
     await state.load();
     final p = state.createProject('Excel');
-    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: Scaffold(body: SingleChildScrollView(child: DataStep(p))))));
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: Scaffold(body: DataStep(p)))));
     await t.pumpAndSettle();
     final st = t.state<DataStepState>(find.byType(DataStep));
     await st.importFileBytes('exemple_excel.xlsx', File('test/exemple_excel.xlsx').readAsBytesSync());

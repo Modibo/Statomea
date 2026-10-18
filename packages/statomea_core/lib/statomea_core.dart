@@ -75,6 +75,8 @@ export 'src/inference/rmst.dart';
 export 'src/inference/method_comparison.dart';
 export 'src/inference/propensity.dart';
 export 'src/inference/laboratory.dart';
+export 'src/inference/equivalence.dart';
+export 'src/inference/interrupted_series.dart';
 export 'src/inference/survival.dart';
 export 'src/meta/meta_regression.dart';
 export 'src/meta/diagnostic_meta.dart';

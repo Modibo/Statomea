@@ -20,6 +20,7 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('diagnostic_accuracy', tr('Performance diagnostique', 'Diagnostic accuracy'), Icons.biotech_outlined, 'Diagnostic'),
   ('compare_two', tr('Comparer 2 groupes', 'Compare 2 groups'), Icons.compare_arrows, tr('Comparaison', 'Comparison')),
   ('compare_k', tr('Comparer k groupes', 'Compare k groups'), Icons.view_week_outlined, tr('Comparaison', 'Comparison')),
+  ('equivalence', tr('Équivalence et non-infériorité (TOST)', 'Equivalence and non-inferiority (TOST)'), Icons.compare, tr('Comparaison', 'Comparison')),
   ('paired', tr('Mesures appariées', 'Paired measurements'), Icons.sync_alt, tr('Apparié', 'Paired')),
   ('mcnemar', tr('McNemar (binaire apparié)', 'McNemar (paired binary)'), Icons.swap_horiz, tr('Apparié', 'Paired')),
   ('correlation', tr('Corrélation', 'Correlation'), Icons.scatter_plot_outlined, tr('Corrélation', 'Correlation')),
@@ -32,6 +33,8 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('rmst', tr('Temps moyen de survie restreint (RMST)', 'Restricted mean survival time (RMST)'), Icons.area_chart, tr('Survie', 'Survival')),
   ('landmark', tr('Analyse landmark (exposition en cours de suivi)', 'Landmark analysis (exposure during follow-up)'), Icons.flag_outlined, tr('Survie', 'Survival')),
   ('propensity', tr('Score de propension (appariement, IPTW)', 'Propensity score (matching, IPTW)'), Icons.balance, tr('Causalité', 'Causality')),
+  ('e_value', tr('Valeur E (confusion non mesurée)', 'E-value (unmeasured confounding)'), Icons.shield_outlined, tr('Causalité', 'Causality')),
+  ('interrupted_series', tr('Série chronologique interrompue', 'Interrupted time series'), Icons.show_chart, tr('Causalité', 'Causality')),
   ('calibration', tr('Calibration d\'un modèle de risque', 'Calibration of a risk model'), Icons.tune, tr('Prédiction', 'Prediction')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
   ('power', tr('Puissance et effectif (survie, cas-témoins, GWAS…)', 'Power and sample size (survival, case-control, GWAS…)'), Icons.speed, tr('Planification', 'Planning')),
@@ -48,6 +51,8 @@ String calculatorFor(String methodId) => switch (methodId) {
       'pearson' || 'spearman' => 'correlation',
       'linear_regression' || 'logistic_regression' || 'poisson_robust' || 'firth_logistic' || 'cox' || 'fine_gray' || 'restricted_cubic_spline' => 'regression',
       'passing_bablok' || 'deming' => 'method_comparison',
+      'equivalence_tost' || 'non_inferiority' || 'equivalence_proportions' => 'equivalence',
+      'interrupted_time_series' => 'interrupted_series',
       'propensity_matching' || 'propensity_weighting' => 'propensity',
       'meta_binary' || 'meta_continuous' => 'meta',
       'prediction_logistic_internal' => 'prediction',
@@ -79,6 +84,9 @@ Map<String, String> get _calculatorKeywords => {
       'cumulative_incidence': tr('risques concurrents gray fine-gray rechute décès', 'competing risks gray fine-gray relapse death'),
       'rmst': tr('survie moyenne restreinte risques non proportionnels', 'restricted mean survival non-proportional hazards'),
       'landmark': tr('temps immortel greffe exposition pendant le suivi', 'immortal time transplant exposure during follow-up'),
+      'equivalence': tr('équivalence non-infériorité tost marge bioéquivalence générique', 'equivalence non-inferiority tost margin bioequivalence generic'),
+      'e_value': tr('valeur e confusion non mesurée sensibilité vanderweele biais', 'e-value unmeasured confounding sensitivity vanderweele bias'),
+      'interrupted_series': tr('série chronologique temporelle interrompue régression segmentée politique intervention avant après tendance', 'interrupted time series segmented regression policy intervention before after trend'),
       'propensity': tr('confusion causalité appariement pondération iptw observationnel traitement effet', 'confounding causality matching weighting iptw observational treatment effect'),
       'calibration': tr('hosmer lemeshow calibration risque prédit score validation brier', 'hosmer lemeshow calibration predicted risk score validation brier'),
       'sample_size': tr('nombre de sujets effectif nécessaire précision', 'number of subjects required sample precision'),
@@ -180,6 +188,9 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'reference_interval' => ReferenceIntervalCalc(ds, onResult),
       'precision' => PrecisionCalc(ds, onResult),
       'propensity' => PropensityCalc(ds, onResult, initial: widget.initialMethod),
+      'equivalence' => EquivalenceCalc(ds, onResult, initial: widget.initialMethod),
+      'e_value' => EValueCalc(onResult),
+      'interrupted_series' => InterruptedSeriesCalc(ds, onResult),
       'sample_size' => SampleSizeCalc(onResult),
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
@@ -1578,6 +1589,179 @@ class _PrecisionCalcState extends State<PrecisionCalc> {
             return precisionAnalysis([for (final i in keep) y[i]], [for (final i in keep) d[i]],
                 runRaw: r == null ? null : [for (final i in keep) r[i]],
                 claimRepeatability: readNum(claimR), claimWithinLab: readNum(claimWl), levels: (readNum(levels) ?? 1).round().clamp(1, 10), unit: ds.dictionary[value]!.unit);
+          }, widget.onResult);
+        }),
+      ],
+    ]);
+  }
+}
+
+
+// ---------------------------------------------------------------- Équivalence, valeur E, série interrompue
+
+class EquivalenceCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  final String? initial;
+  const EquivalenceCalc(this.ds, this.onResult, {super.key, this.initial});
+  @override
+  State<EquivalenceCalc> createState() => _EquivalenceCalcState();
+}
+
+class _EquivalenceCalcState extends State<EquivalenceCalc> {
+  late bool proportions = widget.initial == 'equivalence_proportions';
+  late EquivalenceHypothesis hyp = widget.initial == 'non_inferiority' ? EquivalenceHypothesis.nonInferiorityHigherBetter : EquivalenceHypothesis.equivalence;
+  bool paired = false;
+  String? a, b;
+  final sa = TextEditingController(text: '131 128 140 135 122 138 129 133 127 136 142 125 130 134 139 126'),
+      sb = TextEditingController(text: '133 127 138 136 124 135 131 130 129 137 140 128 132 131 136 127');
+  final low = TextEditingController(text: '-5'), high = TextEditingController(text: '5'), margin = TextEditingController(text: '4');
+  final x1 = TextEditingController(text: '93'), n1 = TextEditingController(text: '150'), x2 = TextEditingController(text: '81'), n2 = TextEditingController(text: '140');
+  final pLow = TextEditingController(text: '-0,10'), pHigh = TextEditingController(text: '0,10');
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Équivalence et non-infériorité', 'Equivalence and non-inferiority'), style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(tr('Montrer qu\'une différence est cliniquement négligeable (marges fixées a priori) : un test classique non significatif ne le prouve pas.',
+                'Show that a difference is clinically negligible (margins set a priori): a non-significant classical test does not prove it.'),
+            style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        SegmentedButton<bool>(segments: [
+          ButtonSegment(value: false, label: Text(tr('Moyennes', 'Means'))),
+          ButtonSegment(value: true, label: Text(tr('Proportions', 'Proportions'))),
+        ], selected: {proportions}, onSelectionChanged: (s) => setState(() => proportions = s.first)),
+        const SizedBox(height: 10),
+        if (proportions) ...[
+          Wrap(spacing: 12, runSpacing: 12, children: [
+            NumField(tr('Événements A', 'Events A'), x1), NumField(tr('Effectif A', 'Size A'), n1),
+            NumField(tr('Événements B', 'Events B'), x2), NumField(tr('Effectif B', 'Size B'), n2),
+            NumField(tr('Marge inférieure', 'Lower margin'), pLow), NumField(tr('Marge supérieure', 'Upper margin'), pHigh),
+          ]),
+        ] else ...[
+          SegmentedButton<EquivalenceHypothesis>(segments: [
+            ButtonSegment(value: EquivalenceHypothesis.equivalence, label: Text(tr('Équivalence', 'Equivalence'))),
+            ButtonSegment(value: EquivalenceHypothesis.nonInferiorityHigherBetter, label: Text(tr('Non-inf. (↑ meilleur)', 'Non-inf. (↑ better)'))),
+            ButtonSegment(value: EquivalenceHypothesis.nonInferiorityLowerBetter, label: Text(tr('Non-inf. (↓ meilleur)', 'Non-inf. (↓ better)'))),
+          ], selected: {hyp}, onSelectionChanged: (s) => setState(() => hyp = s.first)),
+          const SizedBox(height: 10),
+          _TwoColumns(widget.ds, a, b, (v) => setState(() => a = v), (v) => setState(() => b = v), sa, sb, la: tr('Groupe A (nouveau)', 'Group A (new)'), lb: tr('Groupe B (référence)', 'Group B (reference)')),
+          SwitchListTile(contentPadding: EdgeInsets.zero, value: paired, onChanged: (v) => setState(() => paired = v), title: Text(tr('Mesures appariées', 'Paired measurements'))),
+          Wrap(spacing: 12, runSpacing: 12, children: [
+            if (hyp == EquivalenceHypothesis.equivalence) ...[
+              NumField(tr('Marge inférieure', 'Lower margin'), low), NumField(tr('Marge supérieure', 'Upper margin'), high),
+            ] else
+              NumField(tr('Marge de non-infériorité', 'Non-inferiority margin'), margin, width: 240),
+          ]),
+        ],
+        _computeButton(context, () {
+          run(context, () {
+            if (proportions) {
+              final xa = readNum(x1), na = readNum(n1), xb = readNum(x2), nb = readNum(n2), lo = readNum(pLow), hi = readNum(pHigh);
+              if ([xa, na, xb, nb, lo, hi].contains(null)) throw StatInputError('missing', tr('Renseigner les effectifs et les marges.', 'Fill in the counts and margins.'));
+              return equivalenceProportions(xa!.round(), na!.round(), xb!.round(), nb!.round(), low: lo!, high: hi!);
+            }
+            final c = _cols(widget.ds, a, b, sa, sb);
+            return equivalenceMeans(c.x, c.y,
+                paired: paired, hypothesis: hyp, low: readNum(low), high: readNum(high), margin: readNum(margin), xName: a ?? 'A', yName: b ?? 'B', unit: widget.ds != null && a != null ? widget.ds!.dictionary[a]!.unit : '');
+          }, widget.onResult);
+        }),
+      ]);
+}
+
+class EValueCalc extends StatefulWidget {
+  final OnResult onResult;
+  const EValueCalc(this.onResult, {super.key});
+  @override
+  State<EValueCalc> createState() => _EValueCalcState();
+}
+
+class _EValueCalcState extends State<EValueCalc> {
+  EValueScale scale = EValueScale.riskRatio;
+  final est = TextEditingController(text: '1,8'), lo = TextEditingController(text: '1,3'), hi = TextEditingController(text: '2,5'), se = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    final smd = scale == EValueScale.standardizedMeanDifference;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Valeur E (confusion non mesurée)', 'E-value (unmeasured confounding)'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Force minimale qu\'un facteur de confusion non mesuré devrait avoir (avec le traitement et l\'issue) pour annuler l\'association observée.',
+              'Minimum strength an unmeasured confounder would need (with both treatment and outcome) to explain away the observed association.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      Pick<EValueScale>(tr('Mesure d\'association', 'Association measure'), scale, [
+        (EValueScale.riskRatio, tr('Risque relatif (RR)', 'Risk ratio (RR)')),
+        (EValueScale.oddsRatioRare, tr('Odds ratio, issue rare (< 15 %)', 'Odds ratio, rare outcome (< 15%)')),
+        (EValueScale.oddsRatioCommon, tr('Odds ratio, issue fréquente', 'Odds ratio, common outcome')),
+        (EValueScale.hazardRatioRare, tr('Hazard ratio, issue rare', 'Hazard ratio, rare outcome')),
+        (EValueScale.hazardRatioCommon, tr('Hazard ratio, issue fréquente', 'Hazard ratio, common outcome')),
+        (EValueScale.standardizedMeanDifference, tr('Différence standardisée (d)', 'Standardized difference (d)')),
+      ], (v) => setState(() => scale = v ?? EValueScale.riskRatio), width: 320),
+      const SizedBox(height: 10),
+      Wrap(spacing: 12, runSpacing: 12, children: [
+        NumField(tr('Estimation', 'Estimate'), est),
+        if (smd) NumField(tr('Erreur type', 'Standard error'), se) else ...[
+          NumField(tr('IC : borne inférieure', 'CI: lower bound'), lo),
+          NumField(tr('IC : borne supérieure', 'CI: upper bound'), hi),
+        ],
+      ]),
+      _computeButton(context, () {
+        run(context, () {
+          final e = readNum(est);
+          if (e == null) throw StatInputError('missing', tr('Indiquer l\'estimation.', 'Enter the estimate.'));
+          return smd ? eValue(e, se: readNum(se), scale: scale) : eValue(e, lower: readNum(lo), upper: readNum(hi), scale: scale);
+        }, widget.onResult);
+      }),
+    ]);
+  }
+}
+
+class InterruptedSeriesCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const InterruptedSeriesCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<InterruptedSeriesCalc> createState() => _InterruptedSeriesCalcState();
+}
+
+class _InterruptedSeriesCalcState extends State<InterruptedSeriesCalc> {
+  String? time, outcome, pop;
+  SeriesFamily family = SeriesFamily.gaussian;
+  final t0 = TextEditingController(), lag = TextEditingController();
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Série chronologique interrompue', 'Interrupted time series'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Une intervention a-t-elle changé le niveau ou la tendance d\'un indicateur suivi dans le temps ? Comparaison à la tendance antérieure prolongée.',
+              'Did an intervention change the level or trend of an indicator followed over time? Comparison with the extended prior trend.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds == null)
+        Text(tr('La série interrompue travaille sur un jeu de données (une ligne par période : temps, indicateur ; étape 4 d\'un projet).', 'The interrupted series works on a dataset (one row per period: time, indicator; step 4 of a project).'))
+      else ...[
+        SegmentedButton<SeriesFamily>(segments: [
+          ButtonSegment(value: SeriesFamily.gaussian, label: Text(tr('Indicateur continu', 'Continuous indicator'))),
+          ButtonSegment(value: SeriesFamily.poisson, label: Text(tr('Comptages', 'Counts'))),
+        ], selected: {family}, onSelectionChanged: (s) => setState(() => family = s.first)),
+        const SizedBox(height: 10),
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Temps (période)', 'Time (period)'), time, _vars(ds, types: {VarType.numeric}), (v) => setState(() => time = v)),
+          Pick<String>(tr('Indicateur', 'Indicator'), outcome, _vars(ds, types: {VarType.numeric}), (v) => setState(() => outcome = v)),
+          if (family == SeriesFamily.poisson)
+            Pick<String>(tr('Population (facultatif)', 'Population (optional)'), pop, [('', tr('— aucune —', '— none —')), ..._vars(ds, types: {VarType.numeric})], (v) => setState(() => pop = (v == null || v.isEmpty) ? null : v)),
+          NumField(tr('Début de l\'intervention (temps)', 'Intervention start (time)'), t0, width: 240),
+          if (family == SeriesFamily.gaussian) NumField(tr('Retard de Newey-West', 'Newey-West lag'), lag, width: 200, helper: tr('vide : automatique', 'empty: automatic')),
+        ]),
+        _computeButton(context, () {
+          run(context, () {
+            final start = readNum(t0);
+            if (time == null || outcome == null || start == null) throw StatInputError('missing', tr('Choisir le temps, l\'indicateur et le début de l\'intervention.', 'Choose the time, the indicator and the intervention start.'));
+            final excl = ds.excludedRows;
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            final tt = ds.numeric(time!), yy = ds.numeric(outcome!), pp = pop == null ? null : ds.numeric(pop!);
+            return interruptedTimeSeries([for (final i in keep) tt[i]], [for (final i in keep) yy[i]], start,
+                family: family, population: pp == null ? null : [for (final i in keep) pp[i]], lag: readNum(lag)?.round(), outcome: outcome!, timeName: time!, unit: ds.dictionary[outcome]!.unit);
           }, widget.onResult);
         }),
       ],

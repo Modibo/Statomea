@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:statomea_core/statomea_core.dart';
 
 class StatusChip extends StatelessWidget {
@@ -271,15 +274,15 @@ class PageBody extends StatelessWidget {
   final double maxWidth;
   const PageBody({super.key, required this.children, this.maxWidth = 1400});
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 48),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
-          ),
-        ),
-      );
+  // ListView et non SingleChildScrollView : une liste déclare le contenu hors écran aux lecteurs d'écran (défilement
+  // implicite) ; avec VoiceOver ou TalkBack, le balayage atteint ainsi tous les éléments en faisant défiler la page,
+  // au lieu de s'arrêter au dernier élément visible.
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final side = math.max(16.0, (c.maxWidth - maxWidth) / 2);
+        // Cache large : toutes les sections restent construites (pages courtes), donc toutes présentes pour le lecteur
+        // d'écran et pour la recherche dans la page.
+        return ListView(padding: EdgeInsets.fromLTRB(side, 12, side, 48), scrollCacheExtent: const ScrollCacheExtent.pixels(100000), children: children);
+      });
 }
 
 /// Avertissement d'usage et mention de conception (écran d'accueil, validation).

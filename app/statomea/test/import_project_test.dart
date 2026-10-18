@@ -27,7 +27,7 @@ void main() {
         locale: const Locale('fr'),
         home: Scaffold(body: Builder(builder: (c) {
           ctx = c;
-          return const SingleChildScrollView(child: ProjectsScreen());
+          return const ProjectsScreen();
         })),
       ),
     ));

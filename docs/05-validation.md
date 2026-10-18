@@ -1059,3 +1059,22 @@ variance négative est bornée à 0, puis les carrés moyens attendus sont recon
 pour le ddl de Satterthwaite du total, comme VCA (sur le plan à variance entre jours négative : ddl 23,81 et non 20).
 Pour la méthode robuste, referenceIntervals calcule l'IC des bornes par bootstrap (5 000 tirages) : non fourni ici.
 Calculateurs « Intervalle de référence (EP28) » et « Fidélité » (rubrique Laboratoire) ; histogramme avec les bornes.
+
+## Équivalence, non-infériorité, valeur E et séries interrompues — 1.53.0
+
+Scripts `validation/r/55_equivalence_evalue.R` (TOSTER 0.8.0, EValue 4.1.3) et `56_series_interrompues.R` (stats,
+sandwich). Données simulées : deux formulations (pression artérielle), mesures appariées, série mensuelle de 48 mois
+avec une politique au mois 25 (admissions et population). Tests `test/equivalence_test.dart` et
+`test/interrupted_series_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| TOST de deux moyennes (Welch, Student) et apparié : t, ddl, p des deux tests unilatéraux et du test classique, IC à 90 % | `t_TOST` | 1e-10, 1e-8 |
+| Non-infériorité (marge, sens « meilleur ») | `t.test(alternative = "greater", mu = −Δ)` | 1e-10, 1e-8 |
+| Équivalence de deux proportions : z, p, IC à 90 % | `twoprop_test(alternative = "equivalence")` | 1e-10, 1e-9 |
+| Valeur E : RR, RR protecteur, IC contenant 1, OR rare et fréquent, HR fréquent, différence standardisée | `evalues.RR`, `evalues.OR`, `evalues.HR`, `evalues.MD` | 1e-12 |
+| Série interrompue, issue continue : β, ES de Newey-West (retard 3), ES des moindres carrés, Durbin-Watson, autocorrélation au retard 1, effet à h | `lm`, `NeweyWest(prewhite = FALSE, adjust = FALSE)`, `acf` | 1e-10 |
+| Série interrompue, comptages : β, ES quasi-Poisson, dispersion, effet à h | `glm(quasipoisson, offset)`, epsilon 1e-14 | 1e-8 à 1e-7 |
+
+Calculateurs « Équivalence et non-infériorité » (rubrique Comparaison), « Valeur E » et « Série chronologique
+interrompue » (rubrique Causalité) ; figure de la série avec le contrefactuel (tendance antérieure prolongée).

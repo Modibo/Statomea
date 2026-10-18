@@ -22,7 +22,8 @@ contrôle des données → choix de la méthode → calcul → diagnostics → i
 | 4 | Architecture technique et modèle de données | [docs/04-architecture.md](docs/04-architecture.md) |
 | 5 | Code exécutable et installation | ce fichier |
 | 6 | Jeux de tests et rapport de validation | [docs/05-validation.md](docs/05-validation.md) |
-| 7 | Sept démonstrations complètes | [docs/06-demonstrations.md](docs/06-demonstrations.md) |
+| 7 | Neuf démonstrations complètes | [docs/06-demonstrations.md](docs/06-demonstrations.md) |
+| — | Protocole de tests d'utilisabilité | [docs/08-tests-utilisabilite.md](docs/08-tests-utilisabilite.md) |
 | — | État du projet et feuille de route | [docs/07-etat-et-feuille-de-route.md](docs/07-etat-et-feuille-de-route.md) |
 
 ## Architecture en bref
@@ -108,6 +109,8 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Assistant de choix de méthode | ✅ | scénarios | validé |
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Comparaison de méthodes de laboratoire : Passing-Bablok (IC analytique) et Deming (IC jackknife), biais aux niveaux de décision | ✅ | mcr | validé |
+| Équivalence et non-infériorité (TOST : moyennes, appariées, proportions) ; valeur E de la confusion non mesurée | ✅ | TOSTER, EValue | validé |
+| Séries chronologiques interrompues : régression segmentée, ES de Newey-West, quasi-Poisson avec population | ✅ | lm, glm, sandwich | validé |
 | Laboratoire : intervalles de référence (CLSI EP28 : non paramétrique avec IC, paramétrique, robuste ; valeurs aberrantes de Horn ; partition de Harris et Boyd) et fidélité (EP05, EP15 : composantes de la variance, IC, vérification d'une fidélité annoncée) | ✅ | referenceIntervals, MASS, VCA | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Splines cubiques restreintes : test de non-linéarité, courbe dose-effet relative à la médiane | ✅ | rms, Hmisc | validé |
@@ -140,6 +143,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 - Démo 8 (survie avancée) : rechute avec décès concurrent et greffe de Stanford, de la question au rapport, avec un brouillon à auditer.
 - Démo 9 (laboratoire) : créatinine sur sérum et sur plasma chez 108 patients, jeu `creatinine` du paquet R mcr (`demos/creatinine_serum_plasma.csv`).
 - Intervalles de référence et fidélité : créatinine **simulée** par sexe (`demos/creatinine_reference_simule.csv`) et plan EP15 simulé (`demos/fidelite_ep15_simule.csv`) ; plan EP05 d'exemple du paquet R VCA.
+- Équivalence : essai **simulé** de deux formulations (`demos/equivalence_formulations_simule.csv`) ; série interrompue **simulée** de 48 mois (`demos/serie_interrompue_simule.csv`).
 - Score de propension : étude observationnelle **simulée** des statines (`demos/statines_observationnel_simule.csv`, `validation/r/53_propension.R`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).

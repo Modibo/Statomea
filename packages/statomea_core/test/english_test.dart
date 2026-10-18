@@ -304,6 +304,18 @@ void main() {
     expectEnglish('reference svg', referenceIntervalSvg(riEn.figures['referenceInterval'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'creatinine', 'µmol/L'});
     final epDs = parseCsv(File('test/reference/ep05_vca.csv').readAsStringSync()).dataset;
     expectResult('precision ep05', precisionAnalysis(epDs.numeric('y'), epDs.text('day'), runRaw: epDs.text('run'), claimRepeatability: 1.5, claimWithinLab: 2), const {});
+    final eqRef = jsonDecode(File('test/reference/equivalence_evalue.json').readAsStringSync()) as Map;
+    List<double> dl2(String k) => [for (final x in eqRef[k] as List) (x as num).toDouble()];
+    expectResult('tost', equivalenceMeans(dl2('a'), dl2('b'), low: -5, high: 5, xName: 'generic', yName: 'reference', unit: 'mmHg'), const {'generic', 'reference', 'mmHg'});
+    expectResult('non-inferiority', equivalenceMeans(dl2('a'), dl2('b'), hypothesis: EquivalenceHypothesis.nonInferiorityLowerBetter, margin: 4, paired: false), const {});
+    expectResult('tost proportions', equivalenceProportions(93, 150, 81, 140, low: -0.1, high: 0.1), const {});
+    expectResult('e-value', eValue(0.7, lower: 0.55, upper: 0.9, scale: EValueScale.hazardRatioCommon), const {});
+    expectResult('e-value null', eValue(1.3, lower: 0.9, upper: 1.9), const {});
+    final itsDs = parseCsv(File('test/reference/serie_interrompue_simule.csv').readAsStringSync()).dataset;
+    final itsEn = interruptedTimeSeries(itsDs.numeric('mois'), itsDs.numeric('admissions'), 25, family: SeriesFamily.poisson, population: itsDs.numeric('population'), outcome: 'admissions', timeName: 'month');
+    expectResult('its poisson', itsEn, const {'admissions', 'month'});
+    expectResult('its gaussian', interruptedTimeSeries(itsDs.numeric('mois'), itsDs.numeric('taux_100k'), 25, outcome: 'rate', timeName: 'month'), const {'rate', 'month'});
+    expectEnglish('its svg', itsSvg(itsEn.figures['its'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'admissions', 'month'});
     final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
     final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
     expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});

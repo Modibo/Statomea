@@ -12,10 +12,10 @@ void main() {
     await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: const StatomeaApp()));
     await tester.pumpAndSettle();
     expect(find.text('Projets'), findsWidgets);
-    expect(find.text('Démonstrations'), findsOneWidget);
-    expect(find.textContaining('Métaanalyse avec forest plot'), findsOneWidget);
-    expect(find.text('Polygénie ou confusion ?'), findsOneWidget);
-    expect(find.text('Causalité : LDL, HDL et cœur'), findsOneWidget);
+    expect(find.text('Démonstrations', skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('Métaanalyse avec forest plot', skipOffstage: false), findsOneWidget);
+    expect(find.text('Polygénie ou confusion ?', skipOffstage: false), findsOneWidget);
+    expect(find.text('Causalité : LDL, HDL et cœur', skipOffstage: false), findsOneWidget);
     // Avertissement et mention de conception en bas de l'accueil.
     await tester.scrollUntilVisible(find.textContaining('Conçu par le Dr. Modibo Mouctar COULIBALY'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('pas un dispositif médical', findRichText: true), findsOneWidget);
@@ -29,16 +29,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('FR'), findsOneWidget);
     expect(find.text('EN'), findsNothing);
-    expect(find.text('Démonstrations'), findsOneWidget);
+    expect(find.text('Démonstrations', skipOffstage: false), findsOneWidget);
     await tester.tap(find.text('FR'));
     await tester.pumpAndSettle();
     expect(state.localeCode, 'en');
     expect(find.text('EN'), findsOneWidget);
     expect(find.text('FR'), findsNothing);
-    expect(find.text('Demonstrations'), findsOneWidget);
+    expect(find.text('Demonstrations', skipOffstage: false), findsOneWidget);
     await tester.tap(find.text('EN'));
     await tester.pumpAndSettle();
     expect(state.localeCode, 'fr');
-    expect(find.text('Démonstrations'), findsOneWidget);
+    expect(find.text('Démonstrations', skipOffstage: false), findsOneWidget);
   });
 }

@@ -88,6 +88,7 @@ String _figures(AnalysisResult r) {
       b.writeln('<figure>${doseResponseSvg(c)}<figcaption>${tr('Courbe dose-effet (spline cubique restreinte) : ${c['variable']}, bande de confiance', 'Dose-response curve (restricted cubic spline): ${c['variable']}, confidence band')}</figcaption></figure>');
     }
   }
+  if (f['its'] is Map) b.writeln('<figure>${itsSvg(f['its'] as Map)}<figcaption>${tr('Série interrompue : observé (gris avant, bleu après), droite segmentée ajustée, tendance antérieure prolongée (tirets rouges)', 'Interrupted series: observed (grey before, blue after), fitted segmented line, extended prior trend (red dashes)')}</figcaption></figure>');
   if (f['referenceInterval'] is Map) b.writeln('<figure>${referenceIntervalSvg(f['referenceInterval'] as Map)}<figcaption>${tr('Distribution des valeurs de référence, bornes (rouge) et IC des bornes (bandes)', 'Distribution of reference values, limits (red) and CIs of the limits (bands)')}</figcaption></figure>');
   if (f['methodComparison'] is Map) b.writeln('<figure>${methodComparisonSvg(f['methodComparison'] as Map)}<figcaption>${tr('Comparaison de méthodes : droite ajustée et identité', 'Method comparison: fitted line and identity')}</figcaption></figure>');
   if (f['lovePlot'] is Map) b.writeln('<figure>${lovePlotSvg(f['lovePlot'] as Map)}<figcaption>${tr('Équilibre des covariables avant et après ajustement (love plot)', 'Covariate balance before and after adjustment (love plot)')}</figcaption></figure>');

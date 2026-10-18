@@ -1004,3 +1004,35 @@ String referenceIntervalSvg(Map f, {String font = defaultSvgFont}) {
   b.writeln('</svg>');
   return b.toString();
 }
+
+
+/// Série chronologique interrompue : valeurs observées, droite segmentée ajustée, tendance antérieure prolongée
+/// (contrefactuel, tirets) et date de l'intervention.
+String itsSvg(Map f, {String font = defaultSvgFont}) {
+  List<double> l(String k) => [for (final v in f[k] as List) (v as num).toDouble()];
+  final t = l('time'), y = l('observed'), fit = l('fitted'), cf = l('counterfactual');
+  final t0 = (f['interruption'] as num).toDouble();
+  const left = 60.0, top = 20.0, w = 340.0, h = 220.0;
+  final all = [...y, ...fit, ...cf];
+  var lo = all.reduce(math.min), hi = all.reduce(math.max);
+  final pad = 0.06 * (hi - lo == 0 ? 1 : hi - lo);
+  lo -= pad;
+  hi += pad;
+  double x(double v) => left + (v - t.first) / (t.last - t.first == 0 ? 1 : t.last - t.first) * w;
+  double yy(double v) => top + h - (v - lo) / (hi - lo) * h;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 300' width='440' height='300' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, left, top, w, h, _esc(f['xLabel'].toString()), _esc(f['yLabel'].toString()), _niceTicks(t.first, t.last), _niceTicks(lo, hi), x, yy);
+  b.writeln("<line x1='${_n(x(t0) - 0.5 * (x(t.length > 1 ? t[1] : t0) - x(t.first)))}' x2='${_n(x(t0) - 0.5 * (x(t.length > 1 ? t[1] : t0) - x(t.first)))}' y1='${_n(top)}' y2='${_n(top + h)}' stroke='#888' stroke-dasharray='3 3'/>");
+  for (var i = 0; i < t.length; i++) {
+    b.writeln("<circle cx='${_n(x(t[i]))}' cy='${_n(yy(y[i]))}' r='2.5' fill='${t[i] < t0 ? '#7f7f7f' : '#1f4e79'}'/>");
+  }
+  String line(List<double> v, bool Function(double) keep) => [for (var i = 0; i < t.length; i++) if (keep(t[i])) '${_n(x(t[i]))},${_n(yy(v[i]))}'].join(' ');
+  b
+    ..writeln("<polyline points='${line(fit, (v) => v < t0)}' fill='none' stroke='#1f4e79' stroke-width='2'/>")
+    ..writeln("<polyline points='${line(fit, (v) => v >= t0)}' fill='none' stroke='#1f4e79' stroke-width='2'/>")
+    ..writeln("<polyline points='${line(cf, (v) => v >= t0)}' fill='none' stroke='#c0504d' stroke-width='2' stroke-dasharray='6 4'/>")
+    ..writeln("<text x='${_n(left + 6)}' y='${_n(top + 14)}' font-size='10' fill='#1f4e79'>${tr('— ajusté', '— fitted')}</text>")
+    ..writeln("<text x='${_n(left + 6)}' y='${_n(top + 28)}' font-size='10' fill='#c0504d'>${tr('- - sans intervention (tendance prolongée)', '- - without intervention (extended trend)')}</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}

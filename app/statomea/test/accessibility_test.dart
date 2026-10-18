@@ -9,6 +9,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -236,6 +237,26 @@ void main() {
     final forest = find.bySemanticsLabel(RegExp(r'^Forest plot : 13 études, effet combiné 0,489'));
     expect(forest, findsWidgets);
     expect(t.getSemantics(forest.first).flagsCollection.isImage, isTrue);
+    h.dispose();
+  });
+
+  testWidgets('lecteur d\'écran : la page d\'accueil déclare son contenu hors écran (VoiceOver atteint les démonstrations)', (t) async {
+    final h = t.ensureSemantics();
+    await pumpScreen(t, const HomeScreen());
+    // Défilement implicite : VoiceOver et TalkBack font défiler la page en passant d'un élément au suivant, au lieu de
+    // s'arrêter au dernier élément visible (défaut constaté sur iPhone avec SingleChildScrollView).
+    var implicit = false;
+    bool visit(SemanticsNode n) {
+      if (n.flagsCollection.hasImplicitScrolling) implicit = true;
+      n.visitChildren(visit);
+      return true;
+    }
+    visit(t.getSemantics(find.byType(HomeScreen)));
+    expect(implicit, isTrue);
+    final scroll = find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first;
+    // En faisant défiler, les démonstrations deviennent accessibles.
+    await t.scrollUntilVisible(find.text('Laboratoire : plasma ou sérum ?'), 300, scrollable: scroll);
+    expect(find.bySemanticsLabel(RegExp('Laboratoire : plasma ou sérum')), findsWidgets);
     h.dispose();
   });
 
