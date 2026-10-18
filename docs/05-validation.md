@@ -1117,3 +1117,14 @@ Extraction de texte (`app/statomea/test/document_text_test.dart`) : PDF à polic
 à police standard (WinAnsi), lignes reconstituées d'après la position verticale ; Word (.docx) : paragraphes et entités
 XML ; refus explicite d'un PDF sans texte (numérisé) ou d'un format non pris en charge. La feuille de route en PDF est
 relue par le même extracteur : les 10 étapes y figurent dans l'ordre.
+
+## Calcul d'effectif dans la feuille de route et protocole prérédigé — 1.56.0
+
+`test/protocol_test.dart` : le calcul d'effectif proposé suit la question (prévalence → précision d'une proportion ;
+délai avec censure → Schoenfeld/Freedman ; issue continue → deux moyennes ; issue binaire en cohorte → deux
+proportions ; cas-témoins → puissance cas-témoins ; prédiction → effectif minimal de Riley), l'effectif prévu par le
+protocole importé est repris, et le protocole prérédigé contient les rubriques attendues (identification, résumé,
+justification, objectifs, schéma, population, intervention, critères, effectif, plan d'analyse, données, éthique,
+calendrier) avec les éléments non déductibles marqués « à compléter ». `app/statomea/test/protocol_document_test.dart` :
+paquet .docx complet (types de contenu, relations, styles), XML bien formé vérifié par le parseur de Python, texte relu
+à l'identique ; PDF relu par l'extracteur, rubriques dans l'ordre.

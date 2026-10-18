@@ -327,6 +327,7 @@ void main() {
     const qAllow = {'smoking', 'myocardial', 'infarction', 'adults', 'non-smokers', 'cohort', 'Smoking', 'In', 'does', 'increase', 'the', 'risk', 'of', 'in', 'compared', 'with', 'a'};
     expectEnglish('roadmap', [for (final r in projectRoadmap(pr)) ...r.lines].join('\n').replaceAll(questionEn, ' '), qAllow);
     expectEnglish('draft plan', pr.analysisPlan, qAllow);
+    expectEnglish('protocol outline', [for (final x in protocolOutline(pr)) ...[x.title, ...x.paragraphs]].join('\n').replaceAll(questionEn, ' '), {...qAllow, 'Smoking', 'smoking'});
     expectEnglish('inference reasons', [for (final r in inferQuestion(questionEn).reasons) r.value].join('\n'), qAllow);
     expectEnglish('protocol error', () {
       try {

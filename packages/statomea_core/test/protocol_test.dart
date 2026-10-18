@@ -109,4 +109,26 @@ Comparaison des moyennes ajustée sur la valeur initiale.''';
     final back = Project.decode(p.encode());
     expect(back.inferred['design'], 'cohort');
   });
+
+  test('calcul d\'effectif adapté à la question ; protocole prérédigé (rubriques, éléments à compléter)', () {
+    String? calc(String t) => sampleSizePlan(q(t))?.calculator;
+    expect(calc('Quelle est la prévalence de l\'AgHBs chez les femmes enceintes ?'), 'sample_size');
+    expect(calc('Essai randomisé : le traitement A versus placebo réduit-il le délai jusqu\'à la rechute ?'), 'power_survival');
+    expect(calc('Essai randomisé : la vitamine D réduit-elle la pression artérielle chez les adultes ?'), 'power_means');
+    expect(calc('Dans une cohorte, le tabac augmente-t-il le risque d\'infarctus ?'), 'power_proportions');
+    expect(calc('Does smoking increase the risk of lung cancer? A case-control study.'), 'power_case_control');
+    expect(calc('Peut-on prédire le risque de réadmission à 30 jours ?'), 'prediction_logistic_internal');
+    final p = Project(id: 'pr', title: 'Vitamine D', createdAt: '', question: q('Essai randomisé : la vitamine D réduit-elle la pression artérielle à 12 mois chez les adultes hypertendus ?'));
+    p.analysisPlan = draftAnalysisPlan(p.question);
+    p.inferred['plannedSampleSize'] = '240';
+    expect(projectRoadmap(p)[2].calculator, 'power_means');
+    expect(projectRoadmap(p)[2].lines.join(' '), contains('240'));
+    final o = protocolOutline(p);
+    expect(o.map((x) => x.title), containsAll(['Question de recherche et objectifs', 'Nombre de sujets nécessaires', 'Plan d\'analyse statistique', 'Aspects éthiques et réglementaires']));
+    final text = [for (final x in o) ...x.paragraphs].join('\n');
+    expect(text, contains('adultes hypertendus'));
+    expect(text, contains('Effectif prévu : 240 sujets.'));
+    expect(text, contains('[À compléter : critères d\'inclusion]'));
+    expect(text, contains('Randomisation, aveugle et allocation'));
+  });
 }

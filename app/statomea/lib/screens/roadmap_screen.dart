@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../services/file_saver.dart';
 import '../services/pdf_export.dart';
+import '../services/protocol_document.dart';
 import '../state/app_state.dart';
+import '../widgets/calculators.dart';
 import '../widgets/common.dart';
 import 'project_screen.dart';
 
@@ -42,6 +45,22 @@ class RoadmapScreen extends StatelessWidget {
         Wrap(spacing: 12, runSpacing: 8, children: [
           FilledButton.icon(icon: const Icon(Icons.print_outlined), label: Text(tr('Imprimer / PDF', 'Print / PDF')), onPressed: () => _print(context)),
           OutlinedButton.icon(
+            icon: const Icon(Icons.description_outlined),
+            label: Text(tr('Protocole (Word)', 'Protocol (Word)')),
+            onPressed: () async {
+              final where = await saveFile('protocole-${project.id}.docx', protocolDocx(project), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Protocole enregistré : $where', 'Protocol saved: $where'))));
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: Text(tr('Protocole (PDF)', 'Protocol (PDF)')),
+            onPressed: () async {
+              final bytes = await buildProtocolPdf(project);
+              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'protocole-${project.id}.pdf');
+            },
+          ),
+          OutlinedButton.icon(
             icon: const Icon(Icons.open_in_new),
             label: Text(tr('Ouvrir le projet', 'Open the project')),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(project: project))),
@@ -70,6 +89,21 @@ class RoadmapScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 3),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('•  '), Expanded(child: Text(l))]),
+                    ),
+                  if (road[k].calculator != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.calculate_outlined),
+                        label: Text(tr('Calculer l\'effectif', 'Compute the sample size')),
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => Scaffold(
+                                      appBar: AppBar(title: Text(tr('Calcul d\'effectif', 'Sample size calculation'))),
+                                      body: PageBody(children: [CalculatorPanel(project: project, initialMethod: road[k].calculator)]),
+                                    ))),
+                      ),
                     ),
                 ]),
               ),

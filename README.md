@@ -103,7 +103,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 
 | Module | Opérationnel | Testé contre | Statut |
 |---|---|---|---|
-| Projets en 10 étapes, stockage local, suppression complète ; projet créé depuis un protocole Word (.docx) ou PDF (texte extrait hors connexion, sections reconnues) ; caractéristiques déduites de la question pendant la saisie (plan, objectif, issue, exposition, PICO, horizon), sans écraser les choix du chercheur ; feuille de route des 10 étapes imprimable en PDF ; rôles des variables (issue, exposition, ajustement) qui préremplissent les calculateurs | ✅ | tests app | validé |
+| Projets en 10 étapes, stockage local, suppression complète ; projet créé depuis un protocole Word (.docx) ou PDF (texte extrait hors connexion, sections reconnues) ; caractéristiques déduites de la question pendant la saisie (plan, objectif, issue, exposition, PICO, horizon), sans écraser les choix du chercheur ; feuille de route des 10 étapes imprimable en PDF, avec le calcul d'effectif adapté à la question ; protocole prérédigé exportable en Word (.docx) et PDF (rubriques d'un comité d'éthique, éléments à compléter surlignés) ; rôles des variables (issue, exposition, ajustement) qui préremplissent les calculateurs | ✅ | tests app | validé |
 | Import CSV et Excel (.xlsx), saisie, éditeur de données (corriger une cellule, ajouter ou exclure une ligne, toujours journalisé), dictionnaire de variables (types, unités, bornes, codes manquants, modalités), contrôle des données, corrections journalisées | ✅ | tests de détection, readxl | validé |
 | Imputation multiple (MICE) et règles de Rubin, y compris dans la validation interne | ✅ | mice | validé |
 | Assistant de choix de méthode | ✅ | scénarios | validé |

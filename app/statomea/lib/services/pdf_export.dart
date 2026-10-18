@@ -274,3 +274,46 @@ Future<Uint8List> buildRoadmapPdf(Project p, {required String generatedAt}) asyn
   ));
   return doc.save();
 }
+
+/// Protocole prérédigé en PDF (mêmes rubriques que la version Word) ; les éléments « à compléter » sont surlignés.
+Future<Uint8List> buildProtocolPdf(Project p) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  final sections = protocolOutline(p);
+  pw.Widget para(String t) {
+    final spans = <pw.InlineSpan>[];
+    var i = 0;
+    for (final m in RegExp(r'\[(?:À compléter|To complete)[^\]]*\]').allMatches(t)) {
+      if (m.start > i) spans.add(pw.TextSpan(text: t.substring(i, m.start)));
+      spans.add(pw.TextSpan(text: m.group(0), style: pw.TextStyle(background: pw.BoxDecoration(color: PdfColor.fromHex('#fff176')))));
+      i = m.end;
+    }
+    if (i < t.length) spans.add(pw.TextSpan(text: t.substring(i)));
+    return pw.Padding(padding: const pw.EdgeInsets.only(bottom: 4), child: pw.RichText(text: pw.TextSpan(children: spans, style: const pw.TextStyle(fontSize: 10))));
+  }
+
+  doc.addPage(pw.MultiPage(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(48),
+    footer: (c) => pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('${c.pageNumber}/${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600))),
+    build: (_) => [
+      pw.Text(tr('Protocole de recherche', 'Research protocol'), style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1f4e79'))),
+      pw.Text(p.title, style: const pw.TextStyle(fontSize: 14)),
+      pw.SizedBox(height: 4),
+      pw.Text(tr('Prérédigé par Statoméa ($engineName $engineVersion) à partir du projet ; les éléments surlignés sont à compléter par l\'investigateur.',
+              'Pre-drafted by Statoméa ($engineName $engineVersion) from the project; highlighted items are to be completed by the investigator.'),
+          style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700)),
+      for (var k = 0; k < sections.length; k++) ...[
+        pw.SizedBox(height: 10),
+        pw.Text('${k + 1}. ${sections[k].title}', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1f4e79'))),
+        pw.SizedBox(height: 4),
+        for (final l in sections[k].paragraphs) para(l),
+      ],
+    ],
+  ));
+  return doc.save();
+}

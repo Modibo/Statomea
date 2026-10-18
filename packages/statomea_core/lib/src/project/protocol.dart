@@ -13,9 +13,11 @@ library;
 import '../advisor/advisor.dart';
 import '../advisor/registry.dart';
 import '../audit/audit.dart' show foldAccents;
+import '../data/dataset.dart' show varTypeLabel;
 import '../i18n.dart';
 import '../model/design.dart';
 import '../model/result.dart' show StatInputError;
+import '../version.dart';
 import 'project.dart';
 
 /// Une déduction : champ, valeur lisible, passage du texte qui la justifie.
@@ -359,7 +361,7 @@ void markInferred(Project p, Iterable<String> fields) {
 List<String> autoCompleteProject(Project p) {
   var q = p.question;
   for (final e in p.inferred.entries.toList()) {
-    if (e.key == 'analysisPlan') continue;
+    if (e.key == 'analysisPlan' || e.key == 'plannedSampleSize') continue;
     if (_repr(q, e.key) == e.value) {
       q = _reset(q, e.key);
     } else {
@@ -368,7 +370,7 @@ List<String> autoCompleteProject(Project p) {
   }
   final (nq, filled) = applyInference(q, inferQuestion(q.text));
   p.question = nq;
-  p.inferred.removeWhere((k, _) => k != 'analysisPlan');
+  p.inferred.removeWhere((k, _) => k != 'analysisPlan' && k != 'plannedSampleSize');
   for (final f in filled) {
     p.inferred[f] = _repr(nq, f);
   }
@@ -498,7 +500,60 @@ class RoadmapStep {
   final Step step;
   final RoadmapStatus status;
   final List<String> lines;
-  const RoadmapStep(this.step, this.status, this.lines);
+
+  /// Calculateur à ouvrir depuis l'étape (p. ex. calcul d'effectif), identifiant de méthode du registre.
+  final String? calculator;
+  const RoadmapStep(this.step, this.status, this.lines, {this.calculator});
+}
+
+/// Calcul d'effectif adapté à la question : calculateur et hypothèses à renseigner.
+class SampleSizePlan {
+  final String calculator; // identifiant de méthode (calculatorFor dans l'application)
+  final String title;
+  final List<String> hypotheses;
+  const SampleSizePlan(this.calculator, this.title, this.hypotheses);
+}
+
+SampleSizePlan? sampleSizePlan(ResearchQuestion q) {
+  if (q.dataLevel == DataLevel.aggregatedStudies || q.design == StudyDesign.systematicReview) return null;
+  final a = tr('risque α (souvent 5 %) et puissance (80 à 90 %)', 'α risk (often 5%) and power (80 to 90%)');
+  if (q.agreementQuestion) {
+    return SampleSizePlan('bland_altman', tr('Accord entre méthodes : au moins 100 échantillons couvrant la plage de mesure (CLSI EP09 : 40 au minimum)', 'Agreement between methods: at least 100 samples covering the measuring range (CLSI EP09: 40 minimum)'),
+        [tr('écart acceptable fixé a priori', 'acceptable difference set a priori'), tr('étendue de mesure à couvrir', 'measuring range to cover')]);
+  }
+  switch (q.objective) {
+    case StudyObjective.predictive:
+      return SampleSizePlan('prediction_logistic_internal', tr('Modèle de prédiction : effectif minimal de Riley et al. (pmsampsize)', 'Prediction model: Riley et al. minimum sample size (pmsampsize)'),
+          [tr('prévalence attendue de l\'issue', 'expected outcome prevalence'), tr('nombre de paramètres candidats', 'number of candidate parameters'), tr('performance attendue (R² de Cox-Snell ou AUC)', 'expected performance (Cox-Snell R² or AUC)')]);
+    case StudyObjective.diagnostic:
+      return SampleSizePlan('sample_size', tr('Performance diagnostique : précision voulue de la sensibilité et de la spécificité (Buderer)', 'Diagnostic accuracy: desired precision of sensitivity and specificity (Buderer)'),
+          [tr('sensibilité et spécificité attendues', 'expected sensitivity and specificity'), tr('prévalence de la maladie', 'disease prevalence'), tr('demi-largeur voulue de l\'IC', 'desired CI half-width')]);
+    case StudyObjective.descriptive:
+      if (q.outcomeType == OutcomeType.continuous) {
+        return SampleSizePlan('sample_size', tr('Estimer une moyenne avec une précision donnée', 'Estimate a mean with a given precision'), [tr('écart-type attendu', 'expected SD'), tr('demi-largeur voulue de l\'IC', 'desired CI half-width')]);
+      }
+      return SampleSizePlan('sample_size', tr('Estimer une proportion (prévalence) avec une précision donnée', 'Estimate a proportion (prevalence) with a given precision'),
+          [tr('proportion attendue', 'expected proportion'), tr('précision voulue (± absolue)', 'desired precision (± absolute)'), tr('effet de plan si sondage en grappes', 'design effect if cluster sampling')]);
+    case StudyObjective.explanatory:
+    case StudyObjective.unknown:
+      switch (q.outcomeType) {
+        case OutcomeType.timeToEvent:
+          return SampleSizePlan('power_survival', tr('Délai jusqu\'à événement : nombre d\'événements (Schoenfeld) puis de patients (Freedman)', 'Time to event: number of events (Schoenfeld) then patients (Freedman)'),
+              [tr('HR cliniquement pertinent', 'clinically relevant HR'), tr('proportion d\'événements attendue dans le groupe témoin', 'expected event proportion in the control group'), a]);
+        case OutcomeType.continuous:
+          return SampleSizePlan('power_means', tr('Comparer deux moyennes', 'Compare two means'),
+              [tr('différence minimale cliniquement pertinente', 'minimal clinically important difference'), tr('écart-type attendu', 'expected SD'), if (q.pairing == Pairing.paired) tr('corrélation entre mesures appariées', 'correlation between paired measurements'), a]);
+        case OutcomeType.binary:
+          if (q.design == StudyDesign.caseControl) {
+            return SampleSizePlan('power_case_control', tr('Étude cas-témoins', 'Case-control study'),
+                [tr('prévalence de l\'exposition chez les témoins', 'exposure prevalence among controls'), tr('OR minimal à détecter', 'minimal OR to detect'), tr('nombre de témoins par cas', 'controls per case'), a]);
+          }
+          return SampleSizePlan('power_proportions', tr('Comparer deux proportions', 'Compare two proportions'),
+              [tr('proportion attendue dans le groupe de référence', 'expected proportion in the reference group'), tr('proportion (ou effet) minimale à détecter', 'minimal proportion (or effect) to detect'), a]);
+        default:
+          return null;
+      }
+  }
 }
 
 /// Les 10 étapes dans l'ordre, avec ce que l'application propose à chacune.
@@ -521,9 +576,14 @@ List<RoadmapStep> projectRoadmap(Project p) {
       if (q.needsAdjustment == true) tr('Facteurs de confusion à prendre en compte : les lister a priori (graphe causal).', 'Confounders to account for: list them a priori (causal graph).'),
       for (final c in a.questions) tr('À préciser : ${c.prompt}', 'To specify: ${c.prompt}'),
     ]),
-    RoadmapStep(Step.analysisPlan, st(Step.analysisPlan, proposed: main != null), [
+    RoadmapStep(Step.analysisPlan, st(Step.analysisPlan, proposed: main != null), calculator: sampleSizePlan(q)?.calculator, [
       if (main != null) tr('Méthode principale proposée : ${main.name}.', 'Proposed main method: ${main.name}.') else tr('Méthode : répondre d\'abord aux précisions de l\'étape 2.', 'Method: first answer the clarifications of step 2.'),
       if (a.options.length > 1) tr('Alternatives défendables : ${[for (final o in a.options) if (o != main) o.name].join(' ; ')}.', 'Defensible alternatives: ${[for (final o in a.options) if (o != main) o.name].join('; ')}.'),
+      if (sampleSizePlan(q) case final ss?) ...[
+        tr('Effectif : ${ss.title}.', 'Sample size: ${ss.title}.'),
+        tr('Hypothèses à renseigner : ${ss.hypotheses.join(' ; ')}.', 'Hypotheses to provide: ${ss.hypotheses.join('; ')}.'),
+      ],
+      if (p.inferred['plannedSampleSize'] case final n?) tr('Effectif prévu par le protocole : $n sujets (à confronter au calcul).', 'Sample size planned by the protocol: $n subjects (to compare with the calculation).'),
       tr('Fixer le plan d\'analyse avant de voir les données.', 'Fix the analysis plan before seeing the data.'),
     ]),
     RoadmapStep(Step.dataControl, st(Step.dataControl, proposed: p.dataset != null), [
@@ -553,5 +613,93 @@ List<RoadmapStep> projectRoadmap(Project p) {
     RoadmapStep(Step.export, st(Step.export), [
       tr('Exporter le rapport (PDF, HTML), le journal et le projet ; joindre la grille de rédaction adaptée (TRIPOD+AI, PROBAST+AI, PRISMA).', 'Export the report (PDF, HTML), the log and the project; attach the relevant reporting checklist (TRIPOD+AI, PROBAST+AI, PRISMA).'),
     ]),
+  ];
+}
+
+/// Section d'un protocole prérédigé ; les paragraphes commençant par [placeholderPrefix] sont à compléter.
+class ProtocolSection {
+  final String title;
+  final List<String> paragraphs;
+  const ProtocolSection(this.title, this.paragraphs);
+}
+
+String get placeholderPrefix => tr('[À compléter', '[To complete');
+String _todo(String what) => tr('[À compléter : $what]', '[To complete: $what]');
+
+/// Protocole prérédigé à partir du projet (question, plan, effectif, plan d'analyse, variables), avec les rubriques
+/// attendues par un comité d'éthique ; ce qui ne peut pas être déduit est marqué « à compléter ».
+List<ProtocolSection> protocolOutline(Project p) {
+  final q = p.question;
+  String or(String v, String what) => v.trim().isEmpty ? _todo(what) : v.trim();
+  final ss = sampleSizePlan(q);
+  final power = [
+    for (final e in p.journal)
+      if (e.methodId.startsWith('power_') || e.methodId == 'sample_size' || e.methodId.startsWith('sample_size')) e
+  ];
+  final ds = p.dataset;
+  return [
+    ProtocolSection(tr('Identification', 'Identification'), [
+      tr('Titre : ${p.title}', 'Title: ${p.title}'),
+      tr('Version et date : ${_todo('numéro de version, date')}', 'Version and date: ${_todo('version number, date')}'),
+      tr('Investigateur principal et centres : ${_todo('noms, affiliations')}', 'Principal investigator and centres: ${_todo('names, affiliations')}'),
+    ]),
+    ProtocolSection(tr('Résumé', 'Summary'), [
+      tr('Question : ${or(q.text, 'question de recherche')}', 'Question: ${or(q.text, 'research question')}'),
+      tr('Schéma : ${designLabel(q.design)} ; objectif : ${objectiveLabel(q.objective)}.', 'Design: ${designLabel(q.design)}; aim: ${objectiveLabel(q.objective)}.'),
+      tr('Population : ${or(q.population, 'population étudiée')} ; critère de jugement principal : ${or(q.outcome, 'critère de jugement')}.', 'Population: ${or(q.population, 'study population')}; primary outcome: ${or(q.outcome, 'outcome')}.'),
+    ]),
+    ProtocolSection(tr('Contexte et justification', 'Background and rationale'), [_todo(tr('état des connaissances, lacune à combler, intérêt pour les patients ; références', 'state of knowledge, gap, interest for patients; references'))]),
+    ProtocolSection(tr('Question de recherche et objectifs', 'Research question and objectives'), [
+      or(q.text, tr('question de recherche', 'research question')),
+      tr('Objectif principal : ${objectiveLabel(q.objective)} — ${or(q.exposure, 'exposition ou intervention')} ${q.comparator.isEmpty ? '' : 'comparé(e) à ${q.comparator} '}sur ${or(q.outcome, 'critère de jugement')}${q.horizon.isEmpty ? '' : ' à ${q.horizon}'}, chez ${or(q.population, 'population')}.',
+          'Primary objective: ${objectiveLabel(q.objective)} — ${or(q.exposure, 'exposure or intervention')} ${q.comparator.isEmpty ? '' : 'compared with ${q.comparator} '}on ${or(q.outcome, 'outcome')}${q.horizon.isEmpty ? '' : ' at ${q.horizon}'}, in ${or(q.population, 'population')}.'),
+      tr('Objectifs secondaires : ${_todo('objectifs secondaires')}', 'Secondary objectives: ${_todo('secondary objectives')}'),
+    ]),
+    ProtocolSection(tr('Schéma de l\'étude', 'Study design'), [
+      tr('Type d\'étude : ${designLabel(q.design)}.', 'Study type: ${designLabel(q.design)}.'),
+      if (q.design == StudyDesign.rct) tr('Randomisation, aveugle et allocation : ${_todo('méthode de randomisation, insu, dissimulation de l\'allocation')}', 'Randomisation, blinding and allocation: ${_todo('randomisation method, blinding, allocation concealment')}'),
+      if (q.design == StudyDesign.cohort || q.design == StudyDesign.caseControl) tr('Recueil : ${_todo('prospectif ou rétrospectif, sources des données')}', 'Data collection: ${_todo('prospective or retrospective, data sources')}'),
+      tr('Durée de participation et de l\'étude : ${or(q.horizon, 'durée')}', 'Duration of participation and of the study: ${or(q.horizon, 'duration')}'),
+    ]),
+    ProtocolSection(tr('Population', 'Population'), [
+      or(q.population, tr('population étudiée', 'study population')),
+      tr('Critères d\'inclusion : ${_todo('critères d\'inclusion')}', 'Inclusion criteria: ${_todo('inclusion criteria')}'),
+      tr('Critères de non-inclusion : ${_todo('critères de non-inclusion')}', 'Exclusion criteria: ${_todo('exclusion criteria')}'),
+    ]),
+    ProtocolSection(tr('Intervention, exposition et comparateur', 'Intervention, exposure and comparator'), [
+      tr('Intervention ou exposition : ${or(q.exposure, 'intervention ou exposition')}', 'Intervention or exposure: ${or(q.exposure, 'intervention or exposure')}'),
+      tr('Comparateur : ${or(q.comparator, 'comparateur')}', 'Comparator: ${or(q.comparator, 'comparator')}'),
+    ]),
+    ProtocolSection(tr('Critères de jugement', 'Outcomes'), [
+      tr('Critère principal : ${or(q.outcome, 'critère de jugement principal')} (${outcomeTypeLabel(q.outcomeType)})${q.horizon.isEmpty ? '' : ', évalué à ${q.horizon}'} ; mesure : ${_todo('méthode et moment de mesure')}', 'Primary outcome: ${or(q.outcome, 'primary outcome')} (${outcomeTypeLabel(q.outcomeType)})${q.horizon.isEmpty ? '' : ', assessed at ${q.horizon}'}; measurement: ${_todo('method and timing of measurement')}'),
+      tr('Critères secondaires : ${_todo('critères secondaires')}', 'Secondary outcomes: ${_todo('secondary outcomes')}'),
+    ]),
+    ProtocolSection(tr('Nombre de sujets nécessaires', 'Sample size'), [
+      if (ss != null) ...[
+        ss.title,
+        tr('Hypothèses : ${ss.hypotheses.map((h) => '$h = ${_todo('valeur et source')}').join(' ; ')}', 'Hypotheses: ${ss.hypotheses.map((h) => '$h = ${_todo('value and source')}').join('; ')}'),
+      ],
+      for (final e in power) '${e.methodName} : ${(e.result['interpretation'] as Map?)?['meaning'] ?? ''}',
+      if (p.inferred['plannedSampleSize'] case final n?) tr('Effectif prévu : $n sujets.', 'Planned sample size: $n subjects.'),
+      if (power.isEmpty && p.inferred['plannedSampleSize'] == null) tr('Effectif retenu : ${_todo('nombre de sujets, majoré des perdus de vue attendus (calcul dans Statoméa)')}', 'Sample size retained: ${_todo('number of subjects, increased for expected losses (calculation in Statoméa)')}'),
+    ]),
+    ProtocolSection(tr('Plan d\'analyse statistique', 'Statistical analysis plan'), [
+      for (final l in p.analysisPlan.split('\n')) if (l.trim().isNotEmpty) l.trim(),
+      if (p.analysisPlan.trim().isEmpty) _todo(tr('plan d\'analyse', 'analysis plan')),
+      tr('Données manquantes : ${_todo('fréquence attendue, analyse en cas complets ou imputation multiple')}', 'Missing data: ${_todo('expected frequency, complete-case analysis or multiple imputation')}'),
+      tr('Logiciel : Statoméa ($engineName $engineVersion), méthodes validées contre R ; journal des calculs et des corrections conservé.', 'Software: Statoméa ($engineName $engineVersion), methods validated against R; log of computations and corrections kept.'),
+    ]),
+    ProtocolSection(tr('Données recueillies', 'Data collected'), [
+      if (ds == null) _todo(tr('liste des variables (type, unité, valeurs possibles)', 'list of variables (type, unit, possible values)'))
+      else
+        for (final n in ds.names)
+          '$n : ${varTypeLabel(ds.dictionary[n]!.type)}${ds.dictionary[n]!.unit.isEmpty ? '' : ' (${ds.dictionary[n]!.unit})'}${ds.dictionary[n]!.label.isEmpty ? '' : ' — ${ds.dictionary[n]!.label}'}',
+    ]),
+    ProtocolSection(tr('Aspects éthiques et réglementaires', 'Ethical and regulatory aspects'), [
+      tr('Avis du comité d\'éthique : ${_todo('comité, numéro d\'avis')}', 'Ethics committee approval: ${_todo('committee, approval number')}'),
+      tr('Information et consentement : ${_todo('modalités')}', 'Information and consent: ${_todo('procedures')}'),
+      tr('Confidentialité : données pseudonymisées, sans identifiant direct ; ${_todo('conservation, accès, déclaration réglementaire')}', 'Confidentiality: pseudonymised data, no direct identifier; ${_todo('storage, access, regulatory declaration')}'),
+    ]),
+    ProtocolSection(tr('Calendrier, budget et diffusion', 'Timeline, budget and dissemination'), [_todo(tr('calendrier prévisionnel, budget, plan de publication', 'provisional timeline, budget, publication plan'))]),
   ];
 }

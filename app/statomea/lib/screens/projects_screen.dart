@@ -400,6 +400,7 @@ Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, S
       : '${tr('Plan d\'analyse du protocole', 'Protocol analysis plan')} : $analysis\n\n${tr('Proposition de Statoméa', 'Statoméa proposal')} :\n${draftAnalysisPlan(q)}';
   final (_, filled) = applyInference(ResearchQuestion(text: d.question, population: d.sections['population'] ?? '', exposure: d.sections['intervention'] ?? '', comparator: d.sections['comparator'] ?? '', outcome: d.sections['outcome'] ?? ''), d.inference);
   markInferred(p, filled);
+  if (d.sampleSize != null) p.inferred['plannedSampleSize'] = '${d.sampleSize}';
   p.inferred['analysisPlan'] = p.analysisPlan;
   await state.save(p);
   if (context.mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p)));
