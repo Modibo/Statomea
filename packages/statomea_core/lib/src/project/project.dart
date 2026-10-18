@@ -53,13 +53,18 @@ String stepHint(Step s) => switch (s) {
 
 /// Démarrer un nouveau projet.
 String get guideNewProject => tr(
-    'Nouveau projet : « Nouveau projet », puis suivre les étapes 1 à 10 dans l\'ordre. Les données (CSV ou Excel) s\'importent à l\'étape 4. Marquer chaque étape « Terminée » pour suivre l\'avancement ; on peut revenir à une étape à tout moment.',
-    'New project: "New project", then follow steps 1 to 10 in order. Data (CSV or Excel) are imported at step 4. Mark each step "Done" to track progress; you can return to any step at any time.');
+    'Nouveau projet : « Nouveau projet », puis écrire la question de recherche à l\'étape 1. Statoméa en déduit aussitôt le plan d\'étude, l\'objectif, le type d\'issue, la population, le critère de jugement, le plan d\'analyse et le calcul d\'effectif adapté ; ces éléments sont marqués « proposé » : les vérifier et les corriger. Suivre ensuite les étapes 1 à 10 dans l\'ordre ; les données (CSV ou Excel) s\'importent à l\'étape 4. Marquer chaque étape « Terminée » ; on peut revenir à une étape à tout moment.',
+    'New project: "New project", then write the research question at step 1. Statoméa immediately infers the study design, aim, outcome type, population, outcome, analysis plan and the appropriate sample-size calculation; these are marked "proposed": check and correct them. Then follow steps 1 to 10 in order; data (CSV or Excel) are imported at step 4. Mark each step "Done"; you can return to any step at any time.');
 
-/// Reprendre un projet importé.
+/// Projet importé : protocole Word/PDF ou fichier de projet Statoméa.
 String get guideImportedProject => tr(
-    'Projet importé : « Importer » un fichier de projet (.json) exporté depuis Statoméa (étape 10). Tout est restauré — question, plans, données et corrections, journal, texte — après un contrôle d\'intégrité. Reprendre à l\'étape en cours ; si les données ou le texte changent, refaire les calculs puis relancer l\'audit.',
-    'Imported project: "Import" a project file (.json) exported from Statoméa (step 10). Everything is restored — question, plans, data and corrections, log, text — after an integrity check. Resume at the current step; if the data or the text change, redo the computations and run the audit again.');
+    'Projet importé : « Importer un projet », puis choisir un protocole Word (.docx) ou PDF, ou un fichier de projet Statoméa (.json). Pour un protocole, Statoméa en lit le titre, la question, la population, le schéma, le critère de jugement, l\'effectif prévu et le plan d\'analyse, montre ce qu\'il a compris, puis crée le projet et ouvre la feuille de route des 10 étapes dans l\'ordre. Un fichier .json (exporté à l\'étape 10) restaure tout — question, plans, données, journal, texte — après un contrôle d\'intégrité.',
+    'Imported project: "Import a project", then choose a Word (.docx) or PDF protocol, or a Statoméa project file (.json). For a protocol, Statoméa reads the title, question, population, design, outcome, planned sample size and analysis plan, shows what it understood, then creates the project and opens the roadmap of the 10 steps in order. A .json file (exported at step 10) restores everything — question, plans, data, log, text — after an integrity check.');
+
+/// Feuille de route et protocole prérédigé.
+String get guideRoadmap => tr(
+    'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime. « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
+    'Roadmap: "Roadmap" button (route icon) in a project. It lists the 10 steps, what is done, what is proposed and what remains; "Compute the sample size" opens the right calculator; "Print / PDF" prints it. "Protocol (Word)" and "Protocol (PDF)" produce a pre-drafted protocol in 13 sections (ethics committee format): highlighted "[To complete: …]" passages are for the researcher to write.');
 
 /// Empreinte FNV-1a 32 bits (identifie une version de données dans le journal).
 String fingerprint(String s) {

@@ -2,4 +2,4 @@
 library;
 
 const String engineName = 'statomea_core';
-const String engineVersion = '1.56.1';
+const String engineVersion = '1.56.2';

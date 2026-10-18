@@ -306,11 +306,11 @@ class _StepsGuide extends StatelessWidget {
         initiallyExpanded: empty,
         leading: Icon(Icons.route_outlined, color: theme.colorScheme.primary),
         title: Text(tr('Comment faire : les 10 étapes d\'un projet', 'How it works: the 10 steps of a project'), style: theme.textTheme.titleMedium),
-        subtitle: Text(tr('Nouveau projet ou projet importé', 'New or imported project'), style: theme.textTheme.bodySmall),
+        subtitle: Text(tr('Nouveau projet, protocole Word/PDF importé, feuille de route', 'New project, imported Word/PDF protocol, roadmap'), style: theme.textTheme.bodySmall),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final (icon, text) in [(Icons.add_circle_outline, guideNewProject), (Icons.file_open_outlined, guideImportedProject)])
+          for (final (icon, text) in [(Icons.add_circle_outline, guideNewProject), (Icons.file_open_outlined, guideImportedProject), (Icons.route_outlined, guideRoadmap)])
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
