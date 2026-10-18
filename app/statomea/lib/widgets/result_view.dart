@@ -155,6 +155,7 @@ class FiguresView extends StatelessWidget {
       if (f['calibration'] is List) (tr('Courbe de calibration', 'Calibration curve'), calibrationSvg((f['calibration'] as List).cast(), font: 'NotoSans', smooth: (f['calibrationSmooth'] as List?)?.cast()), 340, 460),
       if (f['doseResponse'] is List)
         for (final c in (f['doseResponse'] as List).cast<Map>()) (tr('Courbe dose-effet : ${c['variable']}', 'Dose-response curve: ${c['variable']}'), doseResponseSvg(c, font: 'NotoSans'), 340, 520),
+      if (f['bayes'] is Map) (tr('A priori et a posteriori', 'Prior and posterior'), bayesSvg(f['bayes'] as Map, font: 'NotoSans'), 340, 480),
       if (f['its'] is Map) (tr('Série chronologique interrompue', 'Interrupted time series'), itsSvg(f['its'] as Map, font: 'NotoSans'), 340, 520),
       if (f['referenceInterval'] is Map) (tr('Intervalle de référence', 'Reference interval'), referenceIntervalSvg(f['referenceInterval'] as Map, font: 'NotoSans'), 340, 480),
       if (f['methodComparison'] is Map) (tr('Comparaison de méthodes', 'Method comparison'), methodComparisonSvg(f['methodComparison'] as Map, font: 'NotoSans'), 340, 460),
@@ -217,6 +218,10 @@ String figureDescription(String title, Map<String, Object?> f) {
     final c = (f['doseResponse'] as List).cast<Map>().firstWhere((c) => title.endsWith(': ${c['variable']}'), orElse: () => (f['doseResponse'] as List).first as Map);
     return tr('Courbe dose-effet de ${c['variable']} : ${c['effect']} par rapport à la médiane (${fmt((c['ref'] as num).toDouble())}), avec sa bande de confiance ; la ligne horizontale marque l\'absence d\'effet, les traits rouges les nœuds de la spline. $tables',
         'Dose-response curve of ${c['variable']}: ${c['effect']} relative to the median (${fmt((c['ref'] as num).toDouble())}), with its confidence band; the horizontal line marks no effect, the red ticks the spline knots. $tables');
+  }
+  if (f['bayes'] is Map && (title == 'A priori et a posteriori' || title == 'Prior and posterior')) {
+    return tr('Courbes de densité : a priori en gris, données en tirets rouges, a posteriori en bleu ; la bande bleutée marque l\'intervalle de crédibilité. $tables',
+        'Density curves: prior in grey, data as red dashes, posterior in blue; the shaded band marks the credible interval. $tables');
   }
   if (f['its'] is Map && (title == 'Série chronologique interrompue' || title == 'Interrupted time series')) {
     final m = f['its'] as Map;

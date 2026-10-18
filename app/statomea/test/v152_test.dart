@@ -126,4 +126,19 @@ void main() {
     expect(find.text('Série chronologique interrompue'), findsWidgets);
     expect(t.takeException(), isNull);
   });
+
+  testWidgets('bayésien : proportion (a priori uniforme) puis effet publié (a priori sceptique)', (t) async {
+    await panel(t, method: 'bayes_proportion');
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Proportion : analyse bayésienne'), findsWidgets);
+    expect(find.text('A priori et a posteriori'), findsOneWidget);
+    await t.tap(find.text('Effet publié'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Réinterprétation bayésienne d\'un effet'), findsWidgets);
+    expect(find.textContaining('P(bénéfice)'), findsWidgets);
+    expect(t.takeException(), isNull);
+  });
 }

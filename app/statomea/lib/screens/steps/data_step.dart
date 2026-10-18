@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../services/xlsx_import.dart';
+import '../data_editor_screen.dart';
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
 
@@ -200,6 +201,17 @@ class DataStepState extends State<DataStep> {
         const SizedBox(height: 12),
         Text(tr('Aperçu — ${d.source} : ${d.rowCount} lignes × ${d.names.length} variables', 'Preview — ${d.source}: ${d.rowCount} rows × ${d.names.length} variables'), style: Theme.of(context).textTheme.titleMedium),
         _Preview(d),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.edit_note),
+            label: Text(tr('Modifier les données (cellules, lignes)', 'Edit data (cells, rows)')),
+            onPressed: () async {
+              final edited = await Navigator.push<Dataset>(context, MaterialPageRoute(builder: (_) => DataEditorScreen(d)));
+              if (edited != null && edited.corrections.length != d.corrections.length) _setDataset(edited, importWarnings);
+            },
+          ),
+        ),
         const SizedBox(height: 12),
         Text(tr('Dictionnaire des variables', 'Variable dictionary'), style: Theme.of(context).textTheme.titleMedium),
         Text(tr('Déclarez le type, l\'unité, les bornes plausibles et la catégorie de référence : ces déclarations priment sur l\'inférence automatique.', 'Declare the type, unit, plausible bounds and reference category: these declarations take precedence over automatic inference.')),
@@ -294,7 +306,7 @@ class _Preview extends StatelessWidget {
                 DataCell(Text('${i + 2}', style: const TextStyle(fontSize: 11))),
                 for (final n in d.names)
                   // Valeur corrigée : couleur d'erreur (contraste ≥ 4,5:1) ET italique soulignée, pour ne pas reposer sur la seule couleur.
-                  DataCell(d.cell(i, n) != d.original[i][d.col(n)]
+                  DataCell(d.cell(i, n) != d.originalCell(i, n)
                       ? Semantics(
                           label: tr('${d.cell(i, n) ?? 'manquant'} (corrigée)', '${d.cell(i, n) ?? 'missing'} (corrected)'),
                           excludeSemantics: true,

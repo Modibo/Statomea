@@ -67,6 +67,10 @@ class ProjectsScreen extends StatelessWidget {
           tr('Créatinine sur 108 patients : corrélation (piège), Bland-Altman, Passing-Bablok et Deming, biais aux niveaux de décision.',
               'Creatinine in 108 patients: correlation (pitfall), Bland-Altman, Passing-Bablok and Deming, bias at decision levels.'),
           Icons.science_outlined),
+      ('sante', tr('Santé publique : une politique a-t-elle marché ?', 'Public health: did a policy work?'),
+          tr('Série interrompue de 48 mois : piège de la comparaison avant/après, régression segmentée, quasi-Poisson, valeur E.',
+              '48-month interrupted series: the before/after pitfall, segmented regression, quasi-Poisson, E-value.'),
+          Icons.show_chart),
     ];
     // En-tête : titre et description ; actions « Nouveau projet » (principale) et « Importer » côte à côte, à droite
     // du titre sur grand écran, en dessous et à parts égales sur téléphone.

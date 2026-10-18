@@ -25,6 +25,8 @@ import '../genetics/qpcr.dart';
 import '../inference/compare.dart';
 import '../inference/competing_risks.dart';
 import '../inference/correlation.dart';
+import '../inference/equivalence.dart';
+import '../inference/interrupted_series.dart';
 import '../inference/method_comparison.dart';
 import '../inference/survival.dart';
 import '../inference/proportion.dart';
@@ -668,6 +670,71 @@ Project buildDemoMethodComparison(String csv) {
     resultsText: tr(
         'Les deux dosages sont très fortement corrélés (r = ${fmt(r.estimates.first.value)}), ce qui prouve qu\'ils sont interchangeables. La différence entre sérum et plasma est comprise dans l\'IC à 95 % de ${fmt(lo)} à ${fmt(hi)} mg/dL. La pente de Passing-Bablok vaut ${fmtFixed(pb.statistics['slope']!, 5)} : pas de différence entre les méthodes (p > 0,05 pour la tendance de Bland-Altman).',
         'The two assays are very strongly correlated (r = ${fmt(r.estimates.first.value)}), which proves that they are interchangeable. The difference between serum and plasma lies within the 95% CI from ${fmt(lo)} to ${fmt(hi)} mg/dL. The Passing-Bablok slope is ${fmtFixed(pb.statistics['slope']!, 5)}: no difference between the methods (p > 0.05 for the Bland-Altman trend).'),
+    completed: {Step.question, Step.studyPlan, Step.analysisPlan, Step.dataControl, Step.methodChoice, Step.computation, Step.diagnostics, Step.interpretation},
+  );
+}
+
+/// Démonstration 10 : santé publique — une politique a-t-elle réduit les admissions ? (série interrompue simulée).
+Project buildDemoPublicHealth(String csv) {
+  final raw = parseCsv(csv, source: tr('serie_interrompue_simule.csv (simulé)', 'serie_interrompue_simule.csv (simulated)')).dataset;
+  const t0 = 25.0;
+  final before = tr('avant', 'before'), after = tr('après', 'after');
+  final mois = raw.numeric('mois');
+  final ds = Dataset([...raw.names, 'periode'], [
+    for (var i = 0; i < raw.rowCount; i++) [for (final n in raw.names) raw.cell(i, n), mois[i]! >= t0 ? after : before]
+  ], source: raw.source);
+  final rate = ds.numeric('taux_100k'), per = ds.text('periode');
+  final journal = <JournalEntry>[];
+  // 1) Erreur fréquente : comparer les moyennes avant et après.
+  final naive = tTestIndependent([for (var i = 0; i < ds.rowCount; i++) if (per[i] == before) rate[i]], [for (var i = 0; i < ds.rowCount; i++) if (per[i] == after) rate[i]],
+      group1: before, group2: after);
+  journal.add(_entry(1, naive, data: ds, note: tr('Comparaison naïve des périodes : ignore la tendance antérieure.', 'Naive comparison of the periods: ignores the prior trend.')));
+  // 2) Régression segmentée sur le taux (Newey-West).
+  final lin = interruptedTimeSeries(mois, rate, t0, lag: 3, outcome: tr('taux pour 100 000', 'rate per 100,000'), timeName: tr('mois', 'month'));
+  journal.add(_entry(2, lin, data: ds, note: tr('Changement de niveau et de pente ; ES robustes à l\'autocorrélation.', 'Level and slope change; SEs robust to autocorrelation.')));
+  // 3) Comptages avec la population en offset (quasi-Poisson).
+  final pois = interruptedTimeSeries(mois, ds.numeric('admissions'), t0, family: SeriesFamily.poisson, population: ds.numeric('population'), outcome: 'admissions', timeName: tr('mois', 'month'));
+  journal.add(_entry(3, pois, data: ds, note: tr('Modèle de référence pour des comptages rapportés à une population.', 'Reference model for counts relative to a population.')));
+  // 4) Valeur E du rapport de taux à la fin de la série (robustesse à un facteur concomitant non mesuré).
+  final eff = pois.estimates.last;
+  final ev = eValue(eff.value, lower: eff.lower, upper: eff.upper);
+  journal.add(_entry(4, ev, note: tr('Quelle force devrait avoir un changement concomitant non mesuré pour expliquer l\'effet ?', 'How strong would an unmeasured concurrent change need to be to explain the effect?')));
+  double avg(String g) {
+    final v = [for (var i = 0; i < ds.rowCount; i++) if (per[i] == g) rate[i]!];
+    return v.fold(0.0, (a, b) => a + b) / v.length;
+  }
+
+  final mBefore = avg(before), mAfter = avg(after);
+  final drop = mBefore == 0 ? 0.0 : 1 - mAfter / mBefore;
+  return Project(
+    id: 'demo-sante-publique',
+    title: tr('Démo 10 — Santé publique : une politique a-t-elle réduit les admissions ?', 'Demo 10 — Public health: did a policy reduce admissions?'),
+    createdAt: tr('démonstration', 'demonstration'),
+    demoNotice: simulatedNotice,
+    dataset: ds,
+    question: ResearchQuestion(
+      text: tr('La politique de santé introduite au mois 25 a-t-elle réduit le taux d\'admissions hospitalières ?', 'Did the health policy introduced in month 25 reduce the hospital admission rate?'),
+      population: tr('Population couverte (environ 1,2 million d\'habitants), suivie 48 mois', 'Covered population (about 1.2 million inhabitants), followed 48 months'),
+      exposure: tr('Période après la politique (à partir du mois 25)', 'Period after the policy (from month 25)'),
+      comparator: tr('Tendance antérieure prolongée (contrefactuel)', 'Extended prior trend (counterfactual)'),
+      outcome: tr('Admissions mensuelles pour 100 000 habitants', 'Monthly admissions per 100,000 inhabitants'),
+      horizon: tr('24 mois après la politique', '24 months after the policy'),
+      design: StudyDesign.cohort,
+      objective: StudyObjective.explanatory,
+      outcomeType: OutcomeType.count,
+      exposureType: ExposureType.binary,
+      pairing: Pairing.repeated,
+      dataLevel: DataLevel.individual,
+      needsAdjustment: false,
+    ),
+    analysisPlan: tr(
+        '1) Comparaison naïve avant/après (pour montrer l\'erreur). 2) Régression segmentée du taux, ES de Newey-West (retard 3), autocorrélation vérifiée. 3) Modèle quasi-Poisson des admissions avec la population en offset (analyse principale) : changements de niveau et de pente, effet à 24 mois contre la tendance prolongée. 4) Valeur E de l\'effet à 24 mois. Co-interventions et changements de codage recherchés.',
+        '1) Naive before/after comparison (to show the error). 2) Segmented regression of the rate, Newey-West SEs (lag 3), autocorrelation checked. 3) Quasi-Poisson model of admissions with population offset (main analysis): level and slope changes, effect at 24 months versus the extended trend. 4) E-value of the effect at 24 months. Co-interventions and coding changes looked for.'),
+    journal: journal,
+    // Brouillon contenant des erreurs volontaires, à repérer avec l'audit.
+    resultsText: tr(
+        'Après la politique, le taux moyen d\'admissions a baissé de ${fmtPct(drop)} par rapport à la période d\'avant (${fmtP(naive.estimates.first.pValue ?? 0.001)}), ce qui prouve que la politique a réduit les hospitalisations de ${fmtFixed(drop * 100, 4)} %.',
+        'After the policy, the mean admission rate fell by ${fmtPct(drop)} compared with the period before (${fmtP(naive.estimates.first.pValue ?? 0.001)}), which proves that the policy reduced hospitalizations by ${fmtFixed(drop * 100, 4)}%.'),
     completed: {Step.question, Step.studyPlan, Step.analysisPlan, Step.dataControl, Step.methodChoice, Step.computation, Step.diagnostics, Step.interpretation},
   );
 }

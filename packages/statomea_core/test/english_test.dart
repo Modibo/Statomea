@@ -316,6 +316,11 @@ void main() {
     expectResult('its poisson', itsEn, const {'admissions', 'month'});
     expectResult('its gaussian', interruptedTimeSeries(itsDs.numeric('mois'), itsDs.numeric('taux_100k'), 25, outcome: 'rate', timeName: 'month'), const {'rate', 'month'});
     expectEnglish('its svg', itsSvg(itsEn.figures['its'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'admissions', 'month'});
+    final bpEn = bayesProportion(7, 40, prior: BetaPrior.informative, priorMean: 0.1, priorWeight: 20, threshold: 0.1);
+    expectResult('bayes proportion', bpEn, const {});
+    final beEn = bayesEffect(0.75, 0.58, 0.97, target: 0.8, label: 'RR');
+    expectResult('bayes effect', beEn, const {'RR'});
+    expectEnglish('bayes svg', bayesSvg(beEn.figures['bayes'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'RR'});
     final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
     final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
     expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});
@@ -429,12 +434,13 @@ void main() {
     final p7 = buildDemoMr(File('test/reference/mr_ldl_chd.csv').readAsStringSync());
     final p8 = buildDemoSurvivalAdvanced(File('test/reference/risques_concurrents_simule.csv').readAsStringSync());
     final p9 = buildDemoMethodComparison(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync());
-    for (final p in [p1, p2, p3, p4, p5, p6, p7, p8, p9]) {
+    final p10 = buildDemoPublicHealth(File('test/reference/serie_interrompue_simule.csv').readAsStringSync());
+    for (final p in [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10]) {
       final al = {
         ...dataTokens([p.dataset!]),
         for (final s in p.studies) ...[s.label, s.subgroup, for (final v in s.values.values) v.source, s.compatibility.comment],
         for (final e in p.journal) e.result['inputs'].toString(),
-        'cardiometabolique_externe_simule.csv', 'aghbs_simule.csv', 'bcg_colditz1994.csv', 'cardiometabolique_simule.csv', 'creatinine_serum_plasma.csv', 'mg/dL',
+        'cardiometabolique_externe_simule.csv', 'aghbs_simule.csv', 'bcg_colditz1994.csv', 'cardiometabolique_simule.csv', 'creatinine_serum_plasma.csv', 'mg/dL', 'serie_interrompue_simule.csv',
         // Séquences de la démo 4 (lettres A, C, G, T) et libellés des références : données, pas du texte.
         for (final r in parseFasta(File('test/reference/tb_references_simule.fasta').readAsStringSync())) ...[r.id, r.description],
         for (final l in File('test/reference/gwas_simule.bim').readAsLinesSync()) l.split('\t')[1],
@@ -481,6 +487,8 @@ void main() {
     expect(fam(p8), containsAll([AuditFamily.survivalPitfalls, AuditFamily.causalLanguage, AuditFamily.overPrecision]));
     final p9 = buildDemoMethodComparison(File('test/reference/creatinine_serum_plasma.csv').readAsStringSync());
     expect(fam(p9), containsAll([AuditFamily.agreementVsCi, AuditFamily.pValueMisread, AuditFamily.overPrecision]));
+    final p10 = buildDemoPublicHealth(File('test/reference/serie_interrompue_simule.csv').readAsStringSync());
+    expect(fam(p10), containsAll([AuditFamily.beforeAfter, AuditFamily.overPrecision]));
   });
 
   test('une équation développée en français s\'applique en anglais, et inversement', () {

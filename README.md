@@ -22,7 +22,7 @@ contrôle des données → choix de la méthode → calcul → diagnostics → i
 | 4 | Architecture technique et modèle de données | [docs/04-architecture.md](docs/04-architecture.md) |
 | 5 | Code exécutable et installation | ce fichier |
 | 6 | Jeux de tests et rapport de validation | [docs/05-validation.md](docs/05-validation.md) |
-| 7 | Neuf démonstrations complètes | [docs/06-demonstrations.md](docs/06-demonstrations.md) |
+| 7 | Dix démonstrations complètes | [docs/06-demonstrations.md](docs/06-demonstrations.md) |
 | — | Protocole de tests d'utilisabilité | [docs/08-tests-utilisabilite.md](docs/08-tests-utilisabilite.md) |
 | — | État du projet et feuille de route | [docs/07-etat-et-feuille-de-route.md](docs/07-etat-et-feuille-de-route.md) |
 
@@ -103,12 +103,13 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 
 | Module | Opérationnel | Testé contre | Statut |
 |---|---|---|---|
-| Projets en 10 étapes, stockage local, suppression complète | ✅ | tests app | validé |
-| Import CSV et Excel (.xlsx), saisie, dictionnaire de variables (types, unités, bornes, codes manquants, modalités), contrôle des données, corrections journalisées | ✅ | tests de détection, readxl | validé |
+| Projets en 10 étapes, stockage local, suppression complète ; rôles des variables (issue, exposition, ajustement) qui préremplissent les calculateurs | ✅ | tests app | validé |
+| Import CSV et Excel (.xlsx), saisie, éditeur de données (corriger une cellule, ajouter ou exclure une ligne, toujours journalisé), dictionnaire de variables (types, unités, bornes, codes manquants, modalités), contrôle des données, corrections journalisées | ✅ | tests de détection, readxl | validé |
 | Imputation multiple (MICE) et règles de Rubin, y compris dans la validation interne | ✅ | mice | validé |
 | Assistant de choix de méthode | ✅ | scénarios | validé |
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Comparaison de méthodes de laboratoire : Passing-Bablok (IC analytique) et Deming (IC jackknife), biais aux niveaux de décision | ✅ | mcr | validé |
+| Bayésien d'introduction : proportion bêta-binomiale (a priori uniforme, Jeffreys, informatif), réinterprétation d'un effet publié (a priori sceptique, enthousiaste, vague) | ✅ | qbeta, pbeta, qnorm | validé |
 | Équivalence et non-infériorité (TOST : moyennes, appariées, proportions) ; valeur E de la confusion non mesurée | ✅ | TOSTER, EValue | validé |
 | Séries chronologiques interrompues : régression segmentée, ES de Newey-West, quasi-Poisson avec population | ✅ | lm, glm, sandwich | validé |
 | Laboratoire : intervalles de référence (CLSI EP28 : non paramétrique avec IC, paramétrique, robuste ; valeurs aberrantes de Horn ; partition de Harris et Boyd) et fidélité (EP05, EP15 : composantes de la variance, IC, vérification d'une fidélité annoncée) | ✅ | referenceIntervals, MASS, VCA | validé |
@@ -143,6 +144,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 - Démo 8 (survie avancée) : rechute avec décès concurrent et greffe de Stanford, de la question au rapport, avec un brouillon à auditer.
 - Démo 9 (laboratoire) : créatinine sur sérum et sur plasma chez 108 patients, jeu `creatinine` du paquet R mcr (`demos/creatinine_serum_plasma.csv`).
 - Intervalles de référence et fidélité : créatinine **simulée** par sexe (`demos/creatinine_reference_simule.csv`) et plan EP15 simulé (`demos/fidelite_ep15_simule.csv`) ; plan EP05 d'exemple du paquet R VCA.
+- Démo 10 (santé publique) : série interrompue **simulée** de 48 mois (politique au mois 25), du piège avant/après au modèle quasi-Poisson.
 - Équivalence : essai **simulé** de deux formulations (`demos/equivalence_formulations_simule.csv`) ; série interrompue **simulée** de 48 mois (`demos/serie_interrompue_simule.csv`).
 - Score de propension : étude observationnelle **simulée** des statines (`demos/statines_observationnel_simule.csv`, `validation/r/53_propension.R`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).

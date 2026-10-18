@@ -27,6 +27,7 @@ enum AuditFamily {
   overPrecision,
   genomicInflation,
   survivalPitfalls,
+  beforeAfter,
 }
 
 String auditFamilyLabel(AuditFamily f) => switch (f) {
@@ -40,6 +41,7 @@ String auditFamilyLabel(AuditFamily f) => switch (f) {
       AuditFamily.overPrecision => tr('Conclusion dépassant la précision des données', 'Conclusion exceeding the precision of the data'),
       AuditFamily.genomicInflation => tr('Inflation génomique : polygénie ou confusion', 'Genomic inflation: polygenicity or confounding'),
       AuditFamily.survivalPitfalls => tr('Survie : risques concurrents et temps immortel', 'Survival: competing risks and immortal time'),
+      AuditFamily.beforeAfter => tr('Comparaison avant/après sans tenir compte de la tendance', 'Before/after comparison ignoring the trend'),
     };
 
 enum AuditStatus { alert, ok, insufficient }
@@ -663,6 +665,31 @@ AuditReport runAudit({required ResearchQuestion question, required List<Analysis
     if (n == 0) {
       f.add(AuditFinding(AuditFamily.survivalPitfalls, AuditStatus.ok,
           tr('Aucune incidence de Kaplan-Meier en présence d\'un événement concurrent ni biais du temps immortel repéré.', 'No Kaplan-Meier incidence in the presence of a competing event and no immortal time bias found.'), lexical: hasText));
+    }
+  }
+  // ------------------------------------------------ 11. Avant/après : la tendance antérieure est ignorée
+  final its = results.where((r) => r.methodId == 'interrupted_time_series').toList();
+  if (its.isEmpty) {
+    f.add(AuditFinding(AuditFamily.beforeAfter, AuditStatus.ok, tr('Sans objet : pas de série chronologique interrompue.', 'Not applicable: no interrupted time series.')));
+  } else if (!hasText) {
+    f.add(AuditFinding(AuditFamily.beforeAfter, AuditStatus.insufficient, tr('Aucun texte de résultats fourni.', 'No results text provided.')));
+  } else {
+    final hits = _find(text, RegExp(r"(par rapport|compare[es]?) (a|au|aux) (la )?(periode )?(d')?avant|avant (et|vs\.?|contre) apres|apres (la|l'|le) [a-z' ]{0,40}(qu'|que )?avant|taux moyen[^.]{0,60}(baisse|diminu|augment)|(compared (with|to)|versus) (the )?(period )?before|before (and|vs\.?) after|mean rate[^.]{0,60}(fell|decreas|increas|drop)"));
+    if (hits.isEmpty) {
+      f.add(AuditFinding(AuditFamily.beforeAfter, AuditStatus.ok, tr('Le texte ne compare pas simplement les périodes avant et après.', 'The text does not simply compare the periods before and after.'), lexical: true));
+    } else {
+      final r = its.first;
+      final pre = r.statistics['beta_1'] ?? 0, pPre = r.statistics['p_1'] ?? 1;
+      final trend = pPre < 0.05
+          ? tr(' Or la série avait déjà une tendance avant l\'intervention (pente ${fmt(pre)} par période, ${fmtP(pPre)}) : une part de l\'écart avant/après existait sans elle.',
+              ' Yet the series already had a trend before the intervention (slope ${fmt(pre)} per period, ${fmtP(pPre)}): part of the before/after difference existed without it.')
+          : '';
+      f.add(AuditFinding(AuditFamily.beforeAfter, AuditStatus.alert,
+          tr('Comparaison des périodes avant et après l\'intervention : elle attribue à l\'intervention toute évolution, y compris la tendance qui existait déjà.$trend',
+              'Comparison of the periods before and after the intervention: it attributes every change to the intervention, including the trend that already existed.$trend'),
+          severity: Severity.serious, trigger: hits.first.excerpt, lexical: true,
+          correction: tr('Rapporter les changements de niveau et de pente de la régression segmentée et l\'écart à la tendance prolongée (contrefactuel), avec leur IC.',
+              'Report the level and slope changes from the segmented regression and the difference from the extended trend (counterfactual), with their CIs.')));
     }
   }
   return AuditReport(f);

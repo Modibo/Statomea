@@ -4,6 +4,7 @@ import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
+import '../../widgets/variable_roles.dart';
 import '../lesson_screen.dart';
 
 /// Étape 5 : assistant de choix. Il pose les questions manquantes et
@@ -63,6 +64,11 @@ class _MethodStepState extends State<MethodStep> {
       Heading(tr('5. Choix de la méthode', '5. Method choice')),
       Text(tr('L\'assistant raisonne sur les caractéristiques DÉCLARÉES de la question et des données. S\'il manque une information, il la demande.', 'The assistant reasons on the DECLARED characteristics of the question and the data. If information is missing, it asks for it.')),
       const SizedBox(height: 12),
+      if (widget.p.dataset != null)
+        VariableRolesEditor(widget.p, onChanged: (r) {
+          setState(() => widget.p.roles = r);
+          context.read<AppState>().save(widget.p);
+        }),
       if (a.needsMoreInformation) ...[
         SectionLabel(tr('Précisions nécessaires (${a.questions.length})', 'Clarifications needed (${a.questions.length})'), icon: Icons.contact_support_outlined),
         for (final c in a.questions) _quickAnswer(c),

@@ -10,6 +10,7 @@ import 'meta_workshop.dart';
 import 'prediction_workshop.dart';
 import 'regression_workshop.dart';
 import 'result_view.dart';
+import 'variable_roles.dart';
 
 /// Calculateurs disponibles (groupés par famille).
 List<(String, String, IconData, String)> get calculatorKinds => [
@@ -36,6 +37,7 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('e_value', tr('Valeur E (confusion non mesurée)', 'E-value (unmeasured confounding)'), Icons.shield_outlined, tr('Causalité', 'Causality')),
   ('interrupted_series', tr('Série chronologique interrompue', 'Interrupted time series'), Icons.show_chart, tr('Causalité', 'Causality')),
   ('calibration', tr('Calibration d\'un modèle de risque', 'Calibration of a risk model'), Icons.tune, tr('Prédiction', 'Prediction')),
+  ('bayes', tr('Bayésien : proportion, effet publié', 'Bayesian: proportion, published effect'), Icons.auto_graph, tr('Bayésien', 'Bayesian')),
   ('sample_size', tr('Taille d\'échantillon', 'Sample size'), Icons.groups_outlined, tr('Planification', 'Planning')),
   ('power', tr('Puissance et effectif (survie, cas-témoins, GWAS…)', 'Power and sample size (survival, case-control, GWAS…)'), Icons.speed, tr('Planification', 'Planning')),
   ('regression', tr('Atelier de régression', 'Regression workshop'), Icons.functions, tr('Ateliers', 'Workshops')),
@@ -53,6 +55,7 @@ String calculatorFor(String methodId) => switch (methodId) {
       'passing_bablok' || 'deming' => 'method_comparison',
       'equivalence_tost' || 'non_inferiority' || 'equivalence_proportions' => 'equivalence',
       'interrupted_time_series' => 'interrupted_series',
+      'bayes_proportion' || 'bayes_effect' => 'bayes',
       'propensity_matching' || 'propensity_weighting' => 'propensity',
       'meta_binary' || 'meta_continuous' => 'meta',
       'prediction_logistic_internal' => 'prediction',
@@ -85,6 +88,7 @@ Map<String, String> get _calculatorKeywords => {
       'rmst': tr('survie moyenne restreinte risques non proportionnels', 'restricted mean survival non-proportional hazards'),
       'landmark': tr('temps immortel greffe exposition pendant le suivi', 'immortal time transplant exposure during follow-up'),
       'equivalence': tr('équivalence non-infériorité tost marge bioéquivalence générique', 'equivalence non-inferiority tost margin bioequivalence generic'),
+      'bayes': tr('bayésien bayes a priori a posteriori crédibilité probabilité sceptique enthousiaste bêta', 'bayesian bayes prior posterior credible probability sceptical enthusiastic beta'),
       'e_value': tr('valeur e confusion non mesurée sensibilité vanderweele biais', 'e-value unmeasured confounding sensitivity vanderweele bias'),
       'interrupted_series': tr('série chronologique temporelle interrompue régression segmentée politique intervention avant après tendance', 'interrupted time series segmented regression policy intervention before after trend'),
       'propensity': tr('confusion causalité appariement pondération iptw observationnel traitement effet', 'confounding causality matching weighting iptw observational treatment effect'),
@@ -190,6 +194,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'propensity' => PropensityCalc(ds, onResult, initial: widget.initialMethod),
       'equivalence' => EquivalenceCalc(ds, onResult, initial: widget.initialMethod),
       'e_value' => EValueCalc(onResult),
+      'bayes' => BayesCalc(onResult, initial: widget.initialMethod),
       'interrupted_series' => InterruptedSeriesCalc(ds, onResult),
       'sample_size' => SampleSizeCalc(onResult),
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
@@ -247,7 +252,10 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
         ]),
       ],
       const SizedBox(height: 12),
-      Card(child: Padding(padding: const EdgeInsets.all(16), child: KeyedSubtree(key: ValueKey(kind), child: form))),
+      Card(
+          child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: VariableRolesScope(roles: p?.roles.validFor(ds) ?? const VariableRoles(), dataset: ds, child: KeyedSubtree(key: ValueKey(kind), child: form)))),
       if (result != null)
         ResultView(result!,
             onOpenLesson: lesson == null ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => LessonScreen(lesson)))),
@@ -621,6 +629,25 @@ class _CompareTwoCalcState extends State<CompareTwoCalc> {
   String? y, g, la, lb;
   final s1 = TextEditingController(text: '5,1 5,8 6,2 4,9 5,5 6,0 5,3 5,7'), s2 = TextEditingController(text: '5,9 6,4 6,8 6,1 7,0 6,3 6,6 5,8');
   final margin = TextEditingController(), level = TextEditingController(text: '0,95');
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    y ??= r.pick(r.roles.outcome, {VarType.numeric, VarType.ordinal});
+    g ??= r.pick(r.roles.exposure, {VarType.binary, VarType.categorical});
+    if (g != null && widget.ds != null) {
+      final l = widget.ds!.levels(g!);
+      la ??= l.isNotEmpty ? l.first : null;
+      lb ??= l.length > 1 ? l[1] : null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = widget.ds;
@@ -695,6 +722,20 @@ class _CompareKCalcState extends State<CompareKCalc> {
   late String method = widget.initial == 'kruskal_wallis' ? 'kw' : 'anova';
   String? y, g;
   final manual = TextEditingController(text: tr('A: 5,1 5,8 6,2 4,9 5,5\nB: 5,9 6,4 6,8 6,1 7,0\nC: 7,2 6,9 7,8 8,1 7,4', 'A: 5.1 5.8 6.2 4.9 5.5\nB: 5.9 6.4 6.8 6.1 7.0\nC: 7.2 6.9 7.8 8.1 7.4'));
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    y ??= r.pick(r.roles.outcome, {VarType.numeric, VarType.ordinal});
+    g ??= r.pick(r.roles.exposure, {VarType.binary, VarType.categorical});
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = widget.ds;
@@ -844,6 +885,20 @@ class _CorrelationCalcState extends State<CorrelationCalc> {
   bool spearman = false;
   String? a, b;
   final sa = TextEditingController(text: '5,1 6,3 4,8 7,7 6,0 5,5 8,1 7,2'), sb = TextEditingController(text: '4,9 6,8 4,5 7,1 6,4 5,0 8,6 7,9');
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    a ??= r.pick(r.roles.exposure, {VarType.numeric, VarType.ordinal});
+    b ??= r.pick(r.roles.outcome, {VarType.numeric, VarType.ordinal});
+  }
+
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr('Corrélation', 'Correlation'), style: Theme.of(context).textTheme.titleMedium),
@@ -959,6 +1014,22 @@ class _SurvivalCalcState extends State<SurvivalCalc> {
   final mt = TextEditingController(text: '3 5 6 8 9 12 14 15 20 24 36 36');
   final ms = TextEditingController(text: '1 1 1 1 0 1 1 0 1 1 0 0');
   final mg = TextEditingController(text: 'A A A A A A B B B B B B');
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    time ??= r.pick(r.roles.time, {VarType.numeric});
+    status ??= r.pick(r.roles.status, {VarType.binary, VarType.categorical});
+    if (status != null) event ??= r.roles.eventLevel;
+    group ??= r.pick(r.roles.exposure, {VarType.binary, VarType.categorical});
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = widget.ds;
@@ -1196,6 +1267,22 @@ class _RmstCalcState extends State<RmstCalc> {
   final mt = TextEditingController(text: '3 5 6 8 9 12 14 15 20 24 36 36 4 7 10 13 18 22 26 30 36 36 36 36');
   final ms = TextEditingController(text: '1 1 1 1 0 1 1 0 1 1 0 0 1 0 1 1 0 1 1 0 0 0 0 0');
   final mg = TextEditingController(text: 'A A A A A A A A A A A A B B B B B B B B B B B B');
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    time ??= r.pick(r.roles.time, {VarType.numeric});
+    status ??= r.pick(r.roles.status, {VarType.binary, VarType.categorical});
+    if (status != null) event ??= r.roles.eventLevel;
+    group ??= r.pick(r.roles.exposure, {VarType.binary, VarType.categorical});
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = widget.ds;
@@ -1428,6 +1515,24 @@ class _PropensityCalcState extends State<PropensityCalc> {
   late PropensityMethod method = widget.initial == 'propensity_weighting' ? PropensityMethod.iptwAte : PropensityMethod.matching;
   List<TermSpec> covariates = [];
   final caliper = TextEditingController(text: '0,2');
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    treatment ??= r.pick(r.roles.exposure, {VarType.binary, VarType.categorical});
+    final ds = widget.ds;
+    if (treatment != null && ds != null) treated ??= ds.levels(treatment!).contains('oui') ? 'oui' : (ds.levels(treatment!).contains('1') ? '1' : null);
+    outcome ??= r.pick(r.roles.outcome, {VarType.numeric, VarType.binary, VarType.categorical});
+    if (outcome != null) event ??= r.roles.eventLevel;
+    if (covariates.isEmpty) covariates = r.terms(exclude: {?treatment, ?outcome});
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = widget.ds;
@@ -1767,4 +1872,69 @@ class _InterruptedSeriesCalcState extends State<InterruptedSeriesCalc> {
       ],
     ]);
   }
+}
+
+
+// ---------------------------------------------------------------- Bayésien
+
+class BayesCalc extends StatefulWidget {
+  final OnResult onResult;
+  final String? initial;
+  const BayesCalc(this.onResult, {super.key, this.initial});
+  @override
+  State<BayesCalc> createState() => _BayesCalcState();
+}
+
+class _BayesCalcState extends State<BayesCalc> {
+  late bool effect = widget.initial == 'bayes_effect';
+  BetaPrior betaPrior = BetaPrior.uniform;
+  NormalPrior normalPrior = NormalPrior.sceptical;
+  bool ratio = true;
+  final x = TextEditingController(text: '7'), n = TextEditingController(text: '40'), thr = TextEditingController(text: '0,10');
+  final pm = TextEditingController(text: '0,10'), pw = TextEditingController(text: '20');
+  final est = TextEditingController(text: '0,75'), lo = TextEditingController(text: '0,58'), hi = TextEditingController(text: '0,97'), target = TextEditingController(text: '0,80');
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr('Analyse bayésienne', 'Bayesian analysis'), style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(tr('Combine une connaissance préalable (a priori) et les données ; donne des probabilités directement interprétables (« probabilité d\'un bénéfice »).',
+                'Combines prior knowledge and the data; gives directly interpretable probabilities ("probability of a benefit").'),
+            style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        SegmentedButton<bool>(segments: [
+          ButtonSegment(value: false, label: Text(tr('Proportion', 'Proportion'))),
+          ButtonSegment(value: true, label: Text(tr('Effet publié', 'Published effect'))),
+        ], selected: {effect}, onSelectionChanged: (s) => setState(() => effect = s.first)),
+        const SizedBox(height: 10),
+        if (!effect) ...[
+          Wrap(spacing: 12, runSpacing: 12, children: [
+            NumField(tr('Événements', 'Events'), x), NumField(tr('Effectif', 'Sample size'), n), NumField(tr('Seuil (facultatif)', 'Threshold (optional)'), thr),
+            Pick<BetaPrior>(tr('A priori', 'Prior'), betaPrior, [
+              (BetaPrior.uniform, tr('uniforme', 'uniform')), (BetaPrior.jeffreys, 'Jeffreys'), (BetaPrior.informative, tr('informatif', 'informative')),
+            ], (v) => setState(() => betaPrior = v ?? BetaPrior.uniform), width: 200),
+            if (betaPrior == BetaPrior.informative) ...[NumField(tr('Proportion a priori', 'Prior proportion'), pm), NumField(tr('Poids (sujets)', 'Weight (subjects)'), pw)],
+          ]),
+        ] else ...[
+          Wrap(spacing: 12, runSpacing: 12, children: [
+            Pick<bool>(tr('Mesure', 'Measure'), ratio, [(true, tr('rapport (RR, OR, HR)', 'ratio (RR, OR, HR)')), (false, tr('différence', 'difference'))], (v) => setState(() => ratio = v ?? true), width: 220),
+            NumField(tr('Estimation', 'Estimate'), est), NumField(tr('IC 95 % : inférieure', '95% CI: lower'), lo), NumField(tr('IC 95 % : supérieure', '95% CI: upper'), hi),
+            NumField(tr('Effet cible (important)', 'Target effect (important)'), target, width: 220),
+            Pick<NormalPrior>(tr('A priori', 'Prior'), normalPrior, [
+              (NormalPrior.sceptical, tr('sceptique', 'sceptical')), (NormalPrior.enthusiastic, tr('enthousiaste', 'enthusiastic')), (NormalPrior.vague, tr('vague', 'vague')),
+            ], (v) => setState(() => normalPrior = v ?? NormalPrior.sceptical), width: 200),
+          ]),
+        ],
+        _computeButton(context, () {
+          run(context, () {
+            if (!effect) {
+              final xx = readNum(x), nn = readNum(n);
+              if (xx == null || nn == null) throw StatInputError('missing', tr('Indiquer les événements et l\'effectif.', 'Enter the events and the sample size.'));
+              return bayesProportion(xx.round(), nn.round(), prior: betaPrior, priorMean: readNum(pm) ?? 0.5, priorWeight: readNum(pw) ?? 2, threshold: readNum(thr));
+            }
+            final e = readNum(est), l = readNum(lo), h = readNum(hi), t = readNum(target);
+            if ([e, l, h, t].contains(null)) throw StatInputError('missing', tr('Indiquer l\'estimation, son IC et l\'effet cible.', 'Enter the estimate, its CI and the target effect.'));
+            return bayesEffect(e!, l!, h!, ratio: ratio, target: t!, prior: normalPrior);
+          }, widget.onResult);
+        }),
+      ]);
 }

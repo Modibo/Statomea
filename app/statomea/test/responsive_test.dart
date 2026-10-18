@@ -24,9 +24,9 @@ void main() {
       final cw = t.getSize(card).width, gw = t.getSize(grid).width;
       // Largeur d'une carte = (largeur de la grille − espacements) / colonnes : la ligne est remplie.
       expect(cw, closeTo((gw - 12 * (cols - 1)) / cols, 0.5));
-      // 9 démonstrations : la dernière ligne (même incomplète) occupe toute la largeur.
-      const demos = 9;
-      final last = find.ancestor(of: find.textContaining('Laboratoire : plasma ou sérum', skipOffstage: false), matching: find.byType(Card, skipOffstage: false)).first;
+      // 10 démonstrations : la dernière ligne (même incomplète) occupe toute la largeur.
+      const demos = 10;
+      final last = find.ancestor(of: find.textContaining('Santé publique : une politique', skipOffstage: false), matching: find.byType(Card, skipOffstage: false)).first;
       final lastCount = demos % cols == 0 ? cols : demos % cols;
       expect(t.getSize(last).width, closeTo((gw - 12 * (lastCount - 1)) / lastCount, 0.5));
       t.view.resetPhysicalSize();

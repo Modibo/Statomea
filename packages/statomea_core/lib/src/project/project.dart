@@ -135,6 +135,60 @@ class JournalEntry {
       );
 }
 
+/// Rôles des variables du projet (déclarés une fois à l'étape 5) : ils préremplissent les calculateurs.
+class VariableRoles {
+  final String? outcome, eventLevel, exposure, time, status, subject;
+  final List<String> covariates;
+  const VariableRoles({this.outcome, this.eventLevel, this.exposure, this.time, this.status, this.subject, this.covariates = const []});
+
+  bool get isEmpty => outcome == null && exposure == null && time == null && status == null && subject == null && covariates.isEmpty;
+
+  /// Rôles limités aux variables présentes dans [ds] (une variable renommée ou supprimée est ignorée).
+  VariableRoles validFor(Dataset? ds) {
+    if (ds == null) return const VariableRoles();
+    String? ok(String? v) => v != null && ds.names.contains(v) ? v : null;
+    final st = ok(status) ?? ok(outcome);
+    return VariableRoles(
+      outcome: ok(outcome),
+      eventLevel: eventLevel != null && st != null && ds.levels(st).contains(eventLevel) ? eventLevel : null,
+      exposure: ok(exposure),
+      time: ok(time),
+      status: ok(status),
+      subject: ok(subject),
+      covariates: [for (final c in covariates) if (ds.names.contains(c) && c != outcome && c != exposure) c],
+    );
+  }
+
+  VariableRoles copyWith({String? outcome, String? eventLevel, String? exposure, String? time, String? status, String? subject, List<String>? covariates, bool clearEvent = false}) =>
+      VariableRoles(
+          outcome: outcome ?? this.outcome,
+          eventLevel: clearEvent ? null : (eventLevel ?? this.eventLevel),
+          exposure: exposure ?? this.exposure,
+          time: time ?? this.time,
+          status: status ?? this.status,
+          subject: subject ?? this.subject,
+          covariates: covariates ?? this.covariates);
+
+  Map<String, Object?> toJson() => {
+        'outcome': ?outcome,
+        'eventLevel': ?eventLevel,
+        'exposure': ?exposure,
+        'time': ?time,
+        'status': ?status,
+        'subject': ?subject,
+        if (covariates.isNotEmpty) 'covariates': covariates,
+      };
+
+  factory VariableRoles.fromJson(Map<String, Object?> j) => VariableRoles(
+      outcome: j['outcome'] as String?,
+      eventLevel: j['eventLevel'] as String?,
+      exposure: j['exposure'] as String?,
+      time: j['time'] as String?,
+      status: j['status'] as String?,
+      subject: j['subject'] as String?,
+      covariates: [for (final c in (j['covariates'] as List? ?? [])) c as String]);
+}
+
 class Project {
   final String id;
   String title;
@@ -155,6 +209,9 @@ class Project {
   /// Projet de démonstration (données simulées ou publiques).
   final String demoNotice;
 
+  /// Rôles des variables (issue, exposition, ajustement…) : préremplissent les calculateurs.
+  VariableRoles roles;
+
   Project({
     required this.id,
     required this.title,
@@ -170,6 +227,7 @@ class Project {
     this.expertMode = false,
     this.demoNotice = '',
     Map<String, String>? checklistAnswers,
+    this.roles = const VariableRoles(),
   })  : checklistAnswers = checklistAnswers ?? {},
         studies = studies ?? [],
         journal = journal ?? [],
@@ -193,6 +251,7 @@ class Project {
         'expertMode': expertMode,
         'demoNotice': demoNotice,
         'checklistAnswers': checklistAnswers,
+        if (!roles.isEmpty) 'roles': roles.toJson(),
       };
 
   factory Project.fromJson(Map<String, Object?> j) => Project(
@@ -210,6 +269,7 @@ class Project {
         expertMode: (j['expertMode'] as bool?) ?? false,
         demoNotice: (j['demoNotice'] as String?) ?? '',
         checklistAnswers: ((j['checklistAnswers'] as Map?) ?? {}).cast<String, String>(),
+        roles: j['roles'] == null ? const VariableRoles() : VariableRoles.fromJson((j['roles'] as Map).cast()),
       );
 
   /// JSON exporté, avec une empreinte d'intégrité (voir `projectChecksum`).

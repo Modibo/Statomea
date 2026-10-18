@@ -158,6 +158,8 @@ class AppState extends ChangeNotifier {
         p = buildDemoSurvivalAdvanced(await rootBundle.loadString('assets/demos/risques_concurrents_simule.csv'));
       case 'mr':
         p = buildDemoMr(await rootBundle.loadString('assets/demos/mr_ldl_chd.csv'));
+      case 'sante':
+        p = buildDemoPublicHealth(await rootBundle.loadString('assets/demos/serie_interrompue_simule.csv'));
       case 'methodes':
         p = buildDemoMethodComparison(await rootBundle.loadString('assets/demos/creatinine_serum_plasma.csv'));
       case 'tb':

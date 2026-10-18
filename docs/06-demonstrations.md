@@ -204,6 +204,21 @@ comme un IC à 95 %, pente donnée à 5 décimales, « pas de différence (p > 0
 d'accord / IC, la lecture de p comme preuve d'absence d'effet, la formulation catégorique et la précision excessive.
 `test/demos_test.dart` (groupe « Démo 9 ») vérifie la chaîne contre les références du script 51.
 
+## Démo 10 — Santé publique : une politique a-t-elle réduit les admissions ?
+
+Données **simulées** (`demos/serie_interrompue_simule.csv`, script `validation/r/56_series_interrompues.R`) : 48 mois
+d'admissions hospitalières dans une population d'environ 1,2 million d'habitants ; une politique de santé au mois 25.
+
+Journal : (1) comparaison naïve des moyennes avant et après (test de Welch) ; (2) régression segmentée du taux pour
+100 000, ES de Newey-West ; (3) modèle quasi-Poisson des admissions avec la population en offset (analyse principale) :
+changement de niveau (rapport de taux 0,90), de pente (0,992 par mois), effet à 23 mois (0,75) contre la tendance
+prolongée ; (4) valeur E de cet effet.
+
+Brouillon à auditer : « le taux moyen a baissé de 12,8 % par rapport à la période d'avant […], ce qui prouve que la
+politique a réduit les hospitalisations de 12,7621 % ». L'audit relève la comparaison avant/après (nouvelle famille,
+qui ignore la tendance antérieure), la lecture de p comme preuve et la précision excessive. `test/demos_test.dart`
+(groupe « Démo 10 ») vérifie la chaîne contre le script 56.
+
 ## Reproduire
 
 Dans l'application : Projets → Démonstrations. En ligne de commande :

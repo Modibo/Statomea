@@ -7,6 +7,7 @@ import 'package:statomea_core/statomea_core.dart' hide Step;
 import '../state/app_state.dart';
 import 'calculators.dart';
 import 'common.dart';
+import 'variable_roles.dart';
 
 /// Éditeur de prédicteurs : variable, codage (référence), transformation.
 class PredictorEditor extends StatelessWidget {
@@ -126,6 +127,28 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
 
   bool get surv => model == 'cox' || model == 'fine_gray';
   bool get binary => model == 'glmm' ? glmmFamily == GlmmFamily.binomial : model == 'gee' ? geeFamily == GeeFamily.binomial : !const {'linear', 'mixed', 'counts', 'ordinal', 'multinomial'}.contains(model) && !surv;
+
+  bool _prefilled = false;
+
+  /// Préremplissage par les rôles des variables du projet (étape 5), une seule fois.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_prefilled) return;
+    _prefilled = true;
+    final r = VariableRolesScope.maybeOf(context);
+    if (r == null) return;
+    if (surv) {
+      outcome ??= r.pick(r.roles.time, {VarType.numeric});
+      status ??= r.pick(r.roles.status, {VarType.binary, VarType.categorical});
+      if (status != null) event ??= r.roles.eventLevel;
+    } else {
+      outcome ??= r.roles.outcome;
+      if (outcome != null) event ??= r.roles.eventLevel;
+    }
+    subjectCol ??= r.roles.subject;
+    if (terms.isEmpty) terms = r.terms(exclude: {?outcome, ?status, ?r.roles.time});
+  }
 
   @override
   Widget build(BuildContext context) {

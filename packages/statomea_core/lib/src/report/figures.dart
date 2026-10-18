@@ -1036,3 +1036,34 @@ String itsSvg(Map f, {String font = defaultSvgFont}) {
     ..writeln('</svg>');
   return b.toString();
 }
+
+
+/// Analyse bayésienne : densités a priori (gris), vraisemblance (tirets) et a posteriori (bleu), intervalle de
+/// crédibilité (bande).
+String bayesSvg(Map f, {String font = defaultSvgFont}) {
+  List<double> l(String k) => [for (final v in f[k] as List) (v as num).toDouble()];
+  final x = l('x'), prior = l('prior'), post = l('posterior');
+  final lik = f['likelihood'] is List ? l('likelihood') : null;
+  final isLog = f['log'] == true;
+  double tx(double v) => isLog ? math.log(v) : v;
+  final lo = (f['lower'] as num).toDouble(), hi = (f['upper'] as num).toDouble();
+  const left = 60.0, top = 20.0, w = 340.0, h = 220.0;
+  final x0 = tx(x.first), x1 = tx(x.last);
+  final ymax = [...prior, ...post, ...?lik].reduce(math.max) * 1.08;
+  double px(double v) => left + (tx(v) - x0) / (x1 - x0) * w;
+  double py(double v) => top + h - v.clamp(0, ymax) / ymax * h;
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 300' width='440' height='300' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  final ticks = isLog ? [for (final v in [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0]) if (math.log(v) >= x0 && math.log(v) <= x1) v] : _niceTicks(x.first, x.last);
+  _axes(b, left, top, w, h, _esc(f['xLabel'].toString()), tr('Densité', 'Density'), ticks, const [], px, py);
+  b.writeln("<rect x='${_n(px(lo))}' y='${_n(top)}' width='${_n(px(hi) - px(lo))}' height='${_n(h)}' fill='#1f4e79' fill-opacity='0.10'/>");
+  String line(List<double> y) => [for (var i = 0; i < x.length; i++) '${_n(px(x[i]))},${_n(py(y[i]))}'].join(' ');
+  b.writeln("<polyline points='${line(prior)}' fill='none' stroke='#8c8c8c' stroke-width='2'/>");
+  if (lik != null) b.writeln("<polyline points='${line(lik)}' fill='none' stroke='#c0504d' stroke-width='2' stroke-dasharray='6 4'/>");
+  b
+    ..writeln("<polyline points='${line(post)}' fill='none' stroke='#1f4e79' stroke-width='2.5'/>")
+    ..writeln("<text x='${_n(left + w - 4)}' y='${_n(top + 14)}' text-anchor='end' font-size='10' fill='#8c8c8c'>${tr('— a priori', '— prior')}</text>")
+    ..writeln(lik == null ? '' : "<text x='${_n(left + w - 4)}' y='${_n(top + 28)}' text-anchor='end' font-size='10' fill='#c0504d'>${tr('- - données', '- - data')}</text>")
+    ..writeln("<text x='${_n(left + w - 4)}' y='${_n(top + 42)}' text-anchor='end' font-size='10' fill='#1f4e79'>${tr('— a posteriori', '— posterior')}</text>")
+    ..writeln('</svg>');
+  return b.toString();
+}

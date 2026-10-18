@@ -357,4 +357,26 @@ void main() {
       expect(Project.decode(p.encodeCompact()).encode(), p.encode());
     });
   });
+
+  group('Démo 10 — santé publique : série interrompue', () {
+    final p = buildDemoPublicHealth(File('test/reference/serie_interrompue_simule.csv').readAsStringSync());
+    final rs = [for (final e in p.journal) analysisResultFromJson(e.result)];
+    final ref = loadRef('series_interrompues');
+
+    test('chaîne : avant/après naïf, segmentée (= lm + NeweyWest), quasi-Poisson (= glm), valeur E', () {
+      expect([for (final r in rs) r.methodId], ['t_test_welch', 'interrupted_time_series', 'interrupted_time_series', 'e_value']);
+      expect(rs[1].statistics['se_2'], closeRel(asD(((ref['lin'] as Map)['se_nw'] as List)[2])!, rel: 1e-10));
+      expect(rs[2].statistics['beta_3'], closeRel(asD(((ref['pois'] as Map)['coef'] as List)[3])!, rel: 1e-8));
+      expect(rs[3].statistics['e_point']!, greaterThan(1));
+    });
+
+    test('le brouillon contient les erreurs volontaires, et l\'audit en relève (dont la comparaison avant/après)', () {
+      final a = runAudit(question: p.question, results: rs, text: p.resultsText);
+      expect(a.alerts.map((f) => f.family).toSet(), containsAll([AuditFamily.beforeAfter, AuditFamily.overPrecision]));
+    });
+
+    test('projet sérialisable', () {
+      expect(Project.decode(p.encodeCompact()).encode(), p.encode());
+    });
+  });
 }

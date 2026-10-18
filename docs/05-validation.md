@@ -1078,3 +1078,19 @@ avec une politique au mois 25 (admissions et population). Tests `test/equivalenc
 
 Calculateurs « Équivalence et non-infériorité » (rubrique Comparaison), « Valeur E » et « Série chronologique
 interrompue » (rubrique Causalité) ; figure de la série avec le contrefactuel (tendance antérieure prolongée).
+
+## Bayésien d'introduction, éditeur de données, rôles des variables — 1.54.0
+
+Script `validation/r/57_bayesien.R` (stats). Test `test/bayesian_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Proportion bêta-binomiale (7/40 ; a priori uniforme, Jeffreys, informatif 10 % sur 20 sujets) : paramètres, moyenne, médiane, mode, intervalle de crédibilité à 95 %, P(p > 10 %) | `qbeta`, `pbeta` | 1e-12, 1e-9 |
+| Effet publié (RR 0,75 [0,58 ; 0,97], cible 0,80) : ES déduit de l'IC, a posteriori normal (a priori sceptique, enthousiaste, vague), ICr, P(bénéfice), P(RR < cible) | `qnorm`, `pnorm` (conjugaison normale) | 1e-12, 1e-9 |
+
+Éditeur de données (`test/data_editor_test.dart`, moteur et application) : cellule corrigée, mise en manquant, ligne
+ajoutée (correction « add_row », données importées intactes et empreinte inchangée), ligne exclue, retrait d'une ligne
+ajoutée avec renumérotation des corrections suivantes, relecture JSON. Rôles des variables
+(`test/roles_prefill_test.dart`) : un projet dont l'issue, l'exposition et les covariables sont déclarées ouvre la
+comparaison de deux groupes et la régression logistique déjà remplies, calculables sans autre choix. Audit : 11e
+famille « comparaison avant/après sans tenir compte de la tendance » (démo 10).

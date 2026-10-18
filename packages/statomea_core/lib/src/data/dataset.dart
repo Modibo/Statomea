@@ -4,8 +4,10 @@
 /// renvoie un nouveau jeu de données (cf. data_quality.dart).
 library;
 
-import '../i18n.dart';
+import 'dart:convert';
 import 'dart:math' as math;
+
+import '../i18n.dart';
 
 enum VarType { numeric, binary, categorical, ordinal, date, identifier, text }
 
@@ -72,7 +74,7 @@ class Variable {
 class Correction {
   final String id;
   final String variable;
-  final String action; // 'set_missing', 'replace', 'exclude_row', 'set_reference', 'recode'
+  final String action; // 'set_missing', 'replace', 'exclude_row', 'set_reference', 'recode', 'add_row' ([to] = ligne en JSON)
   final List<int> rows; // index de lignes (0-based, dans le jeu importé)
   final String? from;
   final String? to;
@@ -119,6 +121,7 @@ class Correction {
         'replace' => tr('$variable : « $from » → « $to » sur ${rows.length} ligne(s) — $reason', '$variable: "$from" → "$to" on ${rows.length} row(s) — $reason'),
         'exclude_row' => tr("${rows.length} ligne(s) exclue(s) de l'analyse — $reason", '${rows.length} row(s) excluded from the analysis — $reason'),
         'recode' => tr('$variable : catégorie « $from » recodée en « $to » — $reason', '$variable: category "$from" recoded as "$to" — $reason'),
+        'add_row' => tr('ligne ${rows.first + 1} ajoutée — $reason', 'row ${rows.first + 1} added — $reason'),
         _ => tr('$action sur $variable — $reason', '$action on $variable — $reason'),
       };
 }
@@ -175,7 +178,22 @@ class Dataset {
     return Dataset(names, rows, source: source);
   }
 
-  int get rowCount => original.length;
+  /// Lignes ajoutées par des corrections « add_row » (saisie dans l'éditeur), à la suite des lignes importées.
+  late final List<List<String?>> _added = [
+    for (final c in corrections)
+      if (c.action == 'add_row') [for (final v in jsonDecode(c.to!) as List) v as String?]
+  ];
+
+  int get rowCount => original.length + _added.length;
+
+  /// Valeur importée d'une cellule (null pour une ligne ajoutée dans l'éditeur).
+  String? originalCell(int row, String name) => row < original.length ? original[row][col(name)] : null;
+
+  /// Nouveau jeu de données avec une ligne ajoutée (valeurs dans l'ordre de [names]), journalisée.
+  Dataset addRow(List<String?> values, {required String id, required String reason, String timestamp = ''}) {
+    if (values.length != names.length) throw ArgumentError(tr('Une valeur par variable est attendue.', 'One value per variable is expected.'));
+    return applyCorrection(Correction(id: id, variable: '*', action: 'add_row', rows: [rowCount], to: jsonEncode(values), reason: reason, timestamp: timestamp));
+  }
 
   /// Index des colonnes (les noms sont immuables) : recherche en temps constant, et non linéaire à chaque cellule.
   late final Map<String, int> _colIndex = {for (var i = names.length - 1; i >= 0; i--) names[i]: i};
@@ -194,7 +212,7 @@ class Dataset {
 
   /// Valeur courante d'une cellule après application des corrections.
   String? cell(int row, String name) {
-    var v = original[row][col(name)];
+    var v = row < original.length ? original[row][col(name)] : _added[row - original.length][col(name)];
     for (final c in corrections) {
       if (c.variable != name || !c.rows.contains(row)) continue;
       switch (c.action) {
@@ -221,8 +239,22 @@ class Dataset {
   Dataset applyCorrection(Correction c) =>
       Dataset._(names, original, dictionary, [...corrections, c], source);
 
-  Dataset withoutCorrection(String id) =>
-      Dataset._(names, original, dictionary, [for (final c in corrections) if (c.id != id) c], source);
+  /// Retire une correction. Pour une ligne ajoutée : retire aussi les corrections qui la visaient et renumérote les
+  /// lignes suivantes dans les autres corrections.
+  Dataset withoutCorrection(String id) {
+    final target = corrections.where((c) => c.id == id).firstOrNull;
+    if (target == null || target.action != 'add_row') {
+      return Dataset._(names, original, dictionary, [for (final c in corrections) if (c.id != id) c], source);
+    }
+    final r = target.rows.first;
+    final kept = <Correction>[];
+    for (final c in corrections) {
+      if (c.id == id || (c.rows.length == 1 && c.rows.first == r)) continue;
+      final rows = [for (final x in c.rows) if (x != r) x > r ? x - 1 : x];
+      kept.add(Correction(id: c.id, variable: c.variable, action: c.action, rows: rows, from: c.from, to: c.to, reason: c.reason, author: c.author, timestamp: c.timestamp));
+    }
+    return Dataset._(names, original, dictionary, kept, source);
+  }
 
   /// Niveaux observés d'une variable qualitative, triés.
   List<String> levels(String name) {
