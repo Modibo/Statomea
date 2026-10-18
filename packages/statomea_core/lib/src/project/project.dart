@@ -212,6 +212,10 @@ class Project {
   /// Rôles des variables (issue, exposition, ajustement…) : préremplissent les calculateurs.
   VariableRoles roles;
 
+  /// Valeurs déduites automatiquement du texte de la question (champ → valeur) : affichées comme « déduites » et
+  /// recalculées si le texte change, tant que le chercheur ne les a pas modifiées.
+  Map<String, String> inferred;
+
   Project({
     required this.id,
     required this.title,
@@ -228,7 +232,9 @@ class Project {
     this.demoNotice = '',
     Map<String, String>? checklistAnswers,
     this.roles = const VariableRoles(),
-  })  : checklistAnswers = checklistAnswers ?? {},
+    Map<String, String>? inferred,
+  })  : inferred = inferred ?? {},
+        checklistAnswers = checklistAnswers ?? {},
         studies = studies ?? [],
         journal = journal ?? [],
         completed = completed ?? {};
@@ -252,6 +258,7 @@ class Project {
         'demoNotice': demoNotice,
         'checklistAnswers': checklistAnswers,
         if (!roles.isEmpty) 'roles': roles.toJson(),
+        if (inferred.isNotEmpty) 'inferred': inferred,
       };
 
   factory Project.fromJson(Map<String, Object?> j) => Project(
@@ -270,6 +277,7 @@ class Project {
         demoNotice: (j['demoNotice'] as String?) ?? '',
         checklistAnswers: ((j['checklistAnswers'] as Map?) ?? {}).cast<String, String>(),
         roles: j['roles'] == null ? const VariableRoles() : VariableRoles.fromJson((j['roles'] as Map).cast()),
+        inferred: ((j['inferred'] as Map?) ?? {}).cast<String, String>(),
       );
 
   /// JSON exporté, avec une empreinte d'intégrité (voir `projectChecksum`).

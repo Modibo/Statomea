@@ -6,6 +6,7 @@ import 'package:statomea_core/statomea_core.dart' as core show Step;
 import '../state/app_state.dart';
 import '../widgets/common.dart';
 import 'projects_screen.dart';
+import 'roadmap_screen.dart';
 import 'steps/audit_step.dart';
 import 'steps/compute_step.dart';
 import 'steps/data_step.dart';
@@ -99,6 +100,11 @@ class _ProjectScreenState extends State<ProjectScreen> {
       final appBar = AppBar(
         title: Text(p.title, overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            tooltip: tr('Feuille de route (10 étapes, PDF)', 'Roadmap (10 steps, PDF)'),
+            icon: const Icon(Icons.route_outlined),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p))),
+          ),
           IconButton(
             tooltip: tr('Supprimer le projet', 'Delete project'),
             icon: const Icon(Icons.delete_outline),

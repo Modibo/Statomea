@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
+import '../roadmap_screen.dart';
 
 /// Étape 1 : question biomédicale (PICO + objectif).
 class QuestionStep extends StatefulWidget {
@@ -29,7 +32,35 @@ class _QuestionStepState extends State<QuestionStep> {
     };
   }
 
-  void _update() {
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  /// Déduction à partir du texte de la question : caractéristiques, éléments PICO vides, plan d'analyse proposé.
+  void _autoComplete() {
+    final p = widget.p;
+    final before = Map.of(p.inferred);
+    autoCompleteProject(p);
+    for (final k in const ['population', 'exposure', 'comparator', 'outcome', 'horizon']) {
+      final ctl = c[k]!;
+      final v = switch (k) { 'population' => p.question.population, 'exposure' => p.question.exposure, 'comparator' => p.question.comparator, 'outcome' => p.question.outcome, _ => p.question.horizon };
+      if (ctl.text != v && (ctl.text.trim().isEmpty || ctl.text == before[k])) ctl.text = v;
+    }
+    setState(() {});
+    context.read<AppState>().saveSoon(p);
+  }
+
+  void _update([String? key]) {
+    if (key == 'text') {
+      _debounce?.cancel();
+      _debounce = Timer(const Duration(milliseconds: 700), () {
+        if (mounted) _autoComplete();
+      });
+    }
     final q = widget.p.question;
     widget.p.question = q.copyWith(
       text: c['text']!.text,
@@ -48,7 +79,7 @@ class _QuestionStepState extends State<QuestionStep> {
           controller: c[key],
           minLines: lines,
           maxLines: lines + 2,
-          onChanged: (_) => _update(),
+          onChanged: (_) => _update(key),
           decoration: InputDecoration(labelText: label, hintText: hint, border: const OutlineInputBorder()),
         ),
       );
@@ -63,6 +94,7 @@ class _QuestionStepState extends State<QuestionStep> {
       Text(tr('Formulez la question avant de regarder les données. Chaque élément conditionne la méthode et l\'interprétation.', 'State the question before looking at the data. Each element determines the method and the interpretation.')),
       const SizedBox(height: 12),
       _f('text', tr('Question de recherche', 'Research question'), tr('p. ex. Le tabagisme est-il associé à l\'HTA chez l\'adulte de 25 à 75 ans ?', 'e.g. Is smoking associated with hypertension in adults aged 25 to 75?'), lines: 2),
+      _Deductions(p),
       _f('population', 'Population (P)', tr('Qui ? Où ? Critères d\'inclusion', 'Who? Where? Inclusion criteria')),
       _f('exposure', tr('Exposition ou intervention (I/E)', 'Exposure or intervention (I/E)'), tr('Facteur étudié, intervention, test index', 'Factor studied, intervention, index test')),
       _f('comparator', tr('Comparateur (C)', 'Comparator (C)'), tr('Non exposés, placebo, référence…', 'Unexposed, placebo, reference…')),
@@ -132,7 +164,7 @@ class _StudyPlanStepState extends State<StudyPlanStep> {
     bool? triState(bool? v) => v;
     return PageBody(maxWidth: 820, children: [
       Heading(tr('2. Plan d\'étude', '2. Study design')),
-      Text(tr('Ces informations sont DÉCLARÉES : Statoméa ne déduit jamais une méthode du nom des variables.', 'This information is DECLARED: Statoméa never infers a method from variable names.')),
+      Text(tr('Ces informations peuvent être déduites du texte de la question (signalées à l\'étape 1) : vérifiez-les et corrigez-les ici. Statoméa ne déduit jamais une méthode du nom des variables.', 'This information can be inferred from the question text (shown in step 1): check and correct it here. Statoméa never infers a method from variable names.')),
       chips(tr('Plan', 'Design'), [for (final d in StudyDesign.values.where((d) => d != StudyDesign.unknown)) (d, designLabel(d))], q.design, (v) => q.copyWith(design: v)),
       chips(tr('Niveau des données', 'Data level'), [(DataLevel.individual, tr('observations individuelles', 'individual observations')), (DataLevel.aggregatedStudies, tr('résultats d\'études (métaanalyse)', 'study results (meta-analysis)'))],
           q.dataLevel, (v) => q.copyWith(dataLevel: v)),
@@ -256,5 +288,65 @@ class _AnalysisPlanStepState extends State<AnalysisPlanStep> {
       const SizedBox(height: 6),
       Text(tr('Le canevas est un gabarit déterministe à compléter, pas une décision.', 'The outline is a deterministic template to be completed, not a decision.'), style: Theme.of(context).textTheme.bodySmall),
     ]);
+  }
+}
+
+
+/// Ce que Statoméa a déduit du texte de la question (à vérifier), méthode proposée et accès à la feuille de route.
+class _Deductions extends StatelessWidget {
+  final Project p;
+  const _Deductions(this.p);
+  @override
+  Widget build(BuildContext context) {
+    final q = p.question;
+    final fields = [for (final k in p.inferred.keys) if (k != 'analysisPlan') k];
+    if (q.text.trim().length < 15) return const SizedBox.shrink();
+    String label(String f) => switch (f) {
+          'design' => tr('Plan : ${designLabel(q.design)}', 'Design: ${designLabel(q.design)}'),
+          'objective' => tr('Objectif : ${objectiveLabel(q.objective)}', 'Aim: ${objectiveLabel(q.objective)}'),
+          'outcomeType' => tr('Issue : ${outcomeTypeLabel(q.outcomeType)}', 'Outcome: ${outcomeTypeLabel(q.outcomeType)}'),
+          'exposureType' => tr('Exposition : ${q.exposureType.name == 'binary' ? 'binaire' : q.exposureType.name == 'continuous' ? 'quantitative' : 'qualitative'}', 'Exposure: ${q.exposureType.name}'),
+          'pairing' => tr('Mesures : ${q.pairing == Pairing.paired ? 'appariées' : q.pairing == Pairing.repeated ? 'répétées' : 'indépendantes'}', 'Measurements: ${q.pairing.name}'),
+          'needsAdjustment' => tr('Ajustement : ${q.needsAdjustment == true ? 'oui' : 'non'}', 'Adjustment: ${q.needsAdjustment == true ? 'yes' : 'no'}'),
+          'competingRisk' => tr('Risque concurrent', 'Competing risk'),
+          'agreementQuestion' => tr('Accord entre méthodes', 'Agreement between methods'),
+          'referenceStandardAvailable' => tr('Test de référence', 'Reference standard'),
+          'timeVaryingExposure' => tr('Exposition pendant le suivi', 'Exposure during follow-up'),
+          'dataLevel' => tr('Données individuelles', 'Individual data'),
+          'population' => 'Population',
+          'exposure' => tr('Exposition (texte)', 'Exposure (text)'),
+          'comparator' => tr('Comparateur', 'Comparator'),
+          'outcome' => tr('Critère (texte)', 'Outcome (text)'),
+          'horizon' => 'Horizon',
+          _ => f,
+        };
+    final a = advise(q);
+    final main = a.options.where((o) => o.recommended).firstOrNull ?? a.options.firstOrNull;
+    return Card(
+      color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.35),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SectionLabel(tr('Déduit de votre question (à vérifier)', 'Inferred from your question (to check)'), icon: Icons.auto_awesome),
+          if (fields.isEmpty)
+            Text(tr('Rien de plus à déduire : les caractéristiques déjà renseignées sont conservées.', 'Nothing more to infer: the characteristics already filled in are kept.'), style: Theme.of(context).textTheme.bodySmall)
+          else
+            Wrap(spacing: 6, runSpacing: 6, children: [for (final f in fields) Chip(avatar: const Icon(Icons.auto_awesome, size: 14), label: Text(label(f)), visualDensity: VisualDensity.compact)]),
+          const SizedBox(height: 6),
+          if (main != null) Text(tr('Méthode proposée : ${main.name}', 'Proposed method: ${main.name}'), style: const TextStyle(fontWeight: FontWeight.w600)),
+          if (a.questions.isNotEmpty)
+            Text(tr('Encore à préciser (étape 2) : ${a.questions.length} point(s).', 'Still to specify (step 2): ${a.questions.length} point(s).'), style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.route_outlined),
+              label: Text(tr('Voir les 10 étapes (feuille de route, PDF)', 'See the 10 steps (roadmap, PDF)')),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p))),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 }

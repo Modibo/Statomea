@@ -1094,3 +1094,26 @@ ajoutée avec renumérotation des corrections suivantes, relecture JSON. Rôles 
 (`test/roles_prefill_test.dart`) : un projet dont l'issue, l'exposition et les covariables sont déclarées ouvre la
 comparaison de deux groupes et la régression logistique déjà remplies, calculables sans autre choix. Audit : 11e
 famille « comparaison avant/après sans tenir compte de la tendance » (démo 10).
+
+## Du protocole au projet : déduction et feuille de route — 1.55.0
+
+Règles explicites et lisibles (`lib/src/project/protocol.dart`), sans modèle de langage : chaque déduction garde le
+passage du texte qui la justifie, n'écrase jamais une valeur déclarée par le chercheur, et se recalcule quand le texte
+de la question change tant que le chercheur ne l'a pas modifiée. Test `test/protocol_test.dart` (8 questions et un
+protocole, en français et en anglais) :
+
+| Question | Déductions vérifiées | Méthode proposée |
+|---|---|---|
+| Metformine versus sulfamides, mortalité à 5 ans (plan non dit) | P, I, C, O, horizon, issue binaire ; le plan est demandé, pas inventé | — (précision demandée) |
+| Prévalence de l'AgHBs chez les femmes enceintes | transversal, descriptif, issue « AgHBs » | proportion avec IC |
+| Vitamine D et pression artérielle, cohorte | cohorte, issue continue, ajustement, exposition | régression linéaire (score de propension en alternative) |
+| Sensibilité et spécificité d'un test rapide contre la microscopie | diagnostic, test évalué, référence | performance diagnostique |
+| Prédire le risque cardiovasculaire à 5 ans | prédictif, population « adultes de 40 à 70 ans » | modèle de prédiction |
+| Essai randomisé, délai jusqu'à rechute, décès concurrent | essai, délai avec censure, risque concurrent, pas d'ajustement | incidence cumulée |
+| Accord entre deux méthodes (anglais) | accord, issue continue | Bland-Altman |
+| Tabac et cancer du poumon, cas-témoins (anglais) | cas-témoins, exposition, comparateur, issue | régression logistique |
+
+Extraction de texte (`app/statomea/test/document_text_test.dart`) : PDF à police embarquée (CMap ToUnicode, accents) et
+à police standard (WinAnsi), lignes reconstituées d'après la position verticale ; Word (.docx) : paragraphes et entités
+XML ; refus explicite d'un PDF sans texte (numérisé) ou d'un format non pris en charge. La feuille de route en PDF est
+relue par le même extracteur : les 10 étapes y figurent dans l'ordre.

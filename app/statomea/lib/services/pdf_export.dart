@@ -209,3 +209,68 @@ List<pw.Widget> _figures(AnalysisResult r, pw.Font regular, pw.Font bold) {
     if (al != null) pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 6), child: pw.Text('${al['text']}', style: pw.TextStyle(font: pw.Font.courier(), fontSize: 7))),
   ];
 }
+
+/// Feuille de route imprimable : les 10 étapes du projet dans l'ordre, avec ce que l'application propose à chacune
+/// (pour aider le chercheur hors de l'application).
+Future<Uint8List> buildRoadmapPdf(Project p, {required String generatedAt}) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  final road = projectRoadmap(p);
+  String status(RoadmapStatus s) => switch (s) {
+        RoadmapStatus.done => tr('FAIT', 'DONE'),
+        RoadmapStatus.proposed => tr('PROPOSÉ — À VÉRIFIER', 'PROPOSED — TO CHECK'),
+        RoadmapStatus.todo => tr('À FAIRE', 'TO DO'),
+      };
+  PdfColor color(RoadmapStatus s) => switch (s) {
+        RoadmapStatus.done => PdfColor.fromHex('#2e7d32'),
+        RoadmapStatus.proposed => PdfColor.fromHex('#7a5c00'),
+        RoadmapStatus.todo => PdfColors.blueGrey600,
+      };
+  doc.addPage(pw.MultiPage(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(36),
+    footer: (c) => pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text('Statoméa — ${c.pageNumber}/${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600))),
+    build: (_) => [
+      pw.Text(tr('Feuille de route du projet', 'Project roadmap'), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.Header(level: 0, child: pw.Text(p.title, style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold))),
+      pw.Text(tr('Établie par Statoméa ($engineName $engineVersion) le $generatedAt. Les éléments « proposés » sont déduits du texte : à vérifier et compléter par le chercheur.',
+              'Prepared by Statoméa ($engineName $engineVersion) on $generatedAt. "Proposed" items are inferred from the text: to be checked and completed by the researcher.'),
+          style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700)),
+      pw.SizedBox(height: 10),
+      for (var k = 0; k < road.length; k++)
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 8),
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: pw.BorderRadius.circular(4)),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Row(children: [
+              pw.Text('${k + 1}. ${stepLabel(road[k].step)}', style: pw.TextStyle(fontSize: 11.5, fontWeight: pw.FontWeight.bold)),
+              pw.Spacer(),
+              pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: pw.BoxDecoration(color: color(road[k].status), borderRadius: pw.BorderRadius.circular(2)),
+                  child: pw.Text(status(road[k].status), style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.white))),
+            ]),
+            pw.SizedBox(height: 2),
+            pw.Text(stepHint(road[k].step), style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey800)),
+            pw.SizedBox(height: 3),
+            for (final l in road[k].lines) pw.Bullet(text: l, style: const pw.TextStyle(fontSize: 9)),
+            pw.SizedBox(height: 4),
+            pw.Text(tr('Notes du chercheur :', 'Researcher\'s notes:'), style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+            pw.Container(height: 22, decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300)))),
+          ]),
+        ),
+      if (p.analysisPlan.trim().isNotEmpty) ...[
+        pw.Header(level: 1, child: pw.Text(tr('Plan d\'analyse proposé', 'Proposed analysis plan'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+        for (final l in p.analysisPlan.split('\n')) if (l.trim().isNotEmpty) pw.Bullet(text: l.trim(), style: const pw.TextStyle(fontSize: 9)),
+      ],
+    ],
+  ));
+  return doc.save();
+}

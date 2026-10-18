@@ -321,6 +321,21 @@ void main() {
     final beEn = bayesEffect(0.75, 0.58, 0.97, target: 0.8, label: 'RR');
     expectResult('bayes effect', beEn, const {'RR'});
     expectEnglish('bayes svg', bayesSvg(beEn.figures['bayes'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'RR'});
+    const questionEn = 'In a cohort, does smoking increase the risk of myocardial infarction in adults compared with non-smokers?';
+    final pr = Project(id: 'en', title: 'Smoking', createdAt: '', question: const ResearchQuestion(text: questionEn));
+    autoCompleteProject(pr);
+    const qAllow = {'smoking', 'myocardial', 'infarction', 'adults', 'non-smokers', 'cohort', 'Smoking', 'In', 'does', 'increase', 'the', 'risk', 'of', 'in', 'compared', 'with', 'a'};
+    expectEnglish('roadmap', [for (final r in projectRoadmap(pr)) ...r.lines].join('\n').replaceAll(questionEn, ' '), qAllow);
+    expectEnglish('draft plan', pr.analysisPlan, qAllow);
+    expectEnglish('inference reasons', [for (final r in inferQuestion(questionEn).reasons) r.value].join('\n'), qAllow);
+    expectEnglish('protocol error', () {
+      try {
+        protocolFromText(' ');
+      } on StatInputError catch (e) {
+        return e.message;
+      }
+      return '';
+    }(), const {});
     final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
     final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
     expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});

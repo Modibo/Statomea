@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -6,9 +7,11 @@ import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart';
 
 import '../l10n/gen/app_localizations.dart';
+import '../services/document_text.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
 import 'project_screen.dart';
+import 'roadmap_screen.dart';
 
 class ProjectsScreen extends StatelessWidget {
   const ProjectsScreen({super.key});
@@ -170,10 +173,15 @@ class ProjectsScreen extends StatelessWidget {
 }
 
 Future<void> _pickAndImport(BuildContext context) async {
-  final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
+  final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['json', 'docx', 'pdf']);
   if (files.isEmpty || !context.mounted) return;
   final bytes = await files.single.xFile.readAsBytes();
   if (!context.mounted) return;
+  final name = files.single.xFile.name;
+  if (!name.toLowerCase().endsWith('.json')) {
+    await importProtocolDocument(context, bytes, name);
+    return;
+  }
   final String text;
   try {
     text = utf8.decode(bytes);
@@ -333,3 +341,79 @@ class _StepsGuide extends StatelessWidget {
   }
 }
 
+
+
+/// Protocole Word ou PDF : texte extrait, sections et caractéristiques déduites, aperçu, puis création du projet et
+/// ouverture de sa feuille de route (10 étapes, imprimable).
+Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, String name) async {
+  final ProtocolDraft d;
+  try {
+    d = protocolFromText(documentText(bytes, name));
+  } on StatInputError catch (e) {
+    showError(context, e.message);
+    return null;
+  }
+  final q = d.toQuestion();
+  final title = TextEditingController(text: d.title);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(tr('Projet depuis « $name »', 'Project from "$name"')),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            TextField(controller: title, decoration: InputDecoration(labelText: tr('Titre du projet', 'Project title'))),
+            const SizedBox(height: 10),
+            Text(tr('Question retenue', 'Question retained'), style: Theme.of(ctx).textTheme.titleSmall),
+            Text(d.question),
+            const SizedBox(height: 8),
+            Text(tr('Ce que Statoméa a compris (à vérifier)', 'What Statoméa understood (to check)'), style: Theme.of(ctx).textTheme.titleSmall),
+            for (final (l, v) in [
+              (tr('Plan', 'Design'), designLabel(q.design)),
+              (tr('Objectif', 'Aim'), objectiveLabel(q.objective)),
+              (tr('Issue', 'Outcome'), '${q.outcome.isEmpty ? '—' : q.outcome} (${outcomeTypeLabel(q.outcomeType)})'),
+              ('Population', q.population.isEmpty ? '—' : q.population),
+              (tr('Exposition / comparateur', 'Exposure / comparator'), '${q.exposure.isEmpty ? '—' : q.exposure} / ${q.comparator.isEmpty ? '—' : q.comparator}'),
+              if (d.sampleSize != null) (tr('Effectif prévu', 'Planned sample size'), '${d.sampleSize}'),
+            ])
+              Text('• $l : $v'),
+            const SizedBox(height: 6),
+            Text(tr('Sections reconnues : ${d.sections.isEmpty ? 'aucune (question seule)' : d.sections.keys.map(_sectionLabel).join(', ')}.', 'Recognised sections: ${d.sections.isEmpty ? 'none (question only)' : d.sections.keys.map(_sectionLabel).join(', ')}.'),
+                style: Theme.of(ctx).textTheme.bodySmall),
+          ]),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Annuler', 'Cancel'))),
+        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Créer le projet', 'Create the project'))),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return null;
+  final state = context.read<AppState>();
+  final p = state.createProject(title.text.trim().isEmpty ? d.title : title.text.trim());
+  p.question = q;
+  final analysis = d.sections['analysis'];
+  p.analysisPlan = analysis == null
+      ? draftAnalysisPlan(q)
+      : '${tr('Plan d\'analyse du protocole', 'Protocol analysis plan')} : $analysis\n\n${tr('Proposition de Statoméa', 'Statoméa proposal')} :\n${draftAnalysisPlan(q)}';
+  final (_, filled) = applyInference(ResearchQuestion(text: d.question, population: d.sections['population'] ?? '', exposure: d.sections['intervention'] ?? '', comparator: d.sections['comparator'] ?? '', outcome: d.sections['outcome'] ?? ''), d.inference);
+  markInferred(p, filled);
+  p.inferred['analysisPlan'] = p.analysisPlan;
+  await state.save(p);
+  if (context.mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p)));
+  return p;
+}
+
+String _sectionLabel(String k) => switch (k) {
+      'objective' => tr('objectif', 'objective'),
+      'population' => 'population',
+      'intervention' => 'intervention',
+      'comparator' => tr('comparateur', 'comparator'),
+      'outcome' => tr('critère de jugement', 'outcome'),
+      'design' => tr('schéma', 'design'),
+      'analysis' => tr('analyse statistique', 'statistical analysis'),
+      'sampleSize' => tr('effectif', 'sample size'),
+      _ => k,
+    };
