@@ -114,7 +114,8 @@ void main() {
       double area(Element e) => (e.size?.width ?? 0) * (e.size?.height ?? 0);
       candidates.sort((a, b) => area(b).compareTo(area(a)));
       final main = find.byElementPredicate((e) => e == candidates.first);
-      await t.scrollUntilVisible(find.text(target).first, 250, scrollable: main);
+      // Sans « .first » : dans une liste, le repère hors écran ne compte pas encore comme visible.
+      await t.scrollUntilVisible(find.text(target), 250, scrollable: main);
       await t.pumpAndSettle();
       // Titre de la figure aligné près du haut de l'écran, la figure en dessous.
       await t.runAsync(() => Scrollable.ensureVisible(find.text(target).first.evaluate().first, alignment: 0.02));
