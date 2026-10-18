@@ -1139,3 +1139,24 @@ chronogramme agrégés à la rubrique précédente ; effectif lu « 889 » dans 
 titre, question, plan (transversal ; cohorte prospective), objectif, issue, population et effectif (110 ; 550) sont
 exacts. Les structures sont reproduites, reformulées et anonymisées, dans `test/protocol_test.dart` (« vrais
 protocoles ») ; les documents eux-mêmes ne sont pas versés au dépôt.
+
+## Relecture méthodologique et corrections — 1.57.0
+
+`test/review_test.dart` : sur les structures des deux protocoles réels (reformulées et anonymisées), la relecture
+relève les erreurs connues et seulement elles :
+- majoration pour les pertes calculée en multipliant (100 × 1,1 = 110) au lieu de diviser (100 / 0,9 = 112) ;
+- précision d'une proportion recalculée (1,96² × 0,07 × 0,93 / 0,05² = 100, conforme) mais trop large (± 5 points autour
+  de 7 % ; ± 2 points → 626) et base du calcul (prévalence) incohérente avec l'objectif (corrélation : r = 0,3 → 85,
+  r = 0,2 → 194 par la transformation de Fisher) ;
+- associations sans ajustement, Student apparié à Kruskal-Wallis, normalité par Kolmogorov-Smirnov, corrélation de
+  Pearson seule, données manquantes et multiplicité non prévues ;
+- modèle de prédiction : critère (i) de Riley refait (6 / ((0,9 − 1) ln(1 − 0,18/0,9)) = 268,9), critères ii et iii
+  (188 et 196, `rileySampleSize`, déjà validé contre pmsampsize), 82,5 événements et 13,8 par paramètre pour 550 sujets ;
+  deux critères principaux, test de Hosmer-Lemeshow, seuils choisis sur les données, effet centre absent ; aucun faux
+  constat sur ce que le protocole traite déjà (validation bootstrap, calibration, LASSO, imputation, seuil, éthique).
+Les corrections s'appliquent une fois (idempotence vérifiée), sont tracées, survivent à l'enregistrement et sont
+reprises dans le protocole prérédigé ; les points qui demandent une décision du chercheur restent ouverts. Nouveau
+projet : formulation causale reformulée en association (accord « Quelle est »), plan absent rédigé, cas-témoins
+(fréquence, risque relatif) et transversal (incidence) corrigés. `english_test.dart` : relecture et corrections en
+anglais. `app/statomea/test/review_screen_test.dart` : écran (correction seule, toutes, confirmation), rapport PDF relu,
+bandeau de la feuille de route mis à jour.

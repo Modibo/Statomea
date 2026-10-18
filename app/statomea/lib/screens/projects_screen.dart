@@ -306,11 +306,11 @@ class _StepsGuide extends StatelessWidget {
         initiallyExpanded: empty,
         leading: Icon(Icons.route_outlined, color: theme.colorScheme.primary),
         title: Text(tr('Comment faire : les 10 étapes d\'un projet', 'How it works: the 10 steps of a project'), style: theme.textTheme.titleMedium),
-        subtitle: Text(tr('Nouveau projet, protocole Word/PDF importé, feuille de route', 'New project, imported Word/PDF protocol, roadmap'), style: theme.textTheme.bodySmall),
+        subtitle: Text(tr('Nouveau projet, protocole Word/PDF importé, feuille de route, relecture et corrections', 'New project, imported Word/PDF protocol, roadmap, review and corrections'), style: theme.textTheme.bodySmall),
         childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final (icon, text) in [(Icons.add_circle_outline, guideNewProject), (Icons.file_open_outlined, guideImportedProject), (Icons.route_outlined, guideRoadmap)])
+          for (final (icon, text) in [(Icons.add_circle_outline, guideNewProject), (Icons.file_open_outlined, guideImportedProject), (Icons.route_outlined, guideRoadmap), (Icons.fact_check_outlined, guideReview)])
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -401,6 +401,7 @@ Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, S
   final (_, filled) = applyInference(d.baseQuestion(), d.inference);
   markInferred(p, filled);
   if (d.sampleSize != null) p.inferred['plannedSampleSize'] = '${d.sampleSize}';
+  p.protocol = Map.of(d.fullSections);
   p.inferred['analysisPlan'] = p.analysisPlan;
   await state.save(p);
   if (context.mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p)));
@@ -416,5 +417,6 @@ String _sectionLabel(String k) => switch (k) {
       'design' => tr('schéma', 'design'),
       'analysis' => tr('analyse statistique', 'statistical analysis'),
       'sampleSize' => tr('effectif', 'sample size'),
+      'ethics' => tr('éthique', 'ethics'),
       _ => k,
     };

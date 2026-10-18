@@ -16,6 +16,7 @@ import 'package:statomea/main.dart';
 import 'package:statomea/screens/home_screen.dart';
 import 'package:statomea/screens/lesson_screen.dart';
 import 'package:statomea/screens/project_screen.dart';
+import 'package:statomea/screens/review_screen.dart';
 import 'package:statomea/screens/roadmap_screen.dart';
 import 'package:statomea/services/storage.dart';
 import 'package:statomea/state/app_state.dart';
@@ -154,5 +155,6 @@ void main() {
         }, target: 'Courbe de puissance'));
     testWidgets('$tag — mesures répétées', (t) => shot(t, '$tag-13-mesures-repetees', size, ProjectScreen(project: demoLong, initialStep: PStep.interpretation), target: 'Trajectoires individuelles'));
     testWidgets('$tag — feuille de route', (t) => shot(t, '$tag-14-feuille-de-route', size, RoadmapScreen(demoAghbs)));
+    testWidgets('$tag — relecture', (t) => shot(t, '$tag-15-relecture', size, ReviewScreen(demoAghbs)));
   }
 }

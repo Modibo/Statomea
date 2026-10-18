@@ -387,10 +387,13 @@ List<String> autoCompleteProject(Project p) {
 class ProtocolDraft {
   final String title;
   final String question;
-  final Map<String, String> sections; // clé → texte (objective, population, intervention, comparator, outcome, design, analysis, sampleSize)
+  final Map<String, String> sections; // clé → texte (objective, population, intervention, comparator, outcome, design, analysis, sampleSize, ethics), abrégé à 1 200 caractères
+
+  /// Mêmes rubriques, texte intégral (relecture méthodologique).
+  final Map<String, String> fullSections;
   final QuestionInference inference;
   final int? sampleSize;
-  const ProtocolDraft({required this.title, required this.question, required this.sections, required this.inference, this.sampleSize});
+  const ProtocolDraft({required this.title, required this.question, required this.sections, required this.inference, this.sampleSize, this.fullSections = const {}});
 
   /// Question telle que lue dans le document (PICO : première phrase de chaque rubrique), avant déductions.
   ResearchQuestion baseQuestion() => ResearchQuestion(
@@ -423,12 +426,13 @@ const _sectionKeys = <String, String>{
   'outcome': r"^(criteres? de jugement( principal| primaire)?|critere principal|variable principale|(primary )?(outcome|endpoint)s?)\b",
   'design': r"^(schema|type (et (design|duree) )?(de l'|d')etude|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
   'analysis': r"^(analyses? statistiques?|plan d'analyse|methodes? statistiques?|(gestion|saisie|traitement)( et analyse)? des donnees( et analyse statistique)?|analyse des donnees|statistical (analysis|methods)|analysis plan|data analysis)\b",
+  'ethics': r"^(considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|comite d'ethique|ethics|ethical (considerations|aspects))\b",
   'sampleSize': r"^(nombre de sujets?( necessaires?)?|(calcul (de )?(la )?)?taille (de l'|d')echantillon|calcul (de l'|d')effectif|effectif|sample size)\b",
 };
 
 /// Intitulés qui ne sont pas des rubriques retenues : ils ferment la rubrique en cours (sinon la page de garde, le
 /// chronogramme ou les références s'y ajouteraient).
-final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|periode|duree|materiels? et methodes?|variables? etudiees?|parametres|examens|definitions?( operationnelles?)?|considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|chronogramme|calendrier|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|ethics|timeline|acknowledg)");
+final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|periode|duree|materiels? et methodes?|variables? etudiees?|parametres|examens|definitions?( operationnelles?)?|chronogramme|calendrier|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|timeline|acknowledg)");
 
 final _refHeading = RegExp(r"^(references?|bibliographie|bibliography)( bibliographiques)?\s*:?$");
 
@@ -552,7 +556,7 @@ ProtocolDraft protocolFromText(String raw) {
   final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>()].join('\n');
   final inf = inferQuestion(basis);
   final ss = full['sampleSize'] == null ? null : _plannedSampleSize(full['sampleSize']!);
-  return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss);
+  return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss, fullSections: {for (final e in full.entries) if (e.value.isNotEmpty) e.key: e.value});
 }
 
 /// Plan d'analyse rédigé à partir de la méthode recommandée par l'assistant (à relire et compléter).

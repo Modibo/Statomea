@@ -550,4 +550,20 @@ void main() {
     expect(msgs.length, 6);
     expectEnglish('errors', msgs.join('\n'));
   });
+
+  test('methodological review', () {
+    const text = 'What is the effect of smoking on the risk of myocardial infarction in adults followed for 10 years?';
+    final p = Project(id: 'e', title: 'Smoking', createdAt: '');
+    p.question = applyInference(const ResearchQuestion(text: text), inferQuestion(text)).$1.copyWith(design: StudyDesign.cohort);
+    p.analysisPlan = 'Groups compared with the chi-square test; Student or Kruskal-Wallis for continuous variables; normality by Kolmogorov-Smirnov.';
+    final r = reviewProject(p);
+    final b = StringBuffer();
+    for (final f in r.findings) {
+      b.writeln('${reviewLevelLabel(f.level)} ${f.title} ${f.problem} ${f.correction} ${f.fix?.detail ?? ''}');
+    }
+    expect(r.findings.map((f) => f.id), containsAll(['causal_wording', 'no_adjustment', 'test_pairing', 'ks_normality', 'missing_data', 'alpha', 'sample_size_missing']));
+    applyAllCorrections(p);
+    expect(p.question.text, startsWith('What is the association between smoking and the risk'));
+    expectEnglish('review', '$b\n${p.analysisPlan}');
+  });
 }

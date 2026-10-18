@@ -61,6 +61,11 @@ String get guideImportedProject => tr(
     'Projet importé : « Importer un projet », puis choisir un protocole Word (.docx) ou PDF, ou un fichier de projet Statoméa (.json). Pour un protocole, Statoméa en lit le titre, la question, la population, le schéma, le critère de jugement, l\'effectif prévu et le plan d\'analyse, montre ce qu\'il a compris, puis crée le projet et ouvre la feuille de route des 10 étapes dans l\'ordre. Un fichier .json (exporté à l\'étape 10) restaure tout — question, plans, données, journal, texte — après un contrôle d\'intégrité.',
     'Imported project: "Import a project", then choose a Word (.docx) or PDF protocol, or a Statoméa project file (.json). For a protocol, Statoméa reads the title, question, population, design, outcome, planned sample size and analysis plan, shows what it understood, then creates the project and opens the roadmap of the 10 steps in order. A .json file (exported at step 10) restores everything — question, plans, data, log, text — after an integrity check.');
 
+/// Relecture méthodologique et corrections.
+String get guideReview => tr(
+    'Relecture et corrections : bouton « Relire et corriger » (feuille de route, étape 1 ou icône de vérification dans un projet). Statoméa relit la question, le plan, le nombre de sujets (recalculé quand les hypothèses sont données) et le plan d\'analyse — pour un protocole importé, sur son propre texte — et classe les points en erreurs, à revoir et manquants, en citant le passage en cause. « Appliquer la correction » (ou toutes d\'un coup) corrige le projet ; chaque correction est tracée et reprise dans le protocole prérédigé. Rapport de relecture imprimable en PDF.',
+    'Review and corrections: "Review and correct" button (roadmap, step 1 or the check icon in a project). Statoméa reviews the question, design, sample size (recomputed when the assumptions are given) and analysis plan — for an imported protocol, on its own text — and classifies points as errors, to review and missing, quoting the passage concerned. "Apply the correction" (or all at once) fixes the project; each correction is logged and included in the pre-drafted protocol. Review report printable as PDF.');
+
 /// Feuille de route et protocole prérédigé.
 String get guideRoadmap => tr(
     'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime. « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
@@ -77,6 +82,18 @@ String fingerprint(String s) {
 }
 
 /// Entrée du journal de calcul : tout ce qu'il faut pour refaire l'analyse.
+/// Correction issue de la relecture méthodologique, appliquée au projet.
+class AppliedCorrection {
+  final String id; // identifiant du contrôle
+  final String title;
+  final String date; // AAAA-MM-JJ
+  final String detail; // ce qui a été modifié
+  const AppliedCorrection({required this.id, required this.title, required this.date, this.detail = ''});
+  Map<String, Object?> toJson() => {'id': id, 'title': title, 'date': date, if (detail.isNotEmpty) 'detail': detail};
+  factory AppliedCorrection.fromJson(Map<String, Object?> j) =>
+      AppliedCorrection(id: j['id'] as String, title: (j['title'] as String?) ?? '', date: (j['date'] as String?) ?? '', detail: (j['detail'] as String?) ?? '');
+}
+
 class JournalEntry {
   final String id;
   final String timestamp;
@@ -221,6 +238,12 @@ class Project {
   /// recalculées si le texte change, tant que le chercheur ne les a pas modifiées.
   Map<String, String> inferred;
 
+  /// Rubriques du protocole importé (texte intégral, clé → texte) : base de la relecture méthodologique.
+  Map<String, String> protocol;
+
+  /// Corrections appliquées depuis la relecture méthodologique (traçabilité).
+  final List<AppliedCorrection> corrections;
+
   Project({
     required this.id,
     required this.title,
@@ -238,7 +261,11 @@ class Project {
     Map<String, String>? checklistAnswers,
     this.roles = const VariableRoles(),
     Map<String, String>? inferred,
+    Map<String, String>? protocol,
+    List<AppliedCorrection>? corrections,
   })  : inferred = inferred ?? {},
+        protocol = protocol ?? {},
+        corrections = corrections ?? [],
         checklistAnswers = checklistAnswers ?? {},
         studies = studies ?? [],
         journal = journal ?? [],
@@ -264,6 +291,8 @@ class Project {
         'checklistAnswers': checklistAnswers,
         if (!roles.isEmpty) 'roles': roles.toJson(),
         if (inferred.isNotEmpty) 'inferred': inferred,
+        if (protocol.isNotEmpty) 'protocol': protocol,
+        if (corrections.isNotEmpty) 'corrections': [for (final c in corrections) c.toJson()],
       };
 
   factory Project.fromJson(Map<String, Object?> j) => Project(
@@ -283,6 +312,8 @@ class Project {
         checklistAnswers: ((j['checklistAnswers'] as Map?) ?? {}).cast<String, String>(),
         roles: j['roles'] == null ? const VariableRoles() : VariableRoles.fromJson((j['roles'] as Map).cast()),
         inferred: ((j['inferred'] as Map?) ?? {}).cast<String, String>(),
+        protocol: ((j['protocol'] as Map?) ?? {}).cast<String, String>(),
+        corrections: [for (final c in (j['corrections'] as List? ?? [])) AppliedCorrection.fromJson((c as Map).cast())],
       );
 
   /// JSON exporté, avec une empreinte d'intégrité (voir `projectChecksum`).

@@ -6,6 +6,7 @@ import 'package:statomea_core/statomea_core.dart' as core show Step;
 import '../state/app_state.dart';
 import '../widgets/common.dart';
 import 'projects_screen.dart';
+import 'review_screen.dart';
 import 'roadmap_screen.dart';
 import 'steps/audit_step.dart';
 import 'steps/compute_step.dart';
@@ -100,6 +101,14 @@ class _ProjectScreenState extends State<ProjectScreen> {
       final appBar = AppBar(
         title: Text(p.title, overflow: TextOverflow.ellipsis),
         actions: [
+          IconButton(
+            tooltip: tr('Relecture méthodologique et corrections', 'Methodological review and corrections'),
+            icon: const Icon(Icons.fact_check_outlined),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewScreen(p)));
+              if (mounted) setState(() {});
+            },
+          ),
           IconButton(
             tooltip: tr('Feuille de route (10 étapes, PDF)', 'Roadmap (10 steps, PDF)'),
             icon: const Icon(Icons.route_outlined),

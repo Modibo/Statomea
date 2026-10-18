@@ -6,6 +6,7 @@ import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../state/app_state.dart';
 import '../../widgets/common.dart';
+import '../review_screen.dart';
 import '../roadmap_screen.dart';
 
 /// Étape 1 : question biomédicale (PICO + objectif).
@@ -337,14 +338,18 @@ class _Deductions extends StatelessWidget {
           if (a.questions.isNotEmpty)
             Text(tr('Encore à préciser (étape 2) : ${a.questions.length} point(s).', 'Still to specify (step 2): ${a.questions.length} point(s).'), style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
+          Wrap(spacing: 10, runSpacing: 6, children: [
+            OutlinedButton.icon(
               icon: const Icon(Icons.route_outlined),
               label: Text(tr('Voir les 10 étapes (feuille de route, PDF)', 'See the 10 steps (roadmap, PDF)')),
               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p))),
             ),
-          ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.fact_check_outlined),
+              label: Text(tr('Relire et corriger le projet', 'Review and correct the project')),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewScreen(p))),
+            ),
+          ]),
         ]),
       ),
     );

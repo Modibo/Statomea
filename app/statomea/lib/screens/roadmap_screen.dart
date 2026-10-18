@@ -9,12 +9,19 @@ import '../state/app_state.dart';
 import '../widgets/calculators.dart';
 import '../widgets/common.dart';
 import 'project_screen.dart';
+import 'review_screen.dart';
 
 /// Feuille de route : les 10 étapes du projet dans l'ordre, avec ce que l'application propose à chacune ; impression
 /// en PDF ; chaque étape s'ouvre d'un appui.
-class RoadmapScreen extends StatelessWidget {
+class RoadmapScreen extends StatefulWidget {
   final Project project;
   const RoadmapScreen(this.project, {super.key});
+  @override
+  State<RoadmapScreen> createState() => _RoadmapScreenState();
+}
+
+class _RoadmapScreenState extends State<RoadmapScreen> {
+  Project get project => widget.project;
 
   Future<void> _print(BuildContext context) async {
     final bytes = await buildRoadmapPdf(project, generatedAt: AppState.now());
@@ -42,6 +49,7 @@ class RoadmapScreen extends StatelessWidget {
                 'The 10 steps in order. "Proposed" items are inferred from the question or protocol text: check and complete them in each step.'),
             style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 8),
+        ReviewBanner(project, onReturn: () => setState(() {})),
         Wrap(spacing: 12, runSpacing: 8, children: [
           FilledButton.icon(icon: const Icon(Icons.print_outlined), label: Text(tr('Imprimer / PDF', 'Print / PDF')), onPressed: () => _print(context)),
           OutlinedButton.icon(

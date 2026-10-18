@@ -317,3 +317,76 @@ Future<Uint8List> buildProtocolPdf(Project p) async {
   ));
   return doc.save();
 }
+
+/// Rapport de relecture méthodologique : points à corriger (avec le passage en cause et la correction), vérifications
+/// réussies et corrections déjà appliquées.
+Future<Uint8List> buildReviewPdf(Project p, {required String generatedAt}) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  final r = reviewProject(p);
+  PdfColor color(ReviewLevel l) => switch (l) {
+        ReviewLevel.error => PdfColor.fromHex('#b3261e'),
+        ReviewLevel.warning => PdfColor.fromHex('#7a5c00'),
+        ReviewLevel.missing => PdfColors.blueGrey600,
+        ReviewLevel.ok => PdfColor.fromHex('#2e7d32'),
+      };
+  pw.Widget card(ReviewFinding f) => pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 8),
+        padding: const pw.EdgeInsets.all(8),
+        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400), borderRadius: pw.BorderRadius.circular(4)),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: pw.BoxDecoration(color: color(f.level), borderRadius: pw.BorderRadius.circular(2)),
+                child: pw.Text(reviewLevelLabel(f.level).toUpperCase(), style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.white))),
+            pw.SizedBox(width: 6),
+            pw.Expanded(child: pw.Text(f.title, style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold))),
+            pw.Text(stepLabel(f.step), style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey600)),
+          ]),
+          pw.SizedBox(height: 3),
+          pw.Text(f.problem, style: const pw.TextStyle(fontSize: 9)),
+          if (f.evidence != null)
+            pw.Container(
+                margin: const pw.EdgeInsets.only(top: 3),
+                padding: const pw.EdgeInsets.only(left: 6),
+                decoration: const pw.BoxDecoration(border: pw.Border(left: pw.BorderSide(color: PdfColors.grey500, width: 2))),
+                child: pw.Text('« ${f.evidence} »', style: pw.TextStyle(fontSize: 8.5, fontStyle: pw.FontStyle.italic, color: PdfColors.grey800))),
+          if (f.correction.isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            pw.Text('${tr('Correction', 'Correction')} : ${f.correction}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          ],
+        ]),
+      );
+  doc.addPage(pw.MultiPage(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(36),
+    footer: (c) => pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text('Statoméa — ${c.pageNumber}/${c.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600))),
+    build: (_) => [
+      pw.Text(tr('Relecture méthodologique', 'Methodological review'), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.Header(level: 0, child: pw.Text(p.title, style: pw.TextStyle(fontSize: 17, fontWeight: pw.FontWeight.bold))),
+      pw.Text(
+          tr('Établie par Statoméa ($engineName $engineVersion) le $generatedAt, par des règles explicites : ${r.count(ReviewLevel.error)} erreur(s), ${r.count(ReviewLevel.warning)} point(s) à revoir, ${r.count(ReviewLevel.missing)} élément(s) manquant(s), ${r.count(ReviewLevel.ok)} vérification(s) réussie(s). Elle ne remplace pas la relecture d\'un méthodologiste.',
+              'Prepared by Statoméa ($engineName $engineVersion) on $generatedAt, by explicit rules: ${r.count(ReviewLevel.error)} error(s), ${r.count(ReviewLevel.warning)} point(s) to review, ${r.count(ReviewLevel.missing)} missing item(s), ${r.count(ReviewLevel.ok)} successful check(s). It does not replace review by a methodologist.'),
+          style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700)),
+      pw.SizedBox(height: 10),
+      if (r.problems.isEmpty) pw.Text(tr('Aucun problème relevé.', 'No problem found.'), style: const pw.TextStyle(fontSize: 10)),
+      for (final f in r.problems) card(f),
+      if (r.checked.isNotEmpty) ...[
+        pw.Header(level: 1, child: pw.Text(tr('Vérifications réussies', 'Successful checks'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+        for (final f in r.checked) card(f),
+      ],
+      if (p.corrections.isNotEmpty) ...[
+        pw.Header(level: 1, child: pw.Text(tr('Corrections appliquées', 'Corrections applied'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+        for (final c in p.corrections) pw.Bullet(text: '${c.date} — ${c.title} : ${c.detail}', style: const pw.TextStyle(fontSize: 9)),
+      ],
+    ],
+  ));
+  return doc.save();
+}
