@@ -1034,3 +1034,28 @@ WeightIt. Les ex aequo exacts de score (sujets aux covariables identiques) sont 
 les témoins triés par score : le plus proche dans cet ordre. Calculateur « Score de propension » (rubrique Causalité) :
 tableau et graphique d'équilibre (love plot), recouvrement des scores, alertes (équilibre insuffisant, poids extrêmes,
 traités non appariés).
+
+## Laboratoire : intervalles de référence et fidélité — 1.52.0
+
+Script `validation/r/54_laboratoire.R` : `referenceIntervals` 1.3.0 (ses fonctions sont chargées par `lazyLoad`, car le
+paquet exige tcltk et X11 au chargement), `MASS` (boxcox), `VCA` 1.4.5 (`anovaVCA`, `VCAinference`). Données : `set50`,
+`set120`, `set200` (referenceIntervals) ; `dataEP05A2_1` (VCA : 20 jours × 2 séries × 2) ; plan EP15 simulé (5 × 5) ;
+plan à variance entre jours négative (mêmes valeurs chaque jour) ; créatinine simulée par sexe. Test
+`test/laboratory_test.dart`.
+
+| Élément | Référence | Tolérance |
+|---|---|---|
+| Paramétrique : bornes et IC à 90 % | `singleRefLimit(RI = "p")` | 1e-12 |
+| Robuste (Horn et Pesce, bipoids) | `robust` | 1e-9 |
+| Non paramétrique : quantiles de type 6, rangs et IC à 90 % (n ≥ 120) | `nonparRI`, table `nonparRanks` (n = 119 à 1 000) | 1e-12, exact |
+| Valeurs aberrantes de Horn : λ de Box-Cox (grille de MASS) et valeurs repérées | `horn.outliers`, `boxcox` | 1e-9, 1e-12 |
+| Partition de Harris et Boyd : z, z*, rapport des ÉT | formules recalculées | 1e-12 |
+| Fidélité EP05 et EP15 : ddl (Satterthwaite pour le total), composantes, ÉT, CV, IC des ÉT | `anovaVCA`, `VCAinference` | 1e-10, 1e-8 |
+| Vérification EP15 (2 niveaux) : limites de vérification | formule CLSI recalculée | 1e-10 |
+
+Les rangs des IC non paramétriques suivent une règle binomiale qui reproduit toute la table de la CLSI : rang inférieur
+= max{k : P(X ≤ k) ≤ 0,05} + 1, supérieur = min{k : P(X ≤ k) ≥ 0,95} + 1, X ~ Bin(n ; 0,025). Une composante de
+variance négative est bornée à 0, puis les carrés moyens attendus sont reconstruits à partir des composantes bornées
+pour le ddl de Satterthwaite du total, comme VCA (sur le plan à variance entre jours négative : ddl 23,81 et non 20).
+Pour la méthode robuste, referenceIntervals calcule l'IC des bornes par bootstrap (5 000 tirages) : non fourni ici.
+Calculateurs « Intervalle de référence (EP28) » et « Fidélité » (rubrique Laboratoire) ; histogramme avec les bornes.

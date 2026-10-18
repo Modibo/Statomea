@@ -108,6 +108,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Assistant de choix de méthode | ✅ | scénarios | validé |
 | Descriptif, proportions, 2 × 2, Fisher, diagnostic, comparaisons, apparié, corrélation, Bland-Altman, tailles d'échantillon, survie (Kaplan-Meier, log-rank) | ✅ | R, survival | validé |
 | Comparaison de méthodes de laboratoire : Passing-Bablok (IC analytique) et Deming (IC jackknife), biais aux niveaux de décision | ✅ | mcr | validé |
+| Laboratoire : intervalles de référence (CLSI EP28 : non paramétrique avec IC, paramétrique, robuste ; valeurs aberrantes de Horn ; partition de Harris et Boyd) et fidélité (EP05, EP15 : composantes de la variance, IC, vérification d'une fidélité annoncée) | ✅ | referenceIntervals, MASS, VCA | validé |
 | Régressions linéaire, logistique, Poisson robuste, Firth (IC profilés pénalisés), Cox | ✅ | lm, glm, sandwich, car, logistf, survival | validé |
 | Splines cubiques restreintes : test de non-linéarité, courbe dose-effet relative à la médiane | ✅ | rms, Hmisc | validé |
 | Score de propension : appariement 1:1 (caliper), IPTW ATE et ATT, équilibre (différences standardisées, love plot), effet avec ES robuste | ✅ | MatchIt, WeightIt, cobalt, sandwich | validé |
@@ -124,8 +125,8 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 | Formation (24 leçons), grilles TRIPOD+AI / PROBAST+AI / PRISMA | ✅ | — | contenu à relire par des enseignants |
 | Audit contradictoire | ✅ | corpus annoté | heuristique pour la partie lexicale |
 | Exports PDF, HTML, CSV, JSON | ✅ | tests app | validé |
-| Android | ✅ APK 1.16.0 construit, installé (mise à jour depuis 1.10.0, projets conservés) et utilisé sur émulateur (API 37) | démos 1, 3 et 4, atelier génomique (alignement et expression appariée calculés en isolat) | signé avec la clé de débogage ; essai sur appareil réel à faire |
-| iOS | code prêt | — | non construit : Xcode incomplet sur ce poste |
+| Android | ✅ APK par architecture, mise à jour intégrée à l'application, essayé sur émulateur (API 37) | démos 1, 3 et 4, atelier génomique | signé avec la clé de publication (`~/.statomea`, mot de passe dans le trousseau macOS ; même certificat que les versions précédentes, vérifié à chaque publication) ; essai sur appareil réel à faire |
+| iOS | ✅ construit (Xcode 27, Swift Package Manager) et installé sur iPhone 15 Pro Max (iOS 26.6) | simulateur iPhone 16e, appareil réel | compte Apple gratuit : installation depuis Xcode, valable 7 jours ; TestFlight/App Store avec le programme développeur |
 | Version anglaise | ✅ complète | test « aucun fragment français » | relecture par un anglophone à prévoir |
 
 ## Données des démonstrations
@@ -138,6 +139,7 @@ cd app/statomea && flutter test test/maquettes_test.dart --tags maquettes --run-
 - Mesures répétées : étude de privation de sommeil (18 sujets, 10 jours, jeu `sleepstudy` de lme4, `demos/sommeil_belenky.csv`) et essai simulé de suivi de l'HbA1c avec sorties d'étude (`demos/hba1c_longitudinal_simule.csv`).
 - Démo 8 (survie avancée) : rechute avec décès concurrent et greffe de Stanford, de la question au rapport, avec un brouillon à auditer.
 - Démo 9 (laboratoire) : créatinine sur sérum et sur plasma chez 108 patients, jeu `creatinine` du paquet R mcr (`demos/creatinine_serum_plasma.csv`).
+- Intervalles de référence et fidélité : créatinine **simulée** par sexe (`demos/creatinine_reference_simule.csv`) et plan EP15 simulé (`demos/fidelite_ep15_simule.csv`) ; plan EP05 d'exemple du paquet R VCA.
 - Score de propension : étude observationnelle **simulée** des statines (`demos/statines_observationnel_simule.csv`, `validation/r/53_propension.R`).
 - Biais du temps immortel : programme de greffe cardiaque de Stanford (103 patients, jeu `jasa` du paquet R survival, `demos/greffe_stanford.csv`).
 - Risques concurrents : 400 patients simulés, rechute après traitement d'un cancer avec le décès comme événement concurrent (`demos/risques_concurrents_simule.csv`).

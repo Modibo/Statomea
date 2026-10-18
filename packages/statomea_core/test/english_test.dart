@@ -297,6 +297,13 @@ void main() {
     final spEn = logisticRegression(buildDesign(splDs, const ModelFormula('hta', [TermSpec('age', transform: TermTransform.rcs4), TermSpec('sexe', categorical: true, reference: 'F')], eventLevel: '1'), binaryOutcome: true));
     expectResult('spline logistic', spEn, const {'hta', 'age', 'sexe', 'F', 'H'});
     expectEnglish('dose-response svg', doseResponseSvg((spEn.figures['doseResponse'] as List).first as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'age'});
+    final riDs = parseCsv(File('test/reference/creatinine_reference_simule.csv').readAsStringSync()).dataset;
+    final riEn = referenceInterval(riDs.numeric('creatinine'), groups: riDs.text('sexe'), groupName: 'sex', variable: 'creatinine', unit: 'µmol/L');
+    expectResult('reference interval', riEn, const {'creatinine', 'sex', 'H', 'F', 'µmol/L'});
+    expectResult('reference interval robust', referenceInterval(riDs.numeric('creatinine'), method: ReferenceMethod.robust, removeOutliers: true), const {});
+    expectEnglish('reference svg', referenceIntervalSvg(riEn.figures['referenceInterval'] as Map).replaceAll(RegExp(r'<[^>]+>'), ' '), const {'creatinine', 'µmol/L'});
+    final epDs = parseCsv(File('test/reference/ep05_vca.csv').readAsStringSync()).dataset;
+    expectResult('precision ep05', precisionAnalysis(epDs.numeric('y'), epDs.text('day'), runRaw: epDs.text('run'), claimRepeatability: 1.5, claimWithinLab: 2), const {});
     final dsEn = Dataset(['v', 'g'], [['1', '1'], ['999', '2'], ['3', '1']]);
     final dicoEn = applyDataDictionary(dsEn, Dataset(['variable', 'type', 'missing', 'levels'], [['v', 'quantitative', '999', null], ['g', 'categorical', null, '1=control;2=treated'], ['zz', 'bogus', null, null]]));
     expectEnglish('dictionary', dicoEn.summary().join(' '), const {'zz', 'v', 'g', 'bogus', '999'});

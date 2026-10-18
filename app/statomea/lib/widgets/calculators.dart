@@ -25,6 +25,8 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('correlation', tr('Corrélation', 'Correlation'), Icons.scatter_plot_outlined, tr('Corrélation', 'Correlation')),
   ('bland_altman', tr('Accord (Bland-Altman)', 'Agreement (Bland-Altman)'), Icons.align_horizontal_center, tr('Accord', 'Agreement')),
   ('method_comparison', tr('Comparaison de méthodes (Passing-Bablok, Deming)', 'Method comparison (Passing-Bablok, Deming)'), Icons.stacked_line_chart, tr('Accord', 'Agreement')),
+  ('reference_interval', tr('Intervalle de référence (EP28)', 'Reference interval (EP28)'), Icons.straighten, tr('Laboratoire', 'Laboratory')),
+  ('precision', tr('Fidélité : répétabilité, intralaboratoire (EP05, EP15)', 'Precision: repeatability, within-lab (EP05, EP15)'), Icons.center_focus_strong_outlined, tr('Laboratoire', 'Laboratory')),
   ('kaplan_meier', tr('Survie (Kaplan-Meier, log-rank)', 'Survival (Kaplan-Meier, log-rank)'), Icons.timeline, tr('Survie', 'Survival')),
   ('cumulative_incidence', tr('Risques concurrents (incidence cumulée)', 'Competing risks (cumulative incidence)'), Icons.call_split, tr('Survie', 'Survival')),
   ('rmst', tr('Temps moyen de survie restreint (RMST)', 'Restricted mean survival time (RMST)'), Icons.area_chart, tr('Survie', 'Survival')),
@@ -56,6 +58,72 @@ String calculatorFor(String methodId) => switch (methodId) {
       _ => calculatorKinds.any((k) => k.$1 == methodId) ? methodId : 'proportion_ci',
     };
 
+/// Mots-clés de recherche propres à chaque calculateur (en plus de son libellé, de sa famille et des méthodes du
+/// registre qu'il calcule) : termes du laboratoire et de la clinique, synonymes, noms de tests.
+Map<String, String> get _calculatorKeywords => {
+      'proportion_ci': tr('prévalence fréquence pourcentage intervalle de confiance wilson exact taux', 'prevalence frequency percentage confidence interval wilson exact rate'),
+      'describe': tr('moyenne médiane écart-type quartiles distribution résumé', 'mean median standard deviation quartiles distribution summary'),
+      'two_by_two': tr('risque relatif odds ratio rapport de cotes chi deux fisher exposition cohorte cas-témoins', 'relative risk odds ratio chi square fisher exposure cohort case-control'),
+      'chi_square_rxc': tr('chi deux contingence qualitatives association cramer', 'chi square contingency categorical association cramer'),
+      'diagnostic_accuracy': tr('sensibilité spécificité valeur prédictive vpp vpn rapport de vraisemblance test diagnostique', 'sensitivity specificity predictive value ppv npv likelihood ratio diagnostic test'),
+      'compare_two': tr('test t student welch mann whitney moyennes deux groupes comparer', 'student t test welch mann whitney means two groups compare'),
+      'compare_k': tr('anova kruskal wallis plusieurs groupes tukey', 'anova kruskal wallis several groups tukey'),
+      'paired': tr('apparié avant après wilcoxon test t apparié', 'paired before after wilcoxon paired t test'),
+      'mcnemar': tr('apparié binaire avant après', 'paired binary before after'),
+      'correlation': tr('pearson spearman relation lien coefficient', 'pearson spearman relationship coefficient'),
+      'bland_altman': tr('accord concordance limites d\'accord biais deux méthodes dosage laboratoire', 'agreement concordance limits of agreement bias two methods assay laboratory'),
+      'reference_interval': tr('valeurs de référence normes normales bornes population saine clsi ep28 percentiles', 'reference values normal range limits healthy population clsi ep28 percentiles'),
+      'precision': tr('répétabilité reproductibilité fidélité intermédiaire cv coefficient de variation contrôle qualité clsi ep05 ep15 vérification', 'repeatability reproducibility intermediate precision cv coefficient of variation quality control clsi ep05 ep15 verification'),
+      'method_comparison': tr('passing bablok deming dosage analyseur automate laboratoire biais pente créatinine glycémie', 'passing bablok deming assay analyser laboratory bias slope creatinine glucose'),
+      'kaplan_meier': tr('survie délai décès log-rank courbe médiane de survie', 'survival time death log-rank curve median survival'),
+      'cumulative_incidence': tr('risques concurrents gray fine-gray rechute décès', 'competing risks gray fine-gray relapse death'),
+      'rmst': tr('survie moyenne restreinte risques non proportionnels', 'restricted mean survival non-proportional hazards'),
+      'landmark': tr('temps immortel greffe exposition pendant le suivi', 'immortal time transplant exposure during follow-up'),
+      'propensity': tr('confusion causalité appariement pondération iptw observationnel traitement effet', 'confounding causality matching weighting iptw observational treatment effect'),
+      'calibration': tr('hosmer lemeshow calibration risque prédit score validation brier', 'hosmer lemeshow calibration predicted risk score validation brier'),
+      'sample_size': tr('nombre de sujets effectif nécessaire précision', 'number of subjects required sample precision'),
+      'power': tr('puissance effectif survie cas-témoins gwas', 'power sample size survival case-control gwas'),
+      'regression': tr('régression linéaire logistique poisson cox ajustement multivariée spline mixte gee ordinale', 'linear logistic poisson cox regression adjustment multivariable spline mixed gee ordinal'),
+      'meta': tr('métaanalyse forest plot hétérogénéité revue systématique', 'meta-analysis forest plot heterogeneity systematic review'),
+      'prediction': tr('modèle de prédiction score de risque auc validation bootstrap', 'prediction model risk score auc validation bootstrap'),
+      'genomics': tr('génétique génotype snp gwas expression rna-seq qpcr alignement blast', 'genetics genotype snp gwas expression rna-seq qpcr alignment blast'),
+    };
+
+/// Calculateur qui réalise une méthode du registre (null si aucun).
+String? _calculatorOfMethod(MethodInfo m) {
+  final c = calculatorFor(m.id);
+  if (c != 'proportion_ci' || m.id == 'proportion_ci') return c;
+  return switch (m.category) {
+    'Régression' || 'Regression' => 'regression',
+    'Génétique' || 'Genetics' => 'genomics',
+    'Métaanalyse' || 'Meta-analysis' => 'meta',
+    'Prédiction' || 'Prediction' => 'prediction',
+    _ => null,
+  };
+}
+
+/// Calculateurs correspondant à [query] : tous les mots (sans accents ni casse) doivent figurer dans le libellé, la
+/// famille, les mots-clés ou les méthodes du registre que le calculateur réalise. Rangés par pertinence (libellé d'abord).
+List<String> searchCalculators(String query) {
+  String norm(String t) => foldAccents(t.toLowerCase());
+  final words = norm(query).split(RegExp(r'[^a-z0-9²]+')).where((w) => w.length > 1).toList();
+  if (words.isEmpty) return const [];
+  final methods = <String, List<MethodInfo>>{};
+  for (final m in methodRegistry) {
+    final c = _calculatorOfMethod(m);
+    if (c != null) methods.putIfAbsent(c, () => []).add(m);
+  }
+  final scored = <(String, int)>[];
+  for (final (id, label, _, family) in calculatorKinds) {
+    final head = norm('$label $family');
+    final hay = norm([head, _calculatorKeywords[id] ?? '', for (final m in methods[id] ?? const <MethodInfo>[]) '${m.name} ${m.question} ${m.category}'].join(' '));
+    if (!words.every(hay.contains)) continue;
+    scored.add((id, words.where(head.contains).length));
+  }
+  scored.sort((a, b) => b.$2.compareTo(a.$2));
+  return [for (final s in scored) s.$1];
+}
+
 /// Panneau de calcul : sélection du calculateur, saisie, résultat. Dans un
 /// projet, chaque résultat est ajouté au journal.
 class CalculatorPanel extends StatefulWidget {
@@ -68,7 +136,21 @@ class CalculatorPanel extends StatefulWidget {
 
 class _CalculatorPanelState extends State<CalculatorPanel> {
   late String kind = calculatorFor(widget.initialMethod ?? 'proportion_ci');
+  late String family = calculatorKinds.firstWhere((k) => k.$1 == kind).$4;
+  final search = TextEditingController();
   AnalysisResult? result;
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  void choose(String id) => setState(() {
+        kind = id;
+        family = calculatorKinds.firstWhere((k) => k.$1 == id).$4;
+        result = null;
+      });
 
   void onResult(AnalysisResult r, {Map<String, Object?> options = const {}}) {
     setState(() => result = r);
@@ -95,6 +177,8 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'bland_altman' => BlandAltmanCalc(ds, onResult),
       'method_comparison' => MethodComparisonCalc(ds, onResult, initial: widget.initialMethod),
       'calibration' => CalibrationCalc(ds, onResult),
+      'reference_interval' => ReferenceIntervalCalc(ds, onResult),
+      'precision' => PrecisionCalc(ds, onResult),
       'propensity' => PropensityCalc(ds, onResult, initial: widget.initialMethod),
       'sample_size' => SampleSizeCalc(onResult),
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
@@ -110,18 +194,47 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
     final info = result == null ? null : methodInfo(result!.methodId);
     final lesson = info == null ? null : lessonById(lessons, info.lessonId);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Wrap(spacing: 6, runSpacing: 6, children: [
-        for (final (id, label, icon, _) in calculatorKinds)
-          ChoiceChip(
-            avatar: Icon(icon, size: 16),
-            label: Text(label),
-            selected: kind == id,
-            onSelected: (_) => setState(() {
-              kind = id;
-              result = null;
-            }),
-          ),
-      ]),
+      TextField(
+        controller: search,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search),
+          labelText: tr('Rechercher une méthode', 'Search for a method'),
+          hintText: tr('p. ex. survie, créatinine, comparer deux moyennes', 'e.g. survival, creatinine, compare two means'),
+          suffixIcon: search.text.isEmpty
+              ? null
+              : IconButton(tooltip: tr('Effacer', 'Clear'), icon: const Icon(Icons.clear), onPressed: () => setState(search.clear)),
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
+      const SizedBox(height: 10),
+      if (search.text.trim().isNotEmpty) ...[
+        Builder(builder: (context) {
+          final hits = searchCalculators(search.text);
+          if (hits.isEmpty) {
+            return Text(tr('Aucune méthode ne correspond. Essayer un autre mot, ou parcourir les familles (effacer la recherche).', 'No method matches. Try another word, or browse the families (clear the search).'),
+                style: Theme.of(context).textTheme.bodySmall);
+          }
+          return Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final id in hits)
+              () {
+                final k = calculatorKinds.firstWhere((k) => k.$1 == id);
+                return ChoiceChip(avatar: Icon(k.$3, size: 16), label: Text(k.$2), tooltip: k.$4, selected: kind == id, onSelected: (_) => choose(id));
+              }(),
+          ]);
+        }),
+      ] else ...[
+        Text(tr('Familles', 'Families'), style: Theme.of(context).textTheme.labelLarge),
+        const SizedBox(height: 4),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final f in {for (final k in calculatorKinds) k.$4})
+            ChoiceChip(label: Text(f), selected: family == f, onSelected: (_) => setState(() => family = f)),
+        ]),
+        const SizedBox(height: 10),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final (id, label, icon, f) in calculatorKinds)
+            if (f == family) ChoiceChip(avatar: Icon(icon, size: 16), label: Text(label), selected: kind == id, onSelected: (_) => choose(id)),
+        ]),
+      ],
       const SizedBox(height: 12),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: KeyedSubtree(key: ValueKey(kind), child: form))),
       if (result != null)
@@ -1357,6 +1470,114 @@ class _PropensityCalcState extends State<PropensityCalc> {
                 outcomeEvent: binaryOutcome ? event : null,
                 method: method,
                 caliper: method == PropensityMethod.matching ? readNum(caliper) : null);
+          }, widget.onResult);
+        }),
+      ],
+    ]);
+  }
+}
+
+
+// ---------------------------------------------------------------- Laboratoire : intervalle de référence, fidélité
+
+class ReferenceIntervalCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const ReferenceIntervalCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<ReferenceIntervalCalc> createState() => _ReferenceIntervalCalcState();
+}
+
+class _ReferenceIntervalCalcState extends State<ReferenceIntervalCalc> {
+  String? variable, group;
+  ReferenceMethod method = ReferenceMethod.nonparametric;
+  bool remove = false;
+  final manual = TextEditingController(
+      text: '62 71 68 75 80 66 59 73 77 70 64 82 69 74 61 79 72 67 76 65 70 58 84 71 69 73 66 78 63 75 68 72 81 60 74 70 67 77 69 71');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Intervalle de référence (CLSI EP28)', 'Reference interval (CLSI EP28)'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Bornes à 2,5 % et 97,5 % des sujets de référence, avec l\'incertitude des bornes ; valeurs aberrantes (Horn) et partition par sous-groupe (Harris et Boyd).',
+              '2.5% and 97.5% limits of the reference subjects, with the uncertainty of the limits; outliers (Horn) and partition by subgroup (Harris and Boyd).'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      SegmentedButton<ReferenceMethod>(segments: [
+        ButtonSegment(value: ReferenceMethod.nonparametric, label: Text(tr('Non paramétrique', 'Nonparametric'))),
+        ButtonSegment(value: ReferenceMethod.robust, label: Text(tr('Robuste', 'Robust'))),
+        ButtonSegment(value: ReferenceMethod.parametric, label: Text(tr('Paramétrique', 'Parametric'))),
+      ], selected: {method}, onSelectionChanged: (s) => setState(() => method = s.first)),
+      const SizedBox(height: 10),
+      if (ds != null)
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Analyte', 'Analyte'), variable, _vars(ds, types: {VarType.numeric}), (v) => setState(() => variable = v)),
+          Pick<String>(tr('Sous-groupe (facultatif)', 'Subgroup (optional)'), group, [('', tr('— aucun —', '— none —')), ..._vars(ds, types: {VarType.binary, VarType.categorical})],
+              (v) => setState(() => group = (v == null || v.isEmpty) ? null : v)),
+        ])
+      else
+        TextField(controller: manual, maxLines: 3, decoration: InputDecoration(labelText: tr('Valeurs des sujets de référence', 'Values of the reference subjects'))),
+      SwitchListTile(contentPadding: EdgeInsets.zero, value: remove, onChanged: (v) => setState(() => remove = v),
+          title: Text(tr('Retirer les valeurs aberrantes (Horn)', 'Remove outliers (Horn)'))),
+      _computeButton(context, () {
+        run(context, () {
+          if (ds != null) {
+            if (variable == null) throw StatInputError('missing', tr('Choisir l\'analyte.', 'Choose the analyte.'));
+            final excl = ds.excludedRows;
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            final x = ds.numeric(variable!), g = group == null ? null : ds.text(group!);
+            return referenceInterval([for (final i in keep) x[i]],
+                method: method, removeOutliers: remove, groups: g == null ? null : [for (final i in keep) g[i]], groupName: group, variable: variable!, unit: ds.dictionary[variable]!.unit);
+          }
+          return referenceInterval(parseSeries(manual.text), method: method, removeOutliers: remove);
+        }, widget.onResult);
+      }),
+    ]);
+  }
+}
+
+class PrecisionCalc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const PrecisionCalc(this.ds, this.onResult, {super.key});
+  @override
+  State<PrecisionCalc> createState() => _PrecisionCalcState();
+}
+
+class _PrecisionCalcState extends State<PrecisionCalc> {
+  String? value, day, runCol;
+  final claimR = TextEditingController(), claimWl = TextEditingController(), levels = TextEditingController(text: '1');
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Fidélité d\'une méthode (CLSI EP05, EP15)', 'Method precision (CLSI EP05, EP15)'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Répétabilité, variabilité entre séries et entre jours, fidélité intermédiaire, avec IC ; vérification d\'une fidélité annoncée par le fabricant.',
+              'Repeatability, between-run and between-day variability, within-laboratory precision, with CIs; verification of a precision claimed by the manufacturer.'),
+          style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      if (ds == null)
+        Text(tr('La fidélité travaille sur un jeu de données (une ligne par mesure : valeur, jour, série facultative ; étape 4 d\'un projet).', 'Precision works on a dataset (one row per measurement: value, day, optional run; step 4 of a project).'))
+      else ...[
+        Wrap(spacing: 12, runSpacing: 12, children: [
+          Pick<String>(tr('Valeur mesurée', 'Measured value'), value, _vars(ds, types: {VarType.numeric}), (v) => setState(() => value = v)),
+          Pick<String>(tr('Jour', 'Day'), day, _vars(ds), (v) => setState(() => day = v)),
+          Pick<String>(tr('Série (facultatif)', 'Run (optional)'), runCol, [('', tr('— aucune —', '— none —')), ..._vars(ds)], (v) => setState(() => runCol = (v == null || v.isEmpty) ? null : v)),
+          NumField(tr('ÉT de répétabilité annoncé', 'Claimed repeatability SD'), claimR, width: 240, helper: tr('facultatif (EP15)', 'optional (EP15)')),
+          NumField(tr('ÉT intralaboratoire annoncé', 'Claimed within-lab SD'), claimWl, width: 240, helper: tr('facultatif (EP15)', 'optional (EP15)')),
+          NumField(tr('Niveaux testés', 'Levels tested'), levels, width: 160),
+        ]),
+        _computeButton(context, () {
+          run(context, () {
+            if (value == null || day == null) throw StatInputError('missing', tr('Choisir la valeur et le jour.', 'Choose the value and the day.'));
+            final excl = ds.excludedRows;
+            final keep = [for (var i = 0; i < ds.rowCount; i++) if (!excl.contains(i)) i];
+            final y = ds.numeric(value!), d = ds.text(day!), r = runCol == null ? null : ds.text(runCol!);
+            return precisionAnalysis([for (final i in keep) y[i]], [for (final i in keep) d[i]],
+                runRaw: r == null ? null : [for (final i in keep) r[i]],
+                claimRepeatability: readNum(claimR), claimWithinLab: readNum(claimWl), levels: (readNum(levels) ?? 1).round().clamp(1, 10), unit: ds.dictionary[value]!.unit);
           }, widget.onResult);
         }),
       ],

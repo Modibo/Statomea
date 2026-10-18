@@ -971,3 +971,36 @@ String psOverlapSvg(Map o, {String font = defaultSvgFont}) {
     ..writeln('</svg>');
   return b.toString();
 }
+
+
+/// Intervalle de référence : histogramme des valeurs, bornes (traits rouges) et IC des bornes (bandes).
+String referenceIntervalSvg(Map f, {String font = defaultSvgFont}) {
+  final counts = [for (final c in f['counts'] as List) (c as num).toInt()];
+  final x0 = (f['min'] as num).toDouble(), w = (f['width'] as num).toDouble();
+  final lo = (f['lower'] as num).toDouble(), hi = (f['upper'] as num).toDouble();
+  final ci = (f['ci'] as List?)?.map((e) => (e as num).toDouble()).toList();
+  const l = 60.0, t = 20.0, pw = 340.0, h = 220.0;
+  final xmin = math.min(x0, ci?.first ?? lo), xmax = math.max(x0 + w * counts.length, ci?.last ?? hi);
+  final cmax = counts.fold(1, math.max);
+  double x(double v) => l + (v - xmin) / (xmax - xmin == 0 ? 1 : xmax - xmin) * pw;
+  double y(double c) => t + h - c / cmax * h;
+  final label = '${f['variable'] ?? ''}${(f['unit'] ?? '').toString().isEmpty ? '' : ' (${f['unit']})'}';
+  final b = StringBuffer("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 300' width='440' height='300' ${_font(font)} font-size='12'>\n<rect width='100%' height='100%' fill='white'/>\n");
+  _axes(b, l, t, pw, h, _esc(label.isEmpty ? tr('Valeur', 'Value') : label), tr('Effectif', 'Count'), _niceTicks(xmin, xmax), [0, cmax / 2, cmax.toDouble()], x, y);
+  if (ci != null) {
+    for (final (a, c) in [(ci[0], ci[1]), (ci[2], ci[3])]) {
+      b.writeln("<rect x='${_n(x(a))}' y='${_n(t)}' width='${_n(x(c) - x(a))}' height='${_n(h)}' fill='#c0504d' fill-opacity='0.15'/>");
+    }
+  }
+  for (var k = 0; k < counts.length; k++) {
+    if (counts[k] == 0) continue;
+    b.writeln("<rect x='${_n(x(x0 + k * w) + 0.5)}' y='${_n(y(counts[k].toDouble()))}' width='${_n(math.max(0.5, x(x0 + (k + 1) * w) - x(x0 + k * w) - 1))}' height='${_n(t + h - y(counts[k].toDouble()))}' fill='#1f4e79'/>");
+  }
+  for (final v in [lo, hi]) {
+    b
+      ..writeln("<line x1='${_n(x(v))}' x2='${_n(x(v))}' y1='${_n(t)}' y2='${_n(t + h)}' stroke='#c0504d' stroke-width='2'/>")
+      ..writeln("<text x='${_n(x(v))}' y='${_n(t - 4)}' text-anchor='middle' font-size='10' fill='#c0504d'>${fmt(v)}</text>");
+  }
+  b.writeln('</svg>');
+  return b.toString();
+}

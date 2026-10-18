@@ -27,6 +27,7 @@ rsync -a --delete --exclude '*.symbols' "$ROOT/app/statomea/build/web/" "$WT/sit
 # navigateur ne peut resservir depuis son cache (Safari rechargeait sinon l'ancien code malgré Cache-Control: no-cache).
 sed -i '' -e "s|\"mainJsPath\":\"main.dart.js\"|\"mainJsPath\":\"main.dart.js?v=$VERSION\"|" "$WT/site/app/flutter_bootstrap.js"
 sed -i '' -e "s|href=\"main.dart.js\"|href=\"main.dart.js?v=$VERSION\"|" -e "s|src=\"flutter_bootstrap.js\"|src=\"flutter_bootstrap.js?v=$VERSION\"|" "$WT/site/app/index.html"
+sed -i '' -e "s|__VERSION__|$VERSION|" "$WT/site/app/sw.js"
 grep -q "main.dart.js?v=$VERSION" "$WT/site/app/flutter_bootstrap.js" || { echo "mainJsPath non versionné : format de flutter_bootstrap.js changé ?" >&2; exit 1; }
 # Copie à la racine : les pages 1.36.x ouvertes à l'ancienne adresse (racine) y lisent la version et proposent
 # « Recharger », qui mène à la page d'accueil.
@@ -37,7 +38,21 @@ if [ "${BUILD_APK:-0}" = "1" ]; then
   rsync -a --delete --exclude build --exclude .dart_tool --exclude android/.gradle "$ROOT/app" "$ROOT/packages" "$B/"
   # Un APK par architecture (arm64 : quasi tous les téléphones récents ; armv7 : anciens 32 bits) : ~30 Mo au lieu
   # de ~75 Mo pour l'APK universel. statomea.apk reste le lien générique (lien symbolique vers arm64).
+  # Signature : clé de publication (~/.statomea/statomea-release.p12), mot de passe lu dans le trousseau macOS. C'est
+  # la même clé que celle des versions précédentes (empreinte ci-dessous) : sans elle, Android refuserait la mise à
+  # jour et l'utilisateur devrait désinstaller (projets perdus). La publication s'arrête si la signature diffère.
+  STATOMEA_KEY_PASSWORD=$(security find-generic-password -a "$USER" -s statomea-android-key -w 2>/dev/null || true)
+  [ -n "$STATOMEA_KEY_PASSWORD" ] || { echo "Mot de passe de la clé Android absent du trousseau (statomea-android-key) : publication de l'APK arrêtée." >&2; exit 1; }
+  export STATOMEA_KEY_PASSWORD
   (cd "$B/app/statomea" && flutter build apk --release --split-per-abi)
+  unset STATOMEA_KEY_PASSWORD
+  EXPECTED_CERT=03b77f2a07abac19c664f9443b08e4824be499229724a6a17f266a96d793955b
+  APKSIGNER=$(ls -d "$HOME"/Library/Android/sdk/build-tools/*/apksigner | tail -1)
+  export JAVA_HOME="${JAVA_HOME:-/Applications/Android Studio.app/Contents/jbr/Contents/Home}"
+  for abi in arm64-v8a armeabi-v7a; do
+    got=$("$APKSIGNER" verify --print-certs "$B/app/statomea/build/app/outputs/flutter-apk/app-$abi-release.apk" 2>/dev/null | sed -n 's/.*certificate SHA-256 digest: //p' | head -1)
+    [ "$got" = "$EXPECTED_CERT" ] || { echo "APK $abi signé avec un autre certificat ($got) : publication arrêtée." >&2; exit 1; }
+  done
   rm -rf "$WT/site/telecharger" && mkdir -p "$WT/site/telecharger" "$ROOT/dist"
   # Fichiers nommés avec la version (statomea-1.40.0-arm64-v8a.apk) : un téléphone qui a déjà téléchargé une version
   # précédente ne rouvre pas l'ancien fichier homonyme. Les anciens noms restent en liens symboliques.

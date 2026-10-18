@@ -155,6 +155,7 @@ class FiguresView extends StatelessWidget {
       if (f['calibration'] is List) (tr('Courbe de calibration', 'Calibration curve'), calibrationSvg((f['calibration'] as List).cast(), font: 'NotoSans', smooth: (f['calibrationSmooth'] as List?)?.cast()), 340, 460),
       if (f['doseResponse'] is List)
         for (final c in (f['doseResponse'] as List).cast<Map>()) (tr('Courbe dose-effet : ${c['variable']}', 'Dose-response curve: ${c['variable']}'), doseResponseSvg(c, font: 'NotoSans'), 340, 520),
+      if (f['referenceInterval'] is Map) (tr('Intervalle de référence', 'Reference interval'), referenceIntervalSvg(f['referenceInterval'] as Map, font: 'NotoSans'), 340, 480),
       if (f['methodComparison'] is Map) (tr('Comparaison de méthodes', 'Method comparison'), methodComparisonSvg(f['methodComparison'] as Map, font: 'NotoSans'), 340, 460),
       if (f['lovePlot'] is Map) (tr('Équilibre des covariables (love plot)', 'Covariate balance (love plot)'), lovePlotSvg(f['lovePlot'] as Map, font: 'NotoSans'), 360, 560),
       if (f['psOverlap'] is Map) (tr('Recouvrement des scores de propension', 'Propensity score overlap'), psOverlapSvg(f['psOverlap'] as Map, font: 'NotoSans'), 340, 520),
@@ -215,6 +216,11 @@ String figureDescription(String title, Map<String, Object?> f) {
     final c = (f['doseResponse'] as List).cast<Map>().firstWhere((c) => title.endsWith(': ${c['variable']}'), orElse: () => (f['doseResponse'] as List).first as Map);
     return tr('Courbe dose-effet de ${c['variable']} : ${c['effect']} par rapport à la médiane (${fmt((c['ref'] as num).toDouble())}), avec sa bande de confiance ; la ligne horizontale marque l\'absence d\'effet, les traits rouges les nœuds de la spline. $tables',
         'Dose-response curve of ${c['variable']}: ${c['effect']} relative to the median (${fmt((c['ref'] as num).toDouble())}), with its confidence band; the horizontal line marks no effect, the red ticks the spline knots. $tables');
+  }
+  if (f['referenceInterval'] is Map && (title == 'Intervalle de référence' || title == 'Reference interval')) {
+    final m = f['referenceInterval'] as Map;
+    return tr('Histogramme des valeurs de référence ; bornes de l\'intervalle en rouge (${fmt((m['lower'] as num).toDouble())} et ${fmt((m['upper'] as num).toDouble())}), IC des bornes en bandes. $tables',
+        'Histogram of the reference values; interval limits in red (${fmt((m['lower'] as num).toDouble())} and ${fmt((m['upper'] as num).toDouble())}), CIs of the limits as bands. $tables');
   }
   if (f['methodComparison'] is Map && (title == 'Comparaison de méthodes' || title == 'Method comparison')) {
     final m = f['methodComparison'] as Map;

@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Signature de publication : clé dans ~/.statomea (hors dépôt), mot de passe dans le trousseau macOS, transmis par
+// deploy/publish-web.sh (STATOMEA_KEY_PASSWORD). Sans eux (développement), la clé de débogage est utilisée.
+val statomeaKey = Properties().apply {
+    val f = file(System.getProperty("user.home") + "/.statomea/key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val statomeaKeyPassword: String? = System.getenv("STATOMEA_KEY_PASSWORD")?.takeIf { it.isNotEmpty() }
 
 android {
     namespace = "org.statomea.statomea"
@@ -29,11 +39,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (statomeaKey.getProperty("storeFile") != null && statomeaKeyPassword != null) {
+            create("release") {
+                storeFile = file(statomeaKey.getProperty("storeFile"))
+                storePassword = statomeaKeyPassword
+                keyAlias = statomeaKey.getProperty("keyAlias")
+                keyPassword = statomeaKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
