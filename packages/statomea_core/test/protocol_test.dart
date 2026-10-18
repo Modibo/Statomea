@@ -131,4 +131,100 @@ Comparaison des moyennes ajustée sur la valeur initiale.''';
     expect(text, contains('[À compléter : critères d\'inclusion]'));
     expect(text, contains('Randomisation, aveugle et allocation'));
   });
+
+  // Structures relevées sur de vrais protocoles de thèse et de recherche (contenu reformulé et anonymisé).
+  test('vrais protocoles : page de garde, intitulés numérotés, chronogramme, références, effectif après ajustements', () {
+    const these = """
+Réalisé par :
+Étudiant X
+REPUBLIQUE DU MALI
+MINISTERE DE L'ENSEIGNEMENT SUPERIEUR
+PROTOCOLE DE THESE DE FIN D'ETUDE
+Thème : Suivi de l'hémoglobine glyquée chez les diabétiques de type 2 à l'hôpital régional.
+Thème : Suivi de l'hémoglobine glyquée chez les diabétiques de type 2 à l'hôpital régional.
+Type d'étude : Étude transversale par recrutement consécutif.
+Lieu d'étude 1
+Hôpital régional, route principale
+Tel: +000 00 00 00 00
+INTRODUCTION
+Le diabète est une maladie chronique dont le suivi repose sur l'HbA1c.
+OBJECTIFS
+Objectif général :
+Évaluer la relation entre l'hémoglobine glyquée et les autres paramètres au cours du suivi des patients diabétiques de type 2.
+MATERIEL ET METHODES
+1.\tLieu d'étude
+L'hôpital est situé au centre du pays.
+2. Type et design de l'étude
+Il s'agira d'une étude transversale.
+Calcul de la taille de l'échantillon
+Avec une prévalence de 7 % et une marge d'erreur de 5 %, le nombre requis sera de 100. En ajoutant 10 % nous aurons 110 sujets nécessaires pour cette étude.
+Période d'étude
+Activité
+01/23
+02/23
+Saisie et analyse des données
+Rédaction de la thèse
+La population d'étude
+Cette étude portera sur les diabétiques de type 2 âgés de 18 ans ou plus. Les sujets seront en phase stable.
+Les critères d'inclusion
+Patients de 18 ans ou plus.
+Gestion et analyse des données
+Les données seront analysées avec le logiciel R ; les proportions seront comparées par le test du khi-deux.
+Considération Éthique
+Le consentement éclairé sera recueilli.
+REFERENCE
+1. Auteur A. Glycated haemoglobin: where do we stand? Revue. 2022.
+""";
+    final d = protocolFromText(these);
+    expect(d.title, startsWith('Suivi de l\'hémoglobine glyquée'));
+    expect(d.question, startsWith('Évaluer la relation'), reason: 'la question vient de l\'objectif, pas du titre d\'une référence');
+    expect(d.sections['design'], isNot(contains('Tel:')), reason: 'la page de garde est close par « Lieu d\'étude »');
+    expect(d.sections['analysis'], contains('khi-deux'));
+    expect(d.sections['analysis'], isNot(contains('Rédaction')), reason: 'la cellule du chronogramme est remplacée par la vraie rubrique');
+    expect(d.sections['population'], contains('18 ans'));
+    expect(d.sampleSize, 110);
+    final q = d.toQuestion();
+    expect(q.design, StudyDesign.crossSectional);
+    expect(q.outcomeType, isNot(OutcomeType.timeToEvent), reason: '« au cours du suivi » ne fait pas une analyse de survie');
+    expect(q.population, 'Cette étude portera sur les diabétiques de type 2 âgés de 18 ans ou plus.');
+
+    const recherche = """
+PROTOCOLE DE RECHERCHE
+Titre du projet
+Biomarqueurs de l'hémostase et pronostic des blessés par arme à feu : étude multicentrique prospective
+I. Contexte et Justification
+Les scores existants ont été comparés (Auteur, 2019). Where do we stand? reste une question ouverte.
+II. Objectifs
+1. Objectif principal
+Évaluer la valeur pronostique des anomalies précoces de l'hémostase pour prédire la mortalité à 28 jours.
+III. Matériel et méthodes
+1. Type et durée de l'étude
+Il s'agira d'une étude multicentrique prospective observationnelle.
+2. Population d'étude
+a. Critères d'inclusion
+Blessés par arme à feu admis dans les six heures. Âge de 18 ans ou plus.
+3. Taille d'échantillon
+La taille n0 requise sera approximativement de 268,889 patients.
+La taille globale d'échantillon finale sera ≈ 545 patients
+Le nombre de sujet nécessaire sera donc n = 550 patients.
+Taille par centre (5 centres) : 110 patients par centre
+Vérification événements (mortalité 15%) : n = 110
+b. Critère de jugement principal
+mortalité à J28 : oui ou non b.
+8. Gestion des données et analyse statistique
+b. Analyse statistique
+Régression logistique pénalisée, validation interne par bootstrap.
+IX. Références
+Auteur B (2019). Scoring systems in trauma: where do we stand? Shock.
+""";
+    final r = protocolFromText(recherche);
+    expect(r.title, startsWith('Biomarqueurs de l\'hémostase'));
+    expect(r.sampleSize, 550, reason: 'ni le décimal 268,889, ni l\'effectif par centre, ni la vérification des événements');
+    expect(r.sections['analysis'], contains('bootstrap'));
+    expect(r.sections['population'], contains('six heures'));
+    final rq = r.toQuestion();
+    expect(rq.design, StudyDesign.cohort);
+    expect(rq.objective, StudyObjective.predictive);
+    expect(rq.outcome, 'mortalité à J28 : oui ou non');
+  });
 }

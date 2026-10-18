@@ -1128,3 +1128,14 @@ justification, objectifs, schéma, population, intervention, critères, effectif
 calendrier) avec les éléments non déductibles marqués « à compléter ». `app/statomea/test/protocol_document_test.dart` :
 paquet .docx complet (types de contenu, relations, styles), XML bien formé vérifié par le parseur de Python, texte relu
 à l'identique ; PDF relu par l'extracteur, rubriques dans l'ordre.
+
+## Lecture de vrais protocoles — 1.56.1
+
+Essai sur deux protocoles réels (thèse d'exercice et protocole de recherche multicentrique, Word). Défauts relevés
+puis corrigés : titre pris sur la page de garde (« Réalisé par ») ; question tirée du titre d'une référence
+bibliographique ; intitulés numérotés « a. », « 1.1 » ou précédés d'un article non reconnus ; page de garde et
+chronogramme agrégés à la rubrique précédente ; effectif lu « 889 » dans le décimal « 268,889 » au lieu de 550 ;
+« au cours du suivi » interprété comme une analyse de survie ; zones de texte Word lues deux fois. Après correction :
+titre, question, plan (transversal ; cohorte prospective), objectif, issue, population et effectif (110 ; 550) sont
+exacts. Les structures sont reproduites, reformulées et anonymisées, dans `test/protocol_test.dart` (« vrais
+protocoles ») ; les documents eux-mêmes ne sont pas versés au dépôt.

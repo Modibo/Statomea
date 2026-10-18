@@ -129,7 +129,7 @@ QuestionInference inferQuestion(String text) {
   // Type d'issue.
   OutcomeType? outcome;
   final outRules = <(OutcomeType, RegExp)>[
-    (OutcomeType.timeToEvent, RegExp(r"survie|delai (de|jusqu|avant)|temps jusqu|au cours du suivi|time to|survival|time until|sans recidive|sans progression|disease[- ]free|progression[- ]free")),
+    (OutcomeType.timeToEvent, RegExp(r"survie|delai (de|jusqu|avant)|temps jusqu|time to|survival|time until|sans recidive|sans progression|disease[- ]free|progression[- ]free")),
     (OutcomeType.count, RegExp(r"nombre (de|d') ?(episodes|crises|hospitalisations|exacerbations|evenements|visites|admissions)|nombre moyen d|taux d'incidence|number of (episodes|events|admissions|visits)|counts?\b")),
     (OutcomeType.ordinal, RegExp(r"stade|grade (\d|de)|echelle de likert|score (faible|moyen|eleve)|leger, modere|mild, moderate|ordinal")),
     (OutcomeType.binary, RegExp(r"risque (de|d')|risk of|survenue|deces|mortalite|guerison|reussite|echec|infection|recidive|rechute|complication|hospitalisation|reponse au traitement|proportion|prevalence|death|mortality|cure|success|failure|relapse|occurrence|odds")),
@@ -392,43 +392,122 @@ class ProtocolDraft {
   final int? sampleSize;
   const ProtocolDraft({required this.title, required this.question, required this.sections, required this.inference, this.sampleSize});
 
+  /// Question telle que lue dans le document (PICO : première phrase de chaque rubrique), avant déductions.
+  ResearchQuestion baseQuestion() => ResearchQuestion(
+        text: question,
+        population: _lead(sections['population']),
+        exposure: _lead(sections['intervention']),
+        comparator: _lead(sections['comparator']),
+        outcome: _lead(sections['outcome']),
+      );
+
   /// Question de recherche complète (PICO + caractéristiques) prête pour le projet.
-  ResearchQuestion toQuestion() {
-    final base = ResearchQuestion(
-      text: question,
-      population: sections['population'] ?? '',
-      exposure: sections['intervention'] ?? '',
-      comparator: sections['comparator'] ?? '',
-      outcome: sections['outcome'] ?? '',
-    );
-    return applyInference(base, inference).$1;
-  }
+  ResearchQuestion toQuestion() => applyInference(baseQuestion(), inference).$1;
+}
+
+/// Première phrase d'une rubrique (au plus 220 caractères) : le champ PICO reste lisible, le texte complet demeure
+/// dans le plan d'analyse et le protocole.
+String _lead(String? s) {
+  if (s == null || s.isEmpty) return '';
+  final m = RegExp(r"^.{20,}?[.;](?=\s|$)").firstMatch(s);
+  // Une puce de liste (« … oui ou non b. Critères secondaires ») ne termine pas la phrase.
+  final t = (m?.group(0) ?? s).trim().replaceFirst(RegExp(r"\s+[a-h0-9][.)]$"), '');
+  return t.length > 220 ? '${t.substring(0, 219).trimRight()}…' : t;
 }
 
 const _sectionKeys = <String, String>{
-  'objective': r"^(question de recherche|objectifs?( principal| primaire)?|but de l'etude|research question|(primary )?objectives?|aims?)\b",
-  'population': r"^(population( d'etude| cible)?|criteres d'(inclusion|eligibilite)|participants|study population|eligibility|inclusion criteria)\b",
+  'objective': r"^(question de recherche|objectifs?( general| principal| primaire)?|but de l'etude|research question|(primary )?objectives?|aims?)\b",
+  'population': r"^(population( d'etude| cible| etudiee)?|criteres d'(inclusion|eligibilite|non[- ]?inclusion|exclusion)|criteres de (non[- ]?inclusion|selection|exclusion)|participants|study population|eligibility|inclusion criteria)\b",
   'intervention': r"^(intervention|exposition|traitement (etudie|evalue)|exposure|treatment)\b",
   'comparator': r"^(comparateur|groupe (controle|temoin)|comparator|control( group)?)\b",
   'outcome': r"^(criteres? de jugement( principal| primaire)?|critere principal|variable principale|(primary )?(outcome|endpoint)s?)\b",
-  'design': r"^(schema|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
-  'analysis': r"^(analyse statistique|analyses statistiques|plan d'analyse|methodes? statistiques?|statistical (analysis|methods)|analysis plan)\b",
-  'sampleSize': r"^(nombre de sujets( necessaires)?|taille (de l'|d')echantillon|calcul (de l'|d')effectif|effectif|sample size)\b",
+  'design': r"^(schema|type (et (design|duree) )?(de l'|d')etude|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
+  'analysis': r"^(analyses? statistiques?|plan d'analyse|methodes? statistiques?|(gestion|saisie|traitement)( et analyse)? des donnees( et analyse statistique)?|analyse des donnees|statistical (analysis|methods)|analysis plan|data analysis)\b",
+  'sampleSize': r"^(nombre de sujets?( necessaires?)?|(calcul (de )?(la )?)?taille (de l'|d')echantillon|calcul (de l'|d')effectif|effectif|sample size)\b",
 };
+
+/// Intitulés qui ne sont pas des rubriques retenues : ils ferment la rubrique en cours (sinon la page de garde, le
+/// chronogramme ou les références s'y ajouteraient).
+final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|periode|duree|materiels? et methodes?|variables? etudiees?|parametres|examens|definitions?( operationnelles?)?|considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|chronogramme|calendrier|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|ethics|timeline|acknowledg)");
+
+final _refHeading = RegExp(r"^(references?|bibliographie|bibliography)( bibliographiques)?\s*:?$");
+
+/// Normalise un intitulé : numérotation (« 2. », « III. », « b) », « 1.2 »), puces et article initial ôtés.
+String _headingKey(String line) {
+  var n = _norm(line).trim();
+  final num = RegExp(r"^(?:(?:[ivx]+|\d+(?:\.\d+)*|[a-h])[.)]|\d+(?:\.\d+)+|[\-–•*])\s*");
+  for (var k = 0; k < 3; k++) {
+    final m = num.firstMatch(n);
+    if (m == null || m.end == 0) break;
+    n = n.substring(m.end);
+  }
+  return n.replaceFirst(RegExp(r"^(la|le|les|l')\s*"), '');
+}
+
+/// Effectif prévu : parmi les entiers de la rubrique, celui que le texte désigne comme nombre de sujets nécessaires
+/// (« n = 550 patients », « … ramènera à 110 sujets nécessaires ») ; les décimaux (« 268,889 »), pourcentages, âges et
+/// effectifs par centre sont écartés ; à score égal, le dernier cité (après ajustements) l'emporte.
+int? _plannedSampleSize(String text) {
+  final t = _norm(text);
+  int? best;
+  var bestScore = -1;
+  for (final m in RegExp(r"(?<![\d.,])(\d{1,3}(?:[  ]\d{3})+|\d{2,6})(?![\d]|[.,]\d)").allMatches(t)) {
+    final v = int.tryParse(m.group(1)!.replaceAll(RegExp(r"[  ]"), ''));
+    if (v == null || v < 10) continue;
+    final before = t.substring((m.start - 70).clamp(0, t.length), m.start);
+    final after = t.substring(m.end, (m.end + 30).clamp(0, t.length));
+    if (RegExp(r"^\s*(%|ans\b|mois|jours|semaines|heures|minutes|pays|centres|par centre|/centre|patients? par centre|patients?/centre|g/l|mmol|mg|ml)").hasMatch(after)) continue;
+    if (RegExp(r"(19|20)\d\d").hasMatch(m.group(1)!) && m.group(1)!.length == 4 && !RegExp(r"^\s*(patients|sujets|participants)").hasMatch(after)) continue;
+    var score = 0;
+    if (RegExp(r"^\s*(patients|sujets|participants|malades|subjects|enfants|femmes|hommes|individus|cas|blesses)").hasMatch(after)) score += 1;
+    if (RegExp(r"(necessaire|final|total|globale|requis|retenu|sera donc|ramener|\bn\s*=\s*$|\bn\s*=\s*\D{0,3}$|soit)").hasMatch(before) || RegExp(r"^\s*\w*\s*necessaires?").hasMatch(after)) score += 3;
+    if (score >= bestScore) {
+      bestScore = score;
+      best = v;
+    }
+  }
+  return best;
+}
 
 /// Lit le texte d'un protocole (extrait d'un Word ou d'un PDF) : sections, question, déductions.
 ProtocolDraft protocolFromText(String raw) {
-  final lines = [for (final l in raw.replaceAll('\r', '').split('\n')) l.trim()];
-  final nonEmpty = [for (final l in lines) if (l.isNotEmpty) l];
+  final lines = <String>[];
+  for (final l in raw.replaceAll('\r', '').replaceAll(RegExp(r'[\t  ]'), ' ').split('\n')) {
+    final t = l.trim().replaceAll(RegExp(r' {2,}'), ' ');
+    // Les zones de texte de Word sont parfois écrites deux fois de suite : on ne garde qu'un exemplaire.
+    if (t.isNotEmpty && lines.isNotEmpty && lines.last == t) continue;
+    lines.add(t);
+  }
+  // Les références bibliographiques ne servent ni aux rubriques ni à la question.
+  final refAt = lines.indexWhere((l) => l.isNotEmpty && l.length <= 40 && _refHeading.hasMatch(_headingKey(l)));
+  final body = refAt > 0 ? lines.sublist(0, refAt) : lines;
+  final nonEmpty = [for (final l in body) if (l.isNotEmpty) l];
   if (nonEmpty.isEmpty) throw StatInputError('protocol_empty', tr('Le document ne contient pas de texte lisible (document numérisé en image ?).', 'The document contains no readable text (scanned image?).'));
-  final sections = <String, String>{};
   String? current;
   final buf = <String, List<String>>{};
-  for (final l in lines) {
-    if (l.isEmpty) continue;
-    final n = _norm(l).replaceAll(RegExp(r'^[\d.ivx)\-–• ]+'), '');
+  String? titleLine;
+  var wantTitle = false;
+  for (final l in nonEmpty) {
+    final n = _headingKey(l);
+    if (wantTitle) {
+      titleLine = l;
+      wantTitle = false;
+    }
+    final tm = RegExp(r"^(theme|titre( du projet| de l'etude| de la these)?|intitule|title)\s*:?\s*(.*)$").firstMatch(n);
+    if (titleLine == null && tm != null && l.length <= 300) {
+      final rest = l.contains(':') ? l.substring(l.indexOf(':') + 1).trim() : '';
+      if (rest.length >= 10) {
+        titleLine = rest;
+      } else if (tm.group(3)!.isEmpty) {
+        wantTitle = true;
+      }
+      continue;
+    }
     String? key;
-    if (l.length <= 90) {
+    // Un intitulé ne se termine pas par un point (sauf « Objectif : … ») : « Le nombre de sujets nécessaire sera donc
+    // n = 550 patients. » est une phrase de la rubrique, pas un titre.
+    final headingLike = l.length <= 90 && (l.contains(':') || !RegExp(r"[.;]$").hasMatch(l));
+    if (headingLike) {
       for (final e in _sectionKeys.entries) {
         if (RegExp(e.value).hasMatch(n)) {
           key = e.key;
@@ -438,33 +517,41 @@ ProtocolDraft protocolFromText(String raw) {
     }
     if (key != null) {
       current = key;
-      buf.putIfAbsent(key, () => []);
+      // Une rubrique déjà ouverte mais presque vide (cellule d'un chronogramme, sommaire) est remplacée.
+      if ((buf[key]?.join(' ').length ?? 0) < 120) buf[key] = [];
       // Texte après le titre sur la même ligne (« Objectif : … »).
       final after = l.contains(':') ? l.substring(l.indexOf(':') + 1).trim() : '';
       if (after.isNotEmpty) buf[key]!.add(after);
       continue;
     }
+    if (headingLike && _otherHeading.hasMatch(n)) {
+      current = null;
+      continue;
+    }
+    if (RegExp(r"^[\d\s./:,%<>≥≤–-]*$").hasMatch(l)) continue;
     if (current != null) buf[current]!.add(l);
   }
-  for (final e in buf.entries) {
-    final t = e.value.join(' ').trim();
-    if (t.isNotEmpty) sections[e.key] = t.length > 1200 ? '${t.substring(0, 1200)}…' : t;
-  }
+  final full = {for (final e in buf.entries) e.key: e.value.join(' ').trim()};
+  final sections = <String, String>{
+    for (final e in full.entries)
+      if (e.value.isNotEmpty) e.key: e.value.length > 1200 ? '${e.value.substring(0, 1200)}…' : e.value,
+  };
   // Question : première phrase interrogative ; sinon l'objectif ; sinon le titre.
   // Question : les lignes sont recollées (un PDF coupe les phrases en fin de ligne) ; l'intitulé « Question : » est ôté.
   final all = nonEmpty.join(' ');
   var q = RegExp(r"[^.?!]{15,}\?").firstMatch(all)?.group(0)?.trim();
   if (q != null && q.contains(':')) q = q.substring(q.lastIndexOf(':') + 1).trim();
   final objectiveFirst = sections['objective'] == null ? null : RegExp(r"^[^.]+\.?").firstMatch(sections['objective']!)?.group(0);
-  final title = nonEmpty.first.length > 160 ? '${nonEmpty.first.substring(0, 160)}…' : nonEmpty.first;
+  // Titre : « Thème : … » ou « Titre du projet » s'il existe ; sinon la première ligne qui n'est pas une mention de page
+  // de garde (auteur, ministère, université, « Protocole de … »).
+  final boiler = RegExp(r"^(realise|presente|redige|soutenu|these (dirigee|realisee)|dirige|par\b|republique|ministere|universite|faculte|ecole|institut|departement|promotion|annee|protocole( de| d'|$)|version|code|date|\*+|un peuple)");
+  final firstText = nonEmpty.firstWhere((l) => l.length >= 15 && !boiler.hasMatch(_headingKey(l)), orElse: () => nonEmpty.first);
+  final t0 = titleLine ?? firstText;
+  final title = t0.length > 160 ? '${t0.substring(0, 160)}…' : t0;
   final question = q ?? objectiveFirst ?? title;
   final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>()].join('\n');
   final inf = inferQuestion(basis);
-  final ss = RegExp(r"(?:\bn\s*=\s*|\b)(\d{2,6})\s*(?:patients|sujets|participants|malades|subjects|enfants|femmes|hommes)?", caseSensitive: false)
-      .allMatches(sections['sampleSize'] ?? '')
-      .map((m) => int.tryParse(m.group(1)!))
-      .whereType<int>()
-      .fold<int?>(null, (a, b) => a == null || b > a ? b : a);
+  final ss = full['sampleSize'] == null ? null : _plannedSampleSize(full['sampleSize']!);
   return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss);
 }
 

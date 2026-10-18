@@ -24,7 +24,8 @@ String docxText(Uint8List bytes) {
   }
   final doc = zip.findFile('word/document.xml');
   if (doc == null) throw StatInputError('docx_invalid', tr('Ce fichier n\'est pas un document Word (.docx).', 'This file is not a Word document (.docx).'));
-  final xml = utf8.decode(doc.content as List<int>, allowMalformed: true);
+  // Les zones de texte figurent deux fois (forme moderne et repli « VML ») : le repli est ignoré.
+  final xml = utf8.decode(doc.content as List<int>, allowMalformed: true).replaceAll(RegExp(r'<mc:Fallback>[\s\S]*?</mc:Fallback>'), '');
   final out = StringBuffer();
   for (final p in RegExp(r'<w:p[ >][\s\S]*?</w:p>|<w:p/>').allMatches(xml)) {
     final para = StringBuffer();

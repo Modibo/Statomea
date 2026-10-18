@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -44,5 +46,16 @@ void main() {
       last = i;
     }
     expect(text, contains('[À compléter'));
+  });
+
+  test('Word : une zone de texte (forme moderne + repli VML) n\'est lue qu\'une fois', () {
+    const body = '<w:p><w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><w:txbxContent><w:p><w:r><w:t>Réalisé par</w:t></w:r></w:p></w:txbxContent></w:drawing></mc:Choice>'
+        '<mc:Fallback><w:pict><w:txbxContent><w:p><w:r><w:t>Réalisé par</w:t></w:r></w:p></w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent></w:r></w:p>'
+        '<w:p><w:r><w:t>Objectif</w:t></w:r></w:p>';
+    final xml = utf8.encode('<?xml version="1.0"?><w:document xmlns:w="w" xmlns:mc="mc"><w:body>$body</w:body></w:document>');
+    final zip = Archive()..addFile(ArchiveFile('word/document.xml', xml.length, xml));
+    final text = docxText(Uint8List.fromList(ZipEncoder().encode(zip)));
+    expect('Réalisé par'.allMatches(text).length, 1);
+    expect(text, contains('Objectif'));
   });
 }
