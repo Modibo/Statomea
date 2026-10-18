@@ -73,6 +73,7 @@
   .shots img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; object-fit: contain; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
   .shots figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; }
   .demos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .demo.wide { grid-column: span 2; }
   .demo { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .demo b { display: block; margin-bottom: 4px; }
   .demo span { color: var(--muted); font-size: 14px; }
@@ -92,7 +93,7 @@
     .stats { grid-template-columns: repeat(2, 1fr); } nav.links { display: none; }
   }
   @media (max-width: 600px) {
-    .cards, .dl, .demos, ol.steps { grid-template-columns: 1fr; } .shots { grid-template-columns: repeat(2, 1fr); }
+    .cards, .dl, .demos, ol.steps { grid-template-columns: 1fr; } .demo.wide { grid-column: auto; } .shots { grid-template-columns: repeat(2, 1fr); }
     .hero { padding-top: 32px; } .bar .open { display: none; } .ctas .btn { flex: 1 1 100%; }
   }
 </style>
@@ -102,6 +103,7 @@
   <div class="wrap bar">
     <a class="brand" href="#"><img src="statomea-embleme.png" alt="">Statoméa</a>
     <nav class="links">
+      <a href="#protocole" data-fr="Protocole" data-en="Protocol">Protocole</a>
       <a href="#parcours" data-fr="Parcours" data-en="Pathway">Parcours</a>
       <a href="#fonctions" data-fr="Fonctionnalités" data-en="Features">Fonctionnalités</a>
       <a href="#demos" data-fr="Démonstrations" data-en="Demonstrations">Démonstrations</a>
@@ -118,7 +120,7 @@
     <div>
       <span class="eyebrow" data-fr="Statistique biomédicale · formation à la recherche" data-en="Biomedical statistics · research training">Statistique biomédicale · formation à la recherche</span>
       <h1 data-fr="De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée." data-en="From the research question to a justified, verifiable and correctly interpreted analysis.">De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée.</h1>
-      <p class="lead" data-fr="Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : formuler la question, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire." data-en="Statoméa guides researchers, laboratory scientists and students in 10 steps: frame the question, check the data, choose the right method, compute, then have the interpretation reviewed by an adversarial audit.">Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : formuler la question, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire.</p>
+      <p class="lead" data-fr="Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : importer ou rédiger le protocole, le faire relire et corriger, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire." data-en="Statoméa guides researchers, laboratory scientists and students in 10 steps: import or write the protocol, have it reviewed and corrected, check the data, choose the right method, compute, then have the interpretation reviewed by an adversarial audit.">Statoméa accompagne chercheurs, biologistes et étudiants en 10 étapes : importer ou rédiger le protocole, le faire relire et corriger, contrôler les données, choisir la bonne méthode, calculer, puis faire relire l'interprétation par un audit contradictoire.</p>
       <div class="ctas">
         <a class="btn primary" href="app/" data-fr="Ouvrir l'application" data-en="Open the app">Ouvrir l'application</a>
         <a class="btn ghost" href="#telecharger" data-fr="Télécharger pour Android" data-en="Download for Android">Télécharger pour Android</a>
@@ -145,6 +147,21 @@
   </div>
 </section>
 
+<section id="protocole">
+  <div class="wrap">
+    <h2 data-fr="Du protocole au projet, relu et corrigé" data-en="From protocol to project, reviewed and corrected">Du protocole au projet, relu et corrigé</h2>
+    <p class="sub" data-fr="Importez votre protocole ou écrivez votre question : Statoméa en déduit les étapes, repère les erreurs de méthode et propose leurs corrections." data-en="Import your protocol or write your question: Statoméa infers the steps, spots methodological errors and proposes their corrections.">Importez votre protocole ou écrivez votre question : Statoméa en déduit les étapes, repère les erreurs de méthode et propose leurs corrections.</p>
+    <div class="cards">
+      <div class="card"><div class="ic">📄</div><h3 data-fr="Importer un protocole Word ou PDF" data-en="Import a Word or PDF protocol">Importer un protocole Word ou PDF</h3><p data-fr="Statoméa lit le titre, la question, la population, le schéma, le critère de jugement, l'effectif prévu et le plan d'analyse, montre ce qu'il a compris, puis crée le projet." data-en="Statoméa reads the title, question, population, design, outcome, planned sample size and analysis plan, shows what it understood, then creates the project.">Statoméa lit le titre, la question, la population, le schéma, le critère de jugement, l'effectif prévu et le plan d'analyse, montre ce qu'il a compris, puis crée le projet.</p></div>
+      <div class="card"><div class="ic">✎</div><h3 data-fr="Une question, et le reste est proposé" data-en="One question, the rest is proposed">Une question, et le reste est proposé</h3><p data-fr="Dès la question écrite : plan d'étude, objectif, type d'issue, éléments PICO, plan d'analyse et calcul d'effectif adapté, marqués « proposé » pour être vérifiés." data-en="As soon as the question is written: study design, aim, outcome type, PICO elements, analysis plan and the appropriate sample-size calculation, marked “proposed” to be checked.">Dès la question écrite : plan d'étude, objectif, type d'issue, éléments PICO, plan d'analyse et calcul d'effectif adapté, marqués « proposé » pour être vérifiés.</p></div>
+      <div class="card"><div class="ic">✓</div><h3 data-fr="Relecture et corrections" data-en="Review and corrections">Relecture et corrections</h3><p data-fr="Erreurs, points à revoir et manques, avec le passage en cause : effectif recalculé (précision, critères de Riley), majoration pour les pertes, ajustement, validation d'un modèle prédictif, tests, multiplicité, effet centre… Corrections appliquées d'un appui et tracées." data-en="Errors, points to review and gaps, quoting the passage concerned: sample size recomputed (precision, Riley criteria), adjustment for losses, confounding, validation of a prediction model, tests, multiplicity, centre effect… Corrections applied in one tap and logged.">Erreurs, points à revoir et manques, avec le passage en cause : effectif recalculé (précision, critères de Riley), majoration pour les pertes, ajustement, validation d'un modèle prédictif, tests, multiplicité, effet centre… Corrections appliquées d'un appui et tracées.</p></div>
+      <div class="card"><div class="ic">🗺</div><h3 data-fr="Feuille de route imprimable" data-en="Printable roadmap">Feuille de route imprimable</h3><p data-fr="Les 10 étapes dans l'ordre, ce qui est fait, proposé ou à faire, avec le bon calculateur d'effectif ; impression en PDF." data-en="The 10 steps in order, what is done, proposed or to do, with the right sample-size calculator; printable as PDF.">Les 10 étapes dans l'ordre, ce qui est fait, proposé ou à faire, avec le bon calculateur d'effectif ; impression en PDF.</p></div>
+      <div class="card"><div class="ic">📝</div><h3 data-fr="Protocole prérédigé" data-en="Pre-drafted protocol">Protocole prérédigé</h3><p data-fr="13 rubriques au format d'un comité d'éthique, en Word et en PDF ; ce qui reste à écrire est surligné « à compléter »." data-en="13 sections in ethics-committee format, in Word and PDF; what remains to be written is highlighted “to complete”.">13 rubriques au format d'un comité d'éthique, en Word et en PDF ; ce qui reste à écrire est surligné « à compléter ».</p></div>
+      <div class="card"><div class="ic">🔒</div><h3 data-fr="Vos documents restent chez vous" data-en="Your documents stay with you">Vos documents restent chez vous</h3><p data-fr="Lecture et relecture se font sur l'appareil, par des règles explicites et documentées : aucun envoi, aucun modèle de langage." data-en="Reading and review happen on the device, by explicit, documented rules: nothing is sent, no language model.">Lecture et relecture se font sur l'appareil, par des règles explicites et documentées : aucun envoi, aucun modèle de langage.</p></div>
+    </div>
+  </div>
+</section>
+
 <section class="alt" id="parcours">
   <div class="wrap">
     <h2 data-fr="Un parcours en 10 étapes" data-en="A 10-step pathway">Un parcours en 10 étapes</h2>
@@ -162,8 +179,9 @@
       <li><b data-fr="Rapport PDF / HTML" data-en="PDF / HTML report">Rapport PDF / HTML</b><span class="sd" data-fr="Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver." data-en="Export the report, the log and the project file (.json) to share or archive.">Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver.</span></li>
     </ol>
     <div class="howto">
-      <p><strong data-fr="Nouveau projet" data-en="New project">Nouveau projet</strong> — <span data-fr="créer le projet, puis suivre les étapes 1 à 10 dans l&#x27;ordre ; les données s&#x27;importent à l&#x27;étape 4." data-en="create the project, then follow steps 1 to 10 in order; data are imported at step 4.">créer le projet, puis suivre les étapes 1 à 10 dans l&#x27;ordre ; les données s&#x27;importent à l&#x27;étape 4.</span></p>
-      <p><strong data-fr="Projet importé" data-en="Imported project">Projet importé</strong> — <span data-fr="ouvrir un fichier de projet (.json) exporté depuis Statoméa ; tout est restauré après un contrôle d&#x27;intégrité, et l&#x27;on reprend à l&#x27;étape en cours." data-en="open a project file (.json) exported from Statoméa; everything is restored after an integrity check, and you resume at the current step.">ouvrir un fichier de projet (.json) exporté depuis Statoméa ; tout est restauré après un contrôle d&#x27;intégrité, et l&#x27;on reprend à l&#x27;étape en cours.</span></p>
+      <p><strong data-fr="Nouveau projet" data-en="New project">Nouveau projet</strong> — <span data-fr="créer le projet et écrire la question : plan, objectif, issue, plan d&#x27;analyse et calcul d&#x27;effectif sont proposés aussitôt ; suivre ensuite les étapes 1 à 10, les données s&#x27;importent à l&#x27;étape 4." data-en="create the project and write the question: design, aim, outcome, analysis plan and sample-size calculation are proposed at once; then follow steps 1 to 10, data are imported at step 4.">créer le projet et écrire la question : plan, objectif, issue, plan d&#x27;analyse et calcul d&#x27;effectif sont proposés aussitôt ; suivre ensuite les étapes 1 à 10, les données s&#x27;importent à l&#x27;étape 4.</span></p>
+      <p><strong data-fr="Projet importé" data-en="Imported project">Projet importé</strong> — <span data-fr="choisir un protocole Word (.docx) ou PDF : Statoméa en tire le projet et ouvre la feuille de route des 10 étapes ; ou un fichier de projet (.json) exporté depuis Statoméa, restauré après un contrôle d&#x27;intégrité." data-en="choose a Word (.docx) or PDF protocol: Statoméa builds the project from it and opens the roadmap of the 10 steps; or a project file (.json) exported from Statoméa, restored after an integrity check.">choisir un protocole Word (.docx) ou PDF : Statoméa en tire le projet et ouvre la feuille de route des 10 étapes ; ou un fichier de projet (.json) exporté depuis Statoméa, restauré après un contrôle d&#x27;intégrité.</span></p>
+      <p><strong data-fr="Relire et corriger" data-en="Review and correct">Relire et corriger</strong> — <span data-fr="depuis la feuille de route ou l&#x27;étape 1 : erreurs, points à revoir et manques, corrections appliquées d&#x27;un appui, rapport de relecture en PDF." data-en="from the roadmap or step 1: errors, points to review and gaps, corrections applied in one tap, review report as PDF.">depuis la feuille de route ou l&#x27;étape 1 : erreurs, points à revoir et manques, corrections appliquées d&#x27;un appui, rapport de relecture en PDF.</span></p>
     </div>
   </div>
 </section>
@@ -188,10 +206,10 @@
     <h2 data-fr="Aperçu" data-en="Preview">Aperçu</h2>
     <p class="sub" data-fr="Captures de l'application réelle, sur téléphone." data-en="Screenshots of the real app, on a phone.">Captures de l'application réelle, sur téléphone.</p>
     <div class="shots">
+      <figure><img loading="lazy" src="captures/mobile-15-relecture.png?v=11" alt="Relecture et corrections" width="390" height="844"><figcaption data-fr="Relecture et corrections" data-en="Review and corrections">Relecture et corrections</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-14-feuille-de-route.png?v=11" alt="Feuille de route" width="390" height="844"><figcaption data-fr="Feuille de route" data-en="Roadmap">Feuille de route</figcaption></figure>
       <figure><img loading="lazy" src="captures/mobile-05-forest.png?v=11" alt="Forest plot" width="390" height="844"><figcaption data-fr="Métaanalyse" data-en="Meta-analysis">Métaanalyse</figcaption></figure>
       <figure><img loading="lazy" src="captures/mobile-11-survie.png?v=11" alt="Incidence cumulée" width="390" height="844"><figcaption data-fr="Risques concurrents" data-en="Competing risks">Risques concurrents</figcaption></figure>
-      <figure><img loading="lazy" src="captures/mobile-13-mesures-repetees.png?v=11" alt="Trajectoires individuelles" width="390" height="844"><figcaption data-fr="Mesures répétées" data-en="Repeated measures">Mesures répétées</figcaption></figure>
-      <figure><img loading="lazy" src="captures/mobile-12-puissance.png?v=11" alt="Courbe de puissance" width="390" height="844"><figcaption data-fr="Puissance" data-en="Power">Puissance</figcaption></figure>
       <figure><img loading="lazy" src="captures/mobile-09-gwas.png?v=11" alt="Manhattan plot" width="390" height="844"><figcaption data-fr="GWAS" data-en="GWAS">GWAS</figcaption></figure>
       <figure><img loading="lazy" src="captures/mobile-10-causalite.png?v=11" alt="Randomisation mendélienne" width="390" height="844"><figcaption data-fr="Causalité" data-en="Causality">Causalité</figcaption></figure>
       <figure><img loading="lazy" src="captures/mobile-07-audit.png?v=11" alt="Audit" width="390" height="844"><figcaption data-fr="Audit" data-en="Audit">Audit</figcaption></figure>
@@ -202,7 +220,7 @@
 
 <section id="demos">
   <div class="wrap">
-    <h2 data-fr="Sept démonstrations complètes" data-en="Seven complete demonstrations">Sept démonstrations complètes</h2>
+    <h2 data-fr="Dix démonstrations complètes" data-en="Ten complete demonstrations">Dix démonstrations complètes</h2>
     <p class="sub" data-fr="De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger." data-en="From the question to the report, with a deliberately flawed draft that the audit must correct.">De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger.</p>
     <div class="demos">
       <div class="demo"><b data-fr="AgHBs et événements rares" data-en="HBsAg and rare events">AgHBs et événements rares</b><span data-fr="Proportions exactes, séparation, Firth" data-en="Exact proportions, separation, Firth">Proportions exactes, séparation, Firth</span></div>
@@ -212,7 +230,10 @@
       <div class="demo"><b data-fr="Étude pangénomique" data-en="Genome-wide study">Étude pangénomique</b><span data-fr="QC, parenté, ACP, Manhattan" data-en="QC, relatedness, PCA, Manhattan">QC, parenté, ACP, Manhattan</span></div>
       <div class="demo"><b data-fr="Polygénie ou confusion ?" data-en="Polygenicity or confounding?">Polygénie ou confusion ?</b><span data-fr="Régression LD score, corrélation génétique" data-en="LD score regression, genetic correlation">Régression LD score, corrélation génétique</span></div>
       <div class="demo"><b data-fr="Causalité : LDL, HDL et cœur" data-en="Causality: LDL, HDL and the heart">Causalité : LDL, HDL et cœur</b><span data-fr="Randomisation mendélienne sur 28 variants publiés" data-en="Mendelian randomization on 28 published variants">Randomisation mendélienne sur 28 variants publiés</span></div>
-      <div class="demo"><b data-fr="Et vos propres données" data-en="And your own data">Et vos propres données</b><span data-fr="CSV, VCF, PLINK, FASTA, statistiques résumées" data-en="CSV, VCF, PLINK, FASTA, summary statistics">CSV, VCF, PLINK, FASTA, statistiques résumées</span></div>
+      <div class="demo"><b data-fr="Survie avancée" data-en="Advanced survival">Survie avancée</b><span data-fr="Risques concurrents, temps immortel" data-en="Competing risks, immortal time">Risques concurrents, temps immortel</span></div>
+      <div class="demo"><b data-fr="Laboratoire : plasma ou sérum ?" data-en="Laboratory: plasma or serum?">Laboratoire : plasma ou sérum ?</b><span data-fr="Passing-Bablok, Bland-Altman, Deming" data-en="Passing-Bablok, Bland-Altman, Deming">Passing-Bablok, Bland-Altman, Deming</span></div>
+      <div class="demo"><b data-fr="Santé publique" data-en="Public health">Santé publique</b><span data-fr="Une politique a-t-elle réduit les admissions ? Séries chronologiques interrompues" data-en="Did a policy reduce admissions? Interrupted time series">Une politique a-t-elle réduit les admissions ? Séries chronologiques interrompues</span></div>
+      <div class="demo wide"><b data-fr="Et vos propres protocoles et données" data-en="And your own protocols and data">Et vos propres protocoles et données</b><span data-fr="Word, PDF, CSV, Excel, VCF, PLINK, FASTA, statistiques résumées" data-en="Word, PDF, CSV, Excel, VCF, PLINK, FASTA, summary statistics">Word, PDF, CSV, Excel, VCF, PLINK, FASTA, statistiques résumées</span></div>
     </div>
   </div>
 </section>
