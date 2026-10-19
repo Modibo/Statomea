@@ -1232,3 +1232,14 @@ bandeau de la feuille de route mis à jour.
   « van der ») ; clés « auteur+année » dédoublonnées ; style de Vancouver (6 auteurs puis « et al. ») ; citations
   « [@clé] » numérotées dans l'ordre de première citation, suites « [1–3] », clés inconnues laissées telles quelles ;
   liste dans l'article et rubrique « Références » du protocole.
+
+## Présentation de soutenance, réponse aux relecteurs — 1.62.0
+
+- Présentation (`presentation_test.dart`, `protocol_document_test.dart`) : diapositives tirées de l'article (titre,
+  contexte, objectif, méthodes, flux, Tableau 1 limité à 9 lignes, résultats, résultat clé, limites, conclusion,
+  références, remerciements) ; paquet PowerPoint 16:9 minimal (présentation, masque, disposition, thème, tableaux
+  natifs) : XML vérifié par Python, relations et types de contenu contrôlés, diapositives rendues par QuickLook de macOS.
+- Réponse aux relecteurs (`reviewer_test.dart`) : découpage par relecteur et par commentaire (numéros, puces ou
+  paragraphes, lignes de continuation) ; dix thèmes reconnus ; réponses fondées sur le projet (effectif prévu et analysé,
+  variables d'ajustement du Tableau 2, estimations du journal avec IC, données manquantes par variable, phrase du
+  diagramme de flux, langage selon le plan) ; enregistrement ; lettre Word (commentaire, réponse, modification).

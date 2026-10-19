@@ -8,6 +8,7 @@ import 'package:statomea/services/article_document.dart';
 import 'package:statomea/services/crf_workbook.dart';
 import 'package:statomea/services/document_text.dart';
 import 'package:statomea/services/pdf_export.dart';
+import 'package:statomea/services/presentation_document.dart';
 import 'package:statomea/services/protocol_annotate.dart';
 import 'package:statomea/services/protocol_document.dart';
 import 'package:statomea/services/xlsx_import.dart';
@@ -175,6 +176,31 @@ Les informations suivantes seront recueillies : le sexe, l'âge, la pression art
     final dir = await Directory.systemTemp.createTemp('statomea_article');
     final file = File('${dir.path}/article.docx')..writeAsBytesSync(bytes);
     File('${Directory.systemTemp.path}/statomea-article-demo.txt').writeAsStringSync(text);
+    final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
+    expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
+    await dir.delete(recursive: true);
+  });
+
+  test('présentation PowerPoint : paquet valide (Python), diapositives, relations, tableaux natifs, textes', () async {
+    final p = buildDemoAghbs(File('../../packages/statomea_core/test/reference/aghbs_simule.csv').readAsStringSync());
+    final bytes = presentationPptx(p, date: '2026-10-19');
+    final zip = ZipDecoder().decodeBytes(bytes);
+    String part(String n) => utf8.decode(zip.findFile(n)!.content as List<int>);
+    final slides = zip.files.where((f) => RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(f.name)).length;
+    expect(slides, presentationSlides(p).length);
+    final pres = part('ppt/presentation.xml'), rels = part('ppt/_rels/presentation.xml.rels'), ct = part('[Content_Types].xml');
+    for (var k = 1; k <= slides; k++) {
+      final rid = RegExp('<p:sldId id="\\d+" r:id="(rId\\d+)"/>').allMatches(pres).elementAt(k - 1).group(1);
+      expect(rels, contains('Id="$rid" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide$k.xml"'));
+      expect(ct, contains('/ppt/slides/slide$k.xml'));
+      expect(part('ppt/slides/_rels/slide$k.xml.rels'), contains('slideLayout1.xml'));
+    }
+    final all = [for (var k = 1; k <= slides; k++) part('ppt/slides/slide$k.xml')].join();
+    expect(all, contains('<a:tbl>'));
+    expect(all, contains('Caractéristiques des participants'));
+    expect(all, contains('C55A11'), reason: 'éléments à compléter en orange');
+    final dir = await Directory.systemTemp.createTemp('statomea_pptx');
+    final file = File('${dir.path}/p.pptx')..writeAsBytesSync(bytes);
     final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
     expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
     await dir.delete(recursive: true);

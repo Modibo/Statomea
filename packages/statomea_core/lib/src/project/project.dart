@@ -12,6 +12,7 @@ import '../model/result.dart';
 import '../prediction/model_development.dart';
 import '../version.dart';
 import 'references.dart';
+import 'reviewer.dart' show ReviewerItem;
 
 enum Step { question, studyPlan, analysisPlan, dataControl, methodChoice, computation, diagnostics, interpretation, audit, export }
 
@@ -69,8 +70,8 @@ String get guideReview => tr(
 
 /// Feuille de route et protocole prérédigé.
 String get guideRoadmap => tr(
-    'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime ; « Budget et chronogramme » propose le Gantt et le budget (coûts à saisir), repris dans le protocole ; « Article (Word) » prérédige l\'article (méthodes, Tableau 1, résultats du journal, limites) ; « Diagramme de flux » et « Bibliographie » le complètent (citer avec [@clé]). « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
-    'Roadmap: "Roadmap" button (route icon) in a project. It lists the 10 steps, what is done, what is proposed and what remains; "Compute the sample size" opens the right calculator; "Print / PDF" prints it; "Budget and timeline" proposes the Gantt chart and budget (costs to enter), included in the protocol; "Article (Word)" pre-drafts the article (methods, Table 1, results from the log, limitations); "Flow diagram" and "Bibliography" complete it (cite with [@key]). "Protocol (Word)" and "Protocol (PDF)" produce a pre-drafted protocol in 13 sections (ethics committee format): highlighted "[To complete: …]" passages are for the researcher to write.');
+    'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime ; « Budget et chronogramme » propose le Gantt et le budget (coûts à saisir), repris dans le protocole ; « Article (Word) » prérédige l\'article (méthodes, Tableau 1, résultats du journal, limites) ; « Diagramme de flux » et « Bibliographie » le complètent (citer avec [@clé]) ; « Présentation (PowerPoint) » prépare la soutenance ; « Réponse aux relecteurs » propose les réponses et la lettre. « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
+    'Roadmap: "Roadmap" button (route icon) in a project. It lists the 10 steps, what is done, what is proposed and what remains; "Compute the sample size" opens the right calculator; "Print / PDF" prints it; "Budget and timeline" proposes the Gantt chart and budget (costs to enter), included in the protocol; "Article (Word)" pre-drafts the article (methods, Table 1, results from the log, limitations); "Flow diagram" and "Bibliography" complete it (cite with [@key]); "Presentation (PowerPoint)" prepares the defence; "Response to reviewers" proposes responses and the letter. "Protocol (Word)" and "Protocol (PDF)" produce a pre-drafted protocol in 13 sections (ethics committee format): highlighted "[To complete: …]" passages are for the researcher to write.');
 
 /// Empreinte FNV-1a 32 bits (identifie une version de données dans le journal).
 String fingerprint(String s) {
@@ -271,6 +272,9 @@ class Project {
   /// Bibliographie du projet (citations « [@clé] » dans les textes).
   final List<Reference> references;
 
+  /// Commentaires des relecteurs et réponses en préparation.
+  final List<ReviewerItem> reviewerItems;
+
   Project({
     required this.id,
     required this.title,
@@ -293,7 +297,9 @@ class Project {
     Map<String, String>? planning,
     Map<String, String>? flow,
     List<Reference>? references,
+    List<ReviewerItem>? reviewerItems,
   })  : inferred = inferred ?? {},
+        reviewerItems = reviewerItems ?? [],
         references = references ?? [],
         flow = flow ?? {},
         planning = planning ?? {},
@@ -329,6 +335,7 @@ class Project {
         if (planning.isNotEmpty) 'planning': planning,
         if (flow.isNotEmpty) 'flow': flow,
         if (references.isNotEmpty) 'references': [for (final r in references) r.toJson()],
+        if (reviewerItems.isNotEmpty) 'reviewerItems': [for (final r in reviewerItems) r.toJson()],
       };
 
   factory Project.fromJson(Map<String, Object?> j) => Project(
@@ -353,6 +360,7 @@ class Project {
         planning: ((j['planning'] as Map?) ?? {}).cast<String, String>(),
         flow: ((j['flow'] as Map?) ?? {}).cast<String, String>(),
         references: [for (final r in (j['references'] as List? ?? [])) Reference.fromJson((r as Map).cast())],
+        reviewerItems: [for (final r in (j['reviewerItems'] as List? ?? [])) ReviewerItem.fromJson((r as Map).cast())],
       );
 
   /// JSON exporté, avec une empreinte d'intégrité (voir `projectChecksum`).

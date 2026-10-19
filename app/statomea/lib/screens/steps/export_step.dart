@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../services/article_document.dart';
+import '../../services/presentation_document.dart';
 import '../../services/file_saver.dart';
 import '../../services/pdf_export.dart';
 import '../../state/app_state.dart';
@@ -45,6 +46,14 @@ class ExportStep extends StatelessWidget {
           onPressed: () async {
             final bytes = await buildProjectPdf(p, audit: _audit(), generatedAt: AppState.now());
             await Printing.sharePdf(bytes: bytes, filename: 'statomea-$_slug.pdf');
+          },
+        ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.slideshow_outlined),
+          label: Text(tr('Présentation (PowerPoint)', 'Presentation (PowerPoint)')),
+          onPressed: () async {
+            final where = await saveFile('presentation-$_slug.pptx', presentationPptx(p, date: AppState.now().substring(0, 10)), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Présentation enregistrée : $where', 'Presentation saved: $where'))));
           },
         ),
         OutlinedButton.icon(

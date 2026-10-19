@@ -3,6 +3,7 @@ import 'package:printing/printing.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../services/article_document.dart';
+import '../services/presentation_document.dart';
 import '../services/file_saver.dart';
 import '../services/pdf_export.dart';
 import '../services/protocol_document.dart';
@@ -13,6 +14,7 @@ import 'flow_screen.dart';
 import 'planning_screen.dart';
 import 'project_screen.dart';
 import 'references_screen.dart';
+import 'reviewer_screen.dart';
 import 'review_screen.dart';
 
 /// Feuille de route : les 10 étapes du projet dans l'ordre, avec ce que l'application propose à chacune ; impression
@@ -89,11 +91,27 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             },
           ),
           OutlinedButton.icon(
+            icon: const Icon(Icons.slideshow_outlined),
+            label: Text(tr('Présentation (PowerPoint)', 'Presentation (PowerPoint)')),
+            onPressed: () async {
+              final where = await saveFile('presentation-${project.id}.pptx', presentationPptx(project, date: AppState.now().substring(0, 10)), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Présentation enregistrée : $where', 'Presentation saved: $where'))));
+            },
+          ),
+          OutlinedButton.icon(
             icon: const Icon(Icons.article_outlined),
             label: Text(tr('Article (Word)', 'Article (Word)')),
             onPressed: () async {
               final where = await saveFile('article-${project.id}.docx', articleDocx(project), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Article enregistré : $where', 'Article saved: $where'))));
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.forum_outlined),
+            label: Text(tr('Réponse aux relecteurs', 'Response to reviewers')),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewerScreen(project)));
+              setState(() {});
             },
           ),
           OutlinedButton.icon(

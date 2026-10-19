@@ -677,4 +677,21 @@ void main() {
     }
     expectEnglish('flow, table 2, references', b.toString().replaceAll('urbain', '').replaceAll('rural', ''));
   });
+
+  test('presentation and reviewer responses', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    p.inferred['plannedSampleSize'] = '600';
+    final b = StringBuffer();
+    for (final s in presentationSlides(p)) {
+      b.writeln(s.title);
+      b.writeln(s.bullets.where((l) => !l.contains(p.question.text) && !l.contains(p.question.population) && !l.contains(p.question.outcome) && !p.analysisPlan.contains(l.replaceAll('…', ''))).join('\n'));
+      if (s.table != null) b.writeln('${s.table!.title} ${s.table!.header.join(' ')}');
+    }
+    final items = analyseReviewerComments(p, 'Reviewer 1\n1. The sample size is not justified.\n2. Please adjust for confounders.\n3. Report confidence intervals.\n4. How were missing data handled?\n5. Avoid causal language.\n6. Justify the statistical tests.\n7. How many women were excluded?\n8. Can the results be generalised?\n9. The English needs editing.\n10. Other point to discuss here.');
+    expect(items.map((i) => i.topic), ['sample', 'confounding', 'ci', 'missing', 'causal', 'tests', 'flow', 'general', 'language', '']);
+    for (final i in items) {
+      b.writeln('${reviewerTopicLabel(i.topic)} ${i.response.replaceAll(p.question.outcome, '')} ${i.change}');
+    }
+    expectEnglish('presentation, reviewers', b.toString().replaceAll('urbain', '').replaceAll('rural', ''));
+  });
 }
