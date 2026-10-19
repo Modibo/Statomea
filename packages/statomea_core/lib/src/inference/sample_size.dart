@@ -14,6 +14,7 @@ import '../i18n.dart';
 import '../math/distributions.dart';
 import '../math/special.dart';
 import '../model/result.dart';
+import '../prediction/performance.dart' show rileySampleSize;
 
 /// P(T ≤ t) pour T ~ t non centrale (df, delta) — AS 243.
 double noncentralTCdf(double t, double df, double delta) {
@@ -185,6 +186,83 @@ AnalysisResult sampleSizeProportion(
       whatItMeans: tr('$nInt sujets donnent un IC à ${(level * 100).round()} % de demi-largeur ≈ ${fmtPct(precision)} si la proportion vaut ${fmtPct(expected)}${designEffect != 1 ? " (effet de plan ${fmt(designEffect)})" : ""}.',
           '$nInt subjects give a ${(level * 100).round()}% CI with half-width ≈ ${fmtPct(precision)} if the proportion is ${fmtPct(expected)}${designEffect != 1 ? " (design effect ${fmt(designEffect)})" : ""}.'),
       notJustified: tr("Utiliser ce calcul pour une comparaison de groupes ; ignorer l'effet de plan d'un sondage en grappes.", 'Using this calculation for a group comparison; ignoring the design effect of a cluster survey.'),
+    ),
+  );
+}
+
+/// n pour mettre en évidence une corrélation [r] (test bilatéral, transformation z de Fisher) :
+/// n = ((z₁₋α/2 + z₁₋β) / atanh r)² + 3, majoré pour les pertes : n / (1 − perdus).
+AnalysisResult sampleSizeCorrelation({required double r, double alpha = 0.05, double power = 0.8, double dropout = 0}) {
+  if (r == 0 || r.abs() >= 1 || alpha <= 0 || alpha >= 1 || power <= 0 || power >= 1 || dropout < 0 || dropout >= 1) {
+    throw StatInputError('bad_param', tr('Corrélation entre −1 et 1 (non nulle), α et puissance entre 0 et 1, perdus de vue entre 0 et 1.', 'Correlation between −1 and 1 (non-zero), α and power between 0 and 1, losses between 0 and 1.'));
+  }
+  final za = normalQuantile(1 - alpha / 2), zb = normalQuantile(power);
+  final z = 0.5 * math.log((1 + r.abs()) / (1 - r.abs()));
+  final n = math.pow((za + zb) / z, 2) + 3;
+  final nAdj = n / (1 - dropout);
+  final nInt = (nAdj - 1e-9).ceil();
+  return AnalysisResult(
+    methodId: 'sample_size_correlation',
+    methodName: tr("Taille d'échantillon : mettre en évidence une corrélation", 'Sample size: detecting a correlation'),
+    inputs: {'r': r, 'alpha': alpha, 'power': power, 'dropout': dropout},
+    formula: tr('n = ((z₁₋α/2 + z₁₋β) / atanh r)² + 3 (transformation de Fisher) ; avec pertes : n / (1 − perdus).', 'n = ((z₁₋α/2 + z₁₋β) / atanh r)² + 3 (Fisher transformation); with losses: n / (1 − losses).'),
+    estimates: [Estimate(tr('n requis', 'n required'), nInt.toDouble()), Estimate(tr('n non arrondi (sans pertes)', 'n unrounded (no losses)'), n.toDouble())],
+    statistics: {'n': nInt.toDouble(), 'n_exact': n.toDouble()},
+    alerts: [
+      if (r.abs() >= 0.5)
+        Alert('large_r', Severity.caution,
+            tr('Une corrélation attendue ≥ 0,5 est forte : un effectif calculé sur une valeur optimiste manquera de puissance si la corrélation réelle est plus faible.',
+                'An expected correlation ≥ 0.5 is strong: a sample size based on an optimistic value will lack power if the true correlation is weaker.')),
+    ],
+    interpretation: Interpretation(
+      whyThisMethod: tr('Objectif : montrer qu\'une corrélation au moins égale à ${fmt(r)} existe (test bilatéral).', 'Aim: show that a correlation of at least ${fmt(r)} exists (two-sided test).'),
+      whatItMeans: tr('$nInt sujets donnent une puissance de ${fmtPct(power)} pour mettre en évidence r = ${fmt(r)} au seuil α = ${fmt(alpha)}${dropout > 0 ? ' avec ${fmtPct(dropout)} de pertes' : ''}.',
+          '$nInt subjects give ${fmtPct(power)} power to detect r = ${fmt(r)} at α = ${fmt(alpha)}${dropout > 0 ? ' with ${fmtPct(dropout)} losses' : ''}.'),
+      notJustified: tr('Choisir r d\'après ce qui rend l\'effectif faisable plutôt que la plus petite corrélation cliniquement pertinente ; utiliser une corrélation pour juger l\'accord entre deux méthodes.',
+          'Choosing r from what makes the sample size feasible rather than the smallest clinically relevant correlation; using a correlation to judge agreement between two methods.'),
+    ),
+  );
+}
+
+/// Effectif minimal d'un modèle de prédiction à issue binaire (Riley et al., critères i à iii, comme pmsampsize),
+/// majoré pour les pertes : n / (1 − perdus).
+AnalysisResult sampleSizePredictionModel(
+    {required int parameters, required double prevalence, required double r2CoxSnell, double shrinkage = 0.9, double dropout = 0}) {
+  if (parameters < 1 || prevalence <= 0 || prevalence >= 1 || r2CoxSnell <= 0 || shrinkage <= 0 || shrinkage >= 1 || r2CoxSnell >= shrinkage || dropout < 0 || dropout >= 1) {
+    throw StatInputError('bad_param', tr('Paramètres ≥ 1 ; prévalence entre 0 et 1 ; 0 < R² de Cox-Snell < facteur de rétrécissement < 1 ; perdus de vue entre 0 et 1.', 'Parameters ≥ 1; prevalence between 0 and 1; 0 < Cox-Snell R² < shrinkage factor < 1; losses between 0 and 1.'));
+  }
+  final rl = rileySampleSize(parameters: parameters, prevalence: prevalence, r2CoxSnell: r2CoxSnell, shrinkage: shrinkage);
+  final need = rl.n.ceil();
+  final nInt = (need / (1 - dropout) - 1e-9).ceil();
+  final epp = need * prevalence / parameters;
+  final lnLnull = prevalence * math.log(prevalence) + (1 - prevalence) * math.log(1 - prevalence);
+  final maxR2 = 1 - math.exp(2 * lnLnull);
+  return AnalysisResult(
+    methodId: 'sample_size_prediction',
+    methodName: tr("Taille d'échantillon : modèle de prédiction (Riley)", 'Sample size: prediction model (Riley)'),
+    inputs: {'parameters': parameters, 'prevalence': prevalence, 'r2CoxSnell': r2CoxSnell, 'shrinkage': shrinkage, 'dropout': dropout},
+    formula: tr('(i) rétrécissement : n = p / ((S − 1) ln(1 − R²/S)) ; (ii) optimisme du R² de Nagelkerke ≤ 0,05 ; (iii) intercept : n = (1,96/0,05)² φ(1 − φ) ; n = max(i, ii, iii).',
+        '(i) shrinkage: n = p / ((S − 1) ln(1 − R²/S)); (ii) Nagelkerke R² optimism ≤ 0.05; (iii) intercept: n = (1.96/0.05)² φ(1 − φ); n = max(i, ii, iii).'),
+    estimates: [
+      Estimate(tr('n requis', 'n required'), nInt.toDouble()),
+      Estimate(tr('critère (i)', 'criterion (i)'), rl.n1.ceilToDouble()),
+      Estimate(tr('critère (ii)', 'criterion (ii)'), rl.n2.ceilToDouble()),
+      Estimate(tr('critère (iii)', 'criterion (iii)'), rl.n3.ceilToDouble()),
+      Estimate(tr('événements par paramètre', 'events per parameter'), epp),
+    ],
+    statistics: {'n': nInt.toDouble(), 'n1': rl.n1, 'n2': rl.n2, 'n3': rl.n3, 'events': need * prevalence, 'epp': epp},
+    alerts: [
+      if (r2CoxSnell > 0.75 * maxR2)
+        Alert('r2_high', Severity.caution,
+            tr('R² de Cox-Snell attendu proche de son maximum (${fmt(maxR2)} pour cette prévalence) : hypothèse très optimiste.', 'Expected Cox-Snell R² close to its maximum (${fmt(maxR2)} for this prevalence): a very optimistic assumption.')),
+    ],
+    interpretation: Interpretation(
+      whyThisMethod: tr('Objectif prédictif : assez de sujets pour limiter le sur-ajustement (rétrécissement ≤ ${fmtPct(1 - shrinkage)}), l\'optimisme et estimer précisément le risque moyen.',
+          'Predictive aim: enough subjects to limit overfitting (shrinkage ≤ ${fmtPct(1 - shrinkage)}), optimism, and to estimate the average risk precisely.'),
+      whatItMeans: tr('Au moins $need sujets analysables (${fmt(need * prevalence)} événements, ${fmt(epp)} par paramètre)${dropout > 0 ? ', soit $nInt à inclure avec ${fmtPct(dropout)} de pertes' : ''}.',
+          'At least $need analysable subjects (${fmt(need * prevalence)} events, ${fmt(epp)} per parameter)${dropout > 0 ? ', i.e. $nInt to include with ${fmtPct(dropout)} losses' : ''}.'),
+      notJustified: tr('Compter les variables plutôt que les paramètres (une variable à k modalités ou une spline en coûte plusieurs) ; se fier à la seule règle des 10 événements par variable.',
+          'Counting variables rather than parameters (a k-level variable or a spline costs several); relying only on the 10 events-per-variable rule.'),
     ),
   );
 }

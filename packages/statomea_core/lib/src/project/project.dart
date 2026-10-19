@@ -63,8 +63,8 @@ String get guideImportedProject => tr(
 
 /// Relecture méthodologique et corrections.
 String get guideReview => tr(
-    'Relecture et corrections : bouton « Relire et corriger » (feuille de route, étape 1 ou icône de vérification dans un projet). Statoméa relit la question, le plan, le nombre de sujets (recalculé quand les hypothèses sont données) et le plan d\'analyse — pour un protocole importé, sur son propre texte — et classe les points en erreurs, à revoir et manquants, en citant le passage en cause. « Appliquer la correction » (ou toutes d\'un coup) corrige le projet ; chaque correction est tracée et reprise dans le protocole prérédigé. Rapport de relecture imprimable en PDF.',
-    'Review and corrections: "Review and correct" button (roadmap, step 1 or the check icon in a project). Statoméa reviews the question, design, sample size (recomputed when the assumptions are given) and analysis plan — for an imported protocol, on its own text — and classifies points as errors, to review and missing, quoting the passage concerned. "Apply the correction" (or all at once) fixes the project; each correction is logged and included in the pre-drafted protocol. Review report printable as PDF.');
+    'Relecture et corrections : bouton « Relire et corriger » (feuille de route, étape 1 ou icône de vérification dans un projet). Statoméa relit la question, le plan, le nombre de sujets (recalculé quand les hypothèses sont données) et le plan d\'analyse — pour un protocole importé, sur son propre texte — et classe les points en erreurs, à revoir et manquants, en citant le passage en cause. « Appliquer la correction » (ou toutes d\'un coup) corrige le projet ; chaque correction est tracée et reprise dans le protocole prérédigé. Rapport de relecture en PDF ; conformité à la grille adaptée (SPIRIT, STROBE, STARD, TRIPOD) ; « Calculer l\'effectif » ouvre le calculateur prérempli avec les hypothèses du protocole ; dictionnaire de données tiré des variables du protocole ; « Protocole corrigé (Word) » renvoie votre propre fichier Word annoté (commentaires sur les passages en cause, récapitulatif en fin de document).',
+    'Review and corrections: "Review and correct" button (roadmap, step 1 or the check icon in a project). Statoméa reviews the question, design, sample size (recomputed when the assumptions are given) and analysis plan — for an imported protocol, on its own text — and classifies points as errors, to review and missing, quoting the passage concerned. "Apply the correction" (or all at once) fixes the project; each correction is logged and included in the pre-drafted protocol. Review report as PDF; compliance with the relevant checklist (SPIRIT, STROBE, STARD, TRIPOD); "Compute the sample size" opens the calculator prefilled with the protocol\'s assumptions; data dictionary drawn from the protocol\'s variables; "Corrected protocol (Word)" returns your own Word file annotated (comments on the passages concerned, summary at the end).');
 
 /// Feuille de route et protocole prérédigé.
 String get guideRoadmap => tr(
@@ -88,10 +88,27 @@ class AppliedCorrection {
   final String title;
   final String date; // AAAA-MM-JJ
   final String detail; // ce qui a été modifié
-  const AppliedCorrection({required this.id, required this.title, required this.date, this.detail = ''});
-  Map<String, Object?> toJson() => {'id': id, 'title': title, 'date': date, if (detail.isNotEmpty) 'detail': detail};
-  factory AppliedCorrection.fromJson(Map<String, Object?> j) =>
-      AppliedCorrection(id: j['id'] as String, title: (j['title'] as String?) ?? '', date: (j['date'] as String?) ?? '', detail: (j['detail'] as String?) ?? '');
+  final String level; // niveau du constat corrigé (error, warning, missing)
+  final String problem; // explication du constat
+  final String? evidence; // passage du protocole en cause (pour l'annoter dans le document d'origine)
+  const AppliedCorrection({required this.id, required this.title, required this.date, this.detail = '', this.level = '', this.problem = '', this.evidence});
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'date': date,
+        if (detail.isNotEmpty) 'detail': detail,
+        if (level.isNotEmpty) 'level': level,
+        if (problem.isNotEmpty) 'problem': problem,
+        if (evidence != null) 'evidence': evidence,
+      };
+  factory AppliedCorrection.fromJson(Map<String, Object?> j) => AppliedCorrection(
+      id: j['id'] as String,
+      title: (j['title'] as String?) ?? '',
+      date: (j['date'] as String?) ?? '',
+      detail: (j['detail'] as String?) ?? '',
+      level: (j['level'] as String?) ?? '',
+      problem: (j['problem'] as String?) ?? '',
+      evidence: j['evidence'] as String?);
 }
 
 class JournalEntry {

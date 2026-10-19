@@ -141,7 +141,10 @@ List<String> searchCalculators(String query) {
 class CalculatorPanel extends StatefulWidget {
   final Project? project;
   final String? initialMethod;
-  const CalculatorPanel({super.key, this.project, this.initialMethod});
+
+  /// Préréglages du calculateur d'effectif (voir [SampleSizeCalc.presets]).
+  final Map<String, String> presets;
+  const CalculatorPanel({super.key, this.project, this.initialMethod, this.presets = const {}});
   @override
   State<CalculatorPanel> createState() => _CalculatorPanelState();
 }
@@ -196,7 +199,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'e_value' => EValueCalc(onResult),
       'bayes' => BayesCalc(onResult, initial: widget.initialMethod),
       'interrupted_series' => InterruptedSeriesCalc(ds, onResult),
-      'sample_size' => SampleSizeCalc(onResult),
+      'sample_size' => SampleSizeCalc(onResult, presets: widget.presets),
       'power' => PowerCalc(onResult, initial: widget.initialMethod),
       'kaplan_meier' => SurvivalCalc(ds, onResult),
       'cumulative_incidence' => CompetingRisksCalc(ds, onResult),
@@ -951,26 +954,52 @@ class _BlandAltmanCalcState extends State<BlandAltmanCalc> {
 
 class SampleSizeCalc extends StatefulWidget {
   final OnResult onResult;
-  const SampleSizeCalc(this.onResult, {super.key});
+
+  /// Préréglages : 'type' (prop, two_props, two_means, correlation, riley) et valeurs des champs (lues dans le
+  /// protocole par la relecture).
+  final Map<String, String> presets;
+  const SampleSizeCalc(this.onResult, {super.key, this.presets = const {}});
   @override
   State<SampleSizeCalc> createState() => _SampleSizeCalcState();
 }
 
 class _SampleSizeCalcState extends State<SampleSizeCalc> {
-  String type = 'prop';
+  late String type = widget.presets['type'] ?? 'prop';
   final p = TextEditingController(text: '0,08'), d = TextEditingController(text: '0,02'), pop = TextEditingController(), deff = TextEditingController(text: '1');
   final delta = TextEditingController(text: '5'), sd = TextEditingController(text: '12');
   final p1 = TextEditingController(text: '0,10'), p2 = TextEditingController(text: '0,05');
+  final r = TextEditingController(text: '0,3');
+  final params = TextEditingController(text: '10'), prev = TextEditingController(text: '0,15'), r2 = TextEditingController(text: '0,15'), shrink = TextEditingController(text: '0,9');
   final alpha = TextEditingController(text: '0,05'), power = TextEditingController(text: '0,8'), drop = TextEditingController(text: '0');
+
+  @override
+  void initState() {
+    super.initState();
+    final fields = {'p': p, 'd': d, 'deff': deff, 'delta': delta, 'sd': sd, 'p1': p1, 'p2': p2, 'r': r, 'params': params, 'prev': prev, 'r2': r2, 's': shrink, 'alpha': alpha, 'power': power, 'drop': drop};
+    for (final e in widget.presets.entries) {
+      fields[e.key]?.text = e.value;
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr('Taille d\'échantillon', 'Sample size'), style: Theme.of(context).textTheme.titleMedium),
+        if (widget.presets.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(tr('Prérempli avec les hypothèses lues dans le protocole : à vérifier.', 'Prefilled with the assumptions read in the protocol: to check.'), style: Theme.of(context).textTheme.bodySmall),
+          ),
         const SizedBox(height: 8),
-        SegmentedButton<String>(segments: [
-          ButtonSegment(value: 'prop', label: Text(tr('Estimer une proportion', 'Estimate a proportion'))),
-          ButtonSegment(value: 'two_props', label: Text('2 proportions')),
-          ButtonSegment(value: 'two_means', label: Text('2 moyennes')),
-        ], selected: {type}, onSelectionChanged: (s) => setState(() => type = s.first)),
+        Wrap(spacing: 8, runSpacing: 6, children: [
+          for (final (v, l) in [
+            ('prop', tr('Estimer une proportion', 'Estimate a proportion')),
+            ('two_props', tr('2 proportions', '2 proportions')),
+            ('two_means', tr('2 moyennes', '2 means')),
+            ('correlation', tr('Corrélation', 'Correlation')),
+            ('riley', tr('Modèle de prédiction (Riley)', 'Prediction model (Riley)')),
+          ])
+            ChoiceChip(label: Text(l), selected: type == v, onSelected: (_) => setState(() => type = v)),
+        ]),
         const SizedBox(height: 10),
         Wrap(spacing: 12, runSpacing: 12, children: [
           if (type == 'prop') ...[
@@ -981,13 +1010,26 @@ class _SampleSizeCalcState extends State<SampleSizeCalc> {
           ],
           if (type == 'two_props') ...[NumField(tr('p1 attendue', 'expected p1'), p1), NumField(tr('p2 attendue', 'expected p2'), p2)],
           if (type == 'two_means') ...[NumField(tr('Différence minimale pertinente', 'Minimal relevant difference'), delta, width: 220), NumField(tr('Écart-type', 'Standard deviation'), sd)],
-          if (type != 'prop') ...[NumField(tr('α (bilatéral)', 'α (two-sided)'), alpha), NumField(tr('Puissance', 'Power'), power), NumField(tr('Perdus de vue (proportion)', 'Lost to follow-up (proportion)'), drop, width: 200)],
+          if (type == 'correlation') NumField(tr('Corrélation minimale pertinente r', 'Minimal relevant correlation r'), r, width: 240),
+          if (type == 'riley') ...[
+            NumField(tr('Paramètres candidats', 'Candidate parameters'), params, width: 190),
+            NumField(tr('Prévalence de l\'issue', 'Outcome prevalence'), prev, width: 190),
+            NumField(tr('R² de Cox-Snell attendu', 'Expected Cox-Snell R²'), r2, width: 210),
+            NumField(tr('Rétrécissement visé S', 'Target shrinkage S'), shrink, width: 190),
+            NumField(tr('Perdus de vue (proportion)', 'Lost to follow-up (proportion)'), drop, width: 200),
+          ],
+          if (type != 'prop' && type != 'riley') ...[NumField(tr('α (bilatéral)', 'α (two-sided)'), alpha), NumField(tr('Puissance', 'Power'), power), NumField(tr('Perdus de vue (proportion)', 'Lost to follow-up (proportion)'), drop, width: 200)],
         ]),
         _computeButton(context, () {
           run(context, () {
             switch (type) {
               case 'prop':
                 return sampleSizeProportion(expected: readNum(p) ?? 0, precision: readNum(d) ?? 0, population: readInt(pop), designEffect: readNum(deff) ?? 1);
+              case 'correlation':
+                return sampleSizeCorrelation(r: readNum(r) ?? 0, alpha: readNum(alpha) ?? 0.05, power: readNum(power) ?? 0.8, dropout: readNum(drop) ?? 0);
+              case 'riley':
+                return sampleSizePredictionModel(
+                    parameters: readInt(params) ?? 0, prevalence: readNum(prev) ?? 0, r2CoxSnell: readNum(r2) ?? 0, shrinkage: readNum(shrink) ?? 0.9, dropout: readNum(drop) ?? 0);
               case 'two_props':
                 return sampleSizeTwoProportions(p1: readNum(p1) ?? 0, p2: readNum(p2) ?? 0, alpha: readNum(alpha) ?? 0.05, power: readNum(power) ?? 0.8, dropout: readNum(drop) ?? 0);
               default:

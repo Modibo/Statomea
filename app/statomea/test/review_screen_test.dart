@@ -71,4 +71,40 @@ void main() {
     await t.pump(const Duration(seconds: 3));
     expect(t.takeException(), isNull);
   });
+
+  testWidgets('« Calculer l\'effectif » ouvre le calculateur prérempli avec les hypothèses du protocole', (t) async {
+    await t.binding.setSurfaceSize(const Size(1000, 4000));
+    final state = AppState(MemoryStorage());
+    await state.load();
+    final d = protocolFromText("""
+Titre du projet
+Prévalence de l'anémie chez les femmes enceintes
+Objectif principal
+Déterminer la prévalence de l'anémie chez les femmes enceintes.
+Type d'étude
+Étude transversale.
+Taille de l'échantillon
+Avec une prévalence attendue de 7 %, une marge d'erreur de 5 % et un niveau de confiance de 95 %, il faut 100 femmes.
+Analyse statistique
+Proportion avec IC à 95 % (Wilson), seuil de 5 %, données manquantes décrites.
+""");
+    final p = state.createProject(d.title)
+      ..question = d.toQuestion()
+      ..protocol = Map.of(d.fullSections)
+      ..analysisPlan = d.sections['analysis']!;
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: ReviewScreen(p))));
+    await t.pumpAndSettle();
+    final card = find.ancestor(of: find.text('Précision trop large pour la proportion attendue'), matching: find.byType(Card));
+    await t.tap(find.descendant(of: card, matching: find.text('Calculer l\'effectif')));
+    await t.pumpAndSettle();
+    expect(find.textContaining('Prérempli avec les hypothèses lues dans le protocole'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '0,07'), findsOneWidget);
+    expect(find.widgetWithText(TextField, '0,02'), findsOneWidget);
+    await t.tap(find.text('Calculer'));
+    await t.pumpAndSettle();
+    expect(find.textContaining('626', skipOffstage: false), findsWidgets);
+    expect(p.journal.last.methodId, 'sample_size_proportion');
+    await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
 }

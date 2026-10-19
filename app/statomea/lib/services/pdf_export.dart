@@ -327,6 +327,7 @@ Future<Uint8List> buildReviewPdf(Project p, {required String generatedAt}) async
   final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
   final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
   final r = reviewProject(p);
+  final grid = p.protocol.isEmpty ? null : protocolChecklist(p);
   PdfColor color(ReviewLevel l) => switch (l) {
         ReviewLevel.error => PdfColor.fromHex('#b3261e'),
         ReviewLevel.warning => PdfColor.fromHex('#7a5c00'),
@@ -378,6 +379,18 @@ Future<Uint8List> buildReviewPdf(Project p, {required String generatedAt}) async
       pw.SizedBox(height: 10),
       if (r.problems.isEmpty) pw.Text(tr('Aucun problème relevé.', 'No problem found.'), style: const pw.TextStyle(fontSize: 10)),
       for (final f in r.problems) card(f),
+      if (grid != null) ...[
+        pw.Header(level: 1, child: pw.Text(tr('Grille ${grid.name} : ${grid.present} / ${grid.items.length} éléments trouvés', '${grid.name} checklist: ${grid.present} / ${grid.items.length} items found'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
+        pw.Text(grid.reference, style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700)),
+        pw.SizedBox(height: 4),
+        pw.TableHelper.fromTextArray(
+          headers: [tr('Item', 'Item'), tr('Élément', 'Element'), tr('Trouvé', 'Found')],
+          data: [for (final it in grid.items) [it.code, it.label, it.present ? tr('oui', 'yes') : tr('ABSENT', 'ABSENT')]],
+          headerStyle: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 8.5),
+          columnWidths: {0: const pw.FixedColumnWidth(36), 1: const pw.FlexColumnWidth(), 2: const pw.FixedColumnWidth(54)},
+        ),
+      ],
       if (r.checked.isNotEmpty) ...[
         pw.Header(level: 1, child: pw.Text(tr('Vérifications réussies', 'Successful checks'), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold))),
         for (final f in r.checked) card(f),

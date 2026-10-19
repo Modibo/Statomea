@@ -109,7 +109,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                             MaterialPageRoute(
                                 builder: (_) => Scaffold(
                                       appBar: AppBar(title: Text(tr('Calcul d\'effectif', 'Sample size calculation'))),
-                                      body: PageBody(children: [CalculatorPanel(project: project, initialMethod: road[k].calculator)]),
+                                      body: PageBody(children: [CalculatorPanel(project: project, initialMethod: road[k].calculator, presets: road[k].calculatorPresets)]),
                                     ))),
                       ),
                     ),

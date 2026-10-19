@@ -565,5 +565,26 @@ void main() {
     applyAllCorrections(p);
     expect(p.question.text, startsWith('What is the association between smoking and the risk'));
     expectEnglish('review', '$b\n${p.analysisPlan}');
+    // Essai randomisé importé : contrôles élargis, grille SPIRIT, variables, calculs d'effectif.
+    final t = Project(id: 't', title: 'Vitamin D randomised trial', createdAt: '');
+    t.question = const ResearchQuestion(text: 'Does vitamin D lower blood pressure at 6 months compared with placebo?', design: StudyDesign.rct, objective: StudyObjective.explanatory, outcomeType: OutcomeType.continuous);
+    t.protocol = {'population': 'Hypertensive patients.', 'variables': 'Data collected will include sex, age, weight and height.', '_text': 'Randomised trial. Study period: 12 months.'};
+    t.inferred['plannedSampleSize'] = '200';
+    t.analysisPlan = 'Student t-test at the 5% level.';
+    final b2 = StringBuffer();
+    for (final f in reviewProject(t).findings) {
+      b2.writeln('${f.title} ${f.problem} ${f.correction} ${f.fix?.detail ?? ''}');
+    }
+    final c = protocolChecklist(t)!;
+    for (final i in c.items) {
+      b2.writeln('${c.name} ${c.reference} ${i.code} ${i.label}');
+    }
+    b2.writeln(protocolDictionaryCsv(t));
+    for (final r in [sampleSizeCorrelation(r: 0.3, dropout: 0.1), sampleSizePredictionModel(parameters: 6, prevalence: 0.15, r2CoxSnell: 0.18)]) {
+      b2.writeln('${r.methodName} ${r.formula} ${r.interpretation.whyThisMethod} ${r.interpretation.whatItMeans} ${r.interpretation.notJustified} ${r.estimates.map((e) => e.label).join(' ')}');
+    }
+    expect(reviewProject(t).findings.map((f) => f.id), containsAll(['rct_randomisation', 'rct_itt', 'inclusion_age', 'exclusion_criteria', 'recruitment_feasibility']));
+    expect(protocolVariables(t).map((v) => v.code), ['sex', 'age', 'weight', 'height']);
+    expectEnglish('review (trial)', b2.toString());
   });
 }

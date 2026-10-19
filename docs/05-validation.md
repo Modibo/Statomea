@@ -1160,3 +1160,26 @@ projet : formulation causale reformulée en association (accord « Quelle est »
 (fréquence, risque relatif) et transversal (incidence) corrigés. `english_test.dart` : relecture et corrections en
 anglais. `app/statomea/test/review_screen_test.dart` : écran (correction seule, toutes, confirmation), rapport PDF relu,
 bandeau de la feuille de route mis à jour.
+
+## Relecture élargie, grilles, calculateur prérempli, protocole Word annoté — 1.58.0
+
+- Effectif d'une corrélation (`sampleSizeCorrelation`, transformation de Fisher) : identique à la formule évaluée dans
+  R 4.2.3 à 1e-9 près (r = 0,3 → 84,93 ; r = 0,2 → 193,97 ; r = 0,5, α = 1 %, puissance 90 % → 52,31 ; r = −0,25 →
+  123,32). Modèle de prédiction (`sampleSizePredictionModel`) : critères i à iii de `rileySampleSize`, déjà identiques
+  à pmsampsize (6 paramètres, prévalence 15 %, R² 0,18 → 269, 188, 196) ; majoration n / (1 − pertes).
+- Relecture élargie (`review_test.dart`) : essai randomisé sans séquence, dissimulation, aveugle ni intention de
+  traiter → 4 constats, corrigés par 4 paragraphes ; âge et non-inclusion absents ; recrutement impossible (10 par mois
+  × 6 mois < 100) ; « 10 patients par mois » n'est plus lu comme l'effectif ; variables énumérées en prose extraites
+  avec noms de colonnes (abréviations INR, TCA, SaO2, HCO3…) et types, dictionnaire CSV relu par l'import de l'étape 4
+  (correspondance sans casse ni accents), variables prévues absentes des données signalées. Sur les protocoles réels :
+  9 et 20 variables, 9 et 36 mois, 12,2 et 15,3 inclusions par mois nécessaires.
+- Grilles : STROBE 10/16 et TRIPOD 14/14 sur les protocoles réels ; un intitulé de rubrique est cité de préférence ;
+  « ajustée sur l'âge » du calcul d'effectif n'est pas une analyse ajustée ; la proposition de Statoméa à l'import ne
+  compte pas, les corrections appliquées comptent ; SPIRIT sur un essai minimal (items manquants puis présents après
+  corrections).
+- Calculateur prérempli : hypothèses lues dans le protocole transmises (p = 0,07, d = 0,02 → 626 ; r = 0,3 et 10 % de
+  pertes ; Riley p = 6, R² = 0,18, S = 0,9, φ = 0,15) ; écran vérifié (`review_screen_test.dart`).
+- Protocole Word annoté (`protocol_document_test.dart`) : commentaires ancrés aux paragraphes cités (après `w:pPr`,
+  ordre du schéma), identifiants sans collision avec les commentaires existants conservés, relations et types de
+  contenu uniques, texte d'origine intact, récapitulatif en fin de document, XML vérifié par Python. Ouvert dans macOS
+  (textutil) sur les deux protocoles réels.

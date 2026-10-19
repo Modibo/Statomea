@@ -1,9 +1,15 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../services/file_saver.dart';
 import '../services/pdf_export.dart';
+import '../services/protocol_annotate.dart';
+import '../services/protocol_document.dart';
 import '../state/app_state.dart';
 import '../widgets/calculators.dart';
 import '../widgets/common.dart';
@@ -72,12 +78,37 @@ class _ReviewScreenState extends State<ReviewScreen> {
     await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'statomea-relecture-${p.id}.pdf');
   }
 
-  void _openCalculator(String id) => Navigator.push(
+  /// Protocole Word d'origine annoté (commentaires + récapitulatif) ; pour un PDF, le protocole prérédigé intégrant les
+  /// corrections.
+  Future<void> _correctedWord() async {
+    final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['docx', 'pdf']);
+    if (files.isEmpty || !mounted) return;
+    final f = files.single.xFile;
+    final bytes = await f.readAsBytes();
+    final base = f.name.replaceFirst(RegExp(r'\.(docx|pdf)$', caseSensitive: false), '');
+    String message;
+    try {
+      if (f.name.toLowerCase().endsWith('.docx')) {
+        final a = annotateProtocolDocx(bytes, p);
+        final where = await saveFile('$base-relu-Statomea.docx', a.bytes, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        message = tr('Protocole annoté enregistré ($where) : ${a.anchored} commentaire(s) dans le texte, ${a.total} point(s) récapitulé(s) en fin de document.',
+            'Annotated protocol saved ($where): ${a.anchored} comment(s) in the text, ${a.total} point(s) summarised at the end.');
+      } else {
+        final where = await saveFile('$base-corrige-Statomea.docx', protocolDocx(p), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        message = tr('Un PDF ne peut pas être annoté : protocole prérédigé, corrections intégrées, enregistré ($where).', 'A PDF cannot be annotated: pre-drafted protocol with corrections included, saved ($where).');
+      }
+    } on StatInputError catch (e) {
+      message = e.message;
+    }
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), duration: const Duration(seconds: 6)));
+  }
+
+  void _openCalculator(String id, Map<String, String> presets) => Navigator.push(
       context,
       MaterialPageRoute(
           builder: (_) => Scaffold(
                 appBar: AppBar(title: Text(tr('Calcul d\'effectif', 'Sample size calculation'))),
-                body: PageBody(children: [CalculatorPanel(project: p, initialMethod: id)]),
+                body: PageBody(children: [CalculatorPanel(project: p, initialMethod: id, presets: presets)]),
               )));
 
   @override
@@ -85,6 +116,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final r = reviewProject(p);
     final theme = Theme.of(context);
     final fixable = r.fixable;
+    final vars = protocolVariables(p);
+    final grid = p.protocol.isEmpty ? null : protocolChecklist(p);
     Widget count(ReviewLevel l) {
       final (c, icon) = reviewLevelStyle(context, l);
       return Chip(avatar: Icon(icon, size: 18, color: c), label: Text('${reviewLevelLabel(l)} : ${r.count(l)}'), side: BorderSide(color: c.withValues(alpha: 0.5)));
@@ -114,6 +147,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 label: Text(tr('Appliquer les ${fixable.length} corrections proposées', 'Apply the ${fixable.length} proposed corrections')),
                 onPressed: () => _applyAll(fixable)),
           OutlinedButton.icon(icon: const Icon(Icons.print_outlined), label: Text(tr('Rapport de relecture (PDF)', 'Review report (PDF)')), onPressed: _print),
+          if (p.protocol.isNotEmpty)
+            OutlinedButton.icon(
+                icon: const Icon(Icons.rate_review_outlined),
+                label: Text(tr('Protocole corrigé (Word)', 'Corrected protocol (Word)')),
+                onPressed: _correctedWord),
         ]),
         const SizedBox(height: 12),
         if (r.problems.isEmpty)
@@ -124,7 +162,64 @@ class _ReviewScreenState extends State<ReviewScreen> {
               subtitle: Text(tr('Les contrôles de Statoméa ne relèvent ni erreur ni manque. Ils ne remplacent pas la relecture d\'un méthodologiste.', 'Statoméa\'s checks find no error or gap. They do not replace review by a methodologist.')),
             ),
           ),
-        for (final f in r.problems) _FindingCard(f, onApply: () => _applyOne(f), onCalculator: f.calculator == null ? null : () => _openCalculator(f.calculator!), project: p),
+        for (final f in r.problems) _FindingCard(f, onApply: () => _applyOne(f), onCalculator: f.calculator == null ? null : () => _openCalculator(f.calculator!, f.calculatorPresets), project: p),
+        if (grid != null) ...[
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              leading: Icon(Icons.checklist, color: grid.missing.isEmpty ? Colors.green.shade700 : Colors.amber.shade800),
+              title: Text(tr('Grille ${grid.name} : ${grid.present} / ${grid.items.length} éléments trouvés', '${grid.name} checklist: ${grid.present} / ${grid.items.length} items found')),
+              subtitle: Text(grid.reference, style: theme.textTheme.bodySmall),
+              childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr('« Absent » : Statoméa ne l\'a pas reconnu dans le texte — à ajouter ou à vérifier.', '"Absent": Statoméa did not recognise it in the text — to add or check.'), style: theme.textTheme.bodySmall),
+                const SizedBox(height: 6),
+                for (final it in grid.items)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Icon(it.present ? Icons.check_circle : Icons.radio_button_unchecked, size: 18, color: it.present ? Colors.green.shade700 : theme.colorScheme.error),
+                      const SizedBox(width: 8),
+                      SizedBox(width: 34, child: Text(it.code, style: theme.textTheme.labelSmall)),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(it.label + (it.present ? '' : tr(' — absent', ' — absent')), style: TextStyle(fontWeight: it.present ? FontWeight.normal : FontWeight.w600)),
+                          if (it.evidence != null) Text('« ${it.evidence} »', style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic)),
+                        ]),
+                      ),
+                    ]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (vars.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tr('Variables prévues par le protocole (${vars.length})', 'Variables planned in the protocol (${vars.length})'), style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(tr('Noms de colonnes et types proposés : le dictionnaire de données sert de modèle pour la saisie et s\'importe avec les données à l\'étape 4.', 'Proposed column names and types: the data dictionary serves as a template for data entry and is imported with the data at step 4.'),
+                    style: theme.textTheme.bodySmall),
+                const SizedBox(height: 8),
+                Wrap(spacing: 6, runSpacing: 6, children: [for (final v in vars) Chip(label: Text('${v.code} · ${v.type}'), visualDensity: VisualDensity.compact)]),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.table_view_outlined),
+                  label: Text(tr('Dictionnaire de données (CSV)', 'Data dictionary (CSV)')),
+                  onPressed: () async {
+                    final where = await saveFile('dictionnaire-${p.id}.csv', utf8.encode('\uFEFF${protocolDictionaryCsv(p)}'), 'text/csv');
+                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Dictionnaire enregistré : $where', 'Dictionary saved: $where'))));
+                  },
+                ),
+              ]),
+            ),
+          ),
+        ],
         if (r.checked.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(tr('Vérifications réussies', 'Successful checks'), style: theme.textTheme.titleMedium),

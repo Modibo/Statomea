@@ -426,13 +426,15 @@ const _sectionKeys = <String, String>{
   'outcome': r"^(criteres? de jugement( principal| primaire)?|critere principal|variable principale|(primary )?(outcome|endpoint)s?)\b",
   'design': r"^(schema|type (et (design|duree) )?(de l'|d')etude|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
   'analysis': r"^(analyses? statistiques?|plan d'analyse|methodes? statistiques?|(gestion|saisie|traitement)( et analyse)? des donnees( et analyse statistique)?|analyse des donnees|statistical (analysis|methods)|analysis plan|data analysis)\b",
+  'variables': r"^(variables? (etudiees?|recueillies|cliniques|biologiques|d'interet|mesurees)|parametres (de l'etude|etudies|sociodemographiques|cliniques)|donnees (recueillies|collectees)|recueil des donnees|study variables|variables collected|data collected)\b",
+  'period': r"^(periode( d'etude)?|duree( de l'etude)?|calendrier|chronogramme|deroulement|study period|timeline|duration)\b",
   'ethics': r"^(considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|comite d'ethique|ethics|ethical (considerations|aspects))\b",
   'sampleSize': r"^(nombre de sujets?( necessaires?)?|(calcul (de )?(la )?)?taille (de l'|d')echantillon|calcul (de l'|d')effectif|effectif|sample size)\b",
 };
 
 /// Intitulés qui ne sont pas des rubriques retenues : ils ferment la rubrique en cours (sinon la page de garde, le
 /// chronogramme ou les références s'y ajouteraient).
-final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|periode|duree|materiels? et methodes?|variables? etudiees?|parametres|examens|definitions?( operationnelles?)?|chronogramme|calendrier|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|timeline|acknowledg)");
+final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|materiels? et methodes?|examens|definitions?( operationnelles?)?|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|acknowledg)");
 
 final _refHeading = RegExp(r"^(references?|bibliographie|bibliography)( bibliographiques)?\s*:?$");
 
@@ -461,6 +463,8 @@ int? _plannedSampleSize(String text) {
     final before = t.substring((m.start - 70).clamp(0, t.length), m.start);
     final after = t.substring(m.end, (m.end + 30).clamp(0, t.length));
     if (RegExp(r"^\s*(%|ans\b|mois|jours|semaines|heures|minutes|pays|centres|par centre|/centre|patients? par centre|patients?/centre|g/l|mmol|mg|ml)").hasMatch(after)) continue;
+    // « 10 patients éligibles par mois » : un rythme, pas un effectif.
+    if (RegExp(r"^[^.]{0,30}?(par|/)\s*(jour|semaine|mois|an|annee)\b").hasMatch(after)) continue;
     if (RegExp(r"(19|20)\d\d").hasMatch(m.group(1)!) && m.group(1)!.length == 4 && !RegExp(r"^\s*(patients|sujets|participants)").hasMatch(after)) continue;
     var score = 0;
     if (RegExp(r"^\s*(patients|sujets|participants|malades|subjects|enfants|femmes|hommes|individus|cas|blesses)").hasMatch(after)) score += 1;
@@ -522,7 +526,8 @@ ProtocolDraft protocolFromText(String raw) {
     if (key != null) {
       current = key;
       // Une rubrique déjà ouverte mais presque vide (cellule d'un chronogramme, sommaire) est remplacée.
-      if ((buf[key]?.join(' ').length ?? 0) < 120) buf[key] = [];
+      // (Sauf la période : « Période d'étude : avril-décembre 2023 » de la page de garde reste valable.)
+      if (!buf.containsKey(key) || (key != 'period' && buf[key]!.join(' ').length < 120)) buf[key] = [];
       // Texte après le titre sur la même ligne (« Objectif : … »).
       final after = l.contains(':') ? l.substring(l.indexOf(':') + 1).trim() : '';
       if (after.isNotEmpty) buf[key]!.add(after);
@@ -553,10 +558,19 @@ ProtocolDraft protocolFromText(String raw) {
   final t0 = titleLine ?? firstText;
   final title = t0.length > 160 ? '${t0.substring(0, 160)}…' : t0;
   final question = q ?? objectiveFirst ?? title;
-  final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>()].join('\n');
+  // Le titre dit souvent le plan (« Essai randomisé… », « Étude transversale… »).
+  final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>(), if (titleLine != null) titleLine].join('\n');
   final inf = inferQuestion(basis);
   final ss = full['sampleSize'] == null ? null : _plannedSampleSize(full['sampleSize']!);
-  return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss, fullSections: {for (final e in full.entries) if (e.value.isNotEmpty) e.key: e.value});
+  return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss, fullSections: {
+        for (final e in full.entries)
+          if (e.value.isNotEmpty) e.key: e.value,
+        // Texte intégral (sans les références), pour les grilles SPIRIT, STROBE, STARD et TRIPOD ; il reste sur l'appareil.
+        '_text': () {
+          final t = nonEmpty.join('\n');
+          return t.length > 200000 ? t.substring(0, 200000) : t;
+        }(),
+      });
 }
 
 /// Plan d'analyse rédigé à partir de la méthode recommandée par l'assistant (à relire et compléter).
@@ -594,7 +608,8 @@ class RoadmapStep {
 
   /// Calculateur à ouvrir depuis l'étape (p. ex. calcul d'effectif), identifiant de méthode du registre.
   final String? calculator;
-  const RoadmapStep(this.step, this.status, this.lines, {this.calculator});
+  final Map<String, String> calculatorPresets;
+  const RoadmapStep(this.step, this.status, this.lines, {this.calculator, this.calculatorPresets = const {}});
 }
 
 /// Calcul d'effectif adapté à la question : calculateur et hypothèses à renseigner.
@@ -602,7 +617,10 @@ class SampleSizePlan {
   final String calculator; // identifiant de méthode (calculatorFor dans l'application)
   final String title;
   final List<String> hypotheses;
-  const SampleSizePlan(this.calculator, this.title, this.hypotheses);
+
+  /// Préréglages du calculateur (type de calcul, valeurs lues dans le protocole), p. ex. {'type': 'riley'}.
+  final Map<String, String> presets;
+  const SampleSizePlan(this.calculator, this.title, this.hypotheses, {this.presets = const {}});
 }
 
 SampleSizePlan? sampleSizePlan(ResearchQuestion q) {
@@ -614,8 +632,9 @@ SampleSizePlan? sampleSizePlan(ResearchQuestion q) {
   }
   switch (q.objective) {
     case StudyObjective.predictive:
-      return SampleSizePlan('prediction_logistic_internal', tr('Modèle de prédiction : effectif minimal de Riley et al. (pmsampsize)', 'Prediction model: Riley et al. minimum sample size (pmsampsize)'),
-          [tr('prévalence attendue de l\'issue', 'expected outcome prevalence'), tr('nombre de paramètres candidats', 'number of candidate parameters'), tr('performance attendue (R² de Cox-Snell ou AUC)', 'expected performance (Cox-Snell R² or AUC)')]);
+      return SampleSizePlan('sample_size', tr('Modèle de prédiction : effectif minimal de Riley et al. (pmsampsize)', 'Prediction model: Riley et al. minimum sample size (pmsampsize)'),
+          [tr('prévalence attendue de l\'issue', 'expected outcome prevalence'), tr('nombre de paramètres candidats', 'number of candidate parameters'), tr('performance attendue (R² de Cox-Snell ou AUC)', 'expected performance (Cox-Snell R² or AUC)')],
+          presets: const {'type': 'riley'});
     case StudyObjective.diagnostic:
       return SampleSizePlan('sample_size', tr('Performance diagnostique : précision voulue de la sensibilité et de la spécificité (Buderer)', 'Diagnostic accuracy: desired precision of sensitivity and specificity (Buderer)'),
           [tr('sensibilité et spécificité attendues', 'expected sensitivity and specificity'), tr('prévalence de la maladie', 'disease prevalence'), tr('demi-largeur voulue de l\'IC', 'desired CI half-width')]);
@@ -624,13 +643,18 @@ SampleSizePlan? sampleSizePlan(ResearchQuestion q) {
         return SampleSizePlan('sample_size', tr('Estimer une moyenne avec une précision donnée', 'Estimate a mean with a given precision'), [tr('écart-type attendu', 'expected SD'), tr('demi-largeur voulue de l\'IC', 'desired CI half-width')]);
       }
       return SampleSizePlan('sample_size', tr('Estimer une proportion (prévalence) avec une précision donnée', 'Estimate a proportion (prevalence) with a given precision'),
-          [tr('proportion attendue', 'expected proportion'), tr('précision voulue (± absolue)', 'desired precision (± absolute)'), tr('effet de plan si sondage en grappes', 'design effect if cluster sampling')]);
+          [tr('proportion attendue', 'expected proportion'), tr('précision voulue (± absolue)', 'desired precision (± absolute)'), tr('effet de plan si sondage en grappes', 'design effect if cluster sampling')],
+          presets: const {'type': 'prop'});
     case StudyObjective.explanatory:
     case StudyObjective.unknown:
       switch (q.outcomeType) {
         case OutcomeType.timeToEvent:
           return SampleSizePlan('power_survival', tr('Délai jusqu\'à événement : nombre d\'événements (Schoenfeld) puis de patients (Freedman)', 'Time to event: number of events (Schoenfeld) then patients (Freedman)'),
               [tr('HR cliniquement pertinent', 'clinically relevant HR'), tr('proportion d\'événements attendue dans le groupe témoin', 'expected event proportion in the control group'), a]);
+        case OutcomeType.continuous when q.exposureType == ExposureType.continuous:
+          return SampleSizePlan('sample_size', tr('Mettre en évidence une corrélation (transformation de Fisher)', 'Detect a correlation (Fisher transformation)'),
+              [tr('plus petite corrélation cliniquement pertinente', 'smallest clinically relevant correlation'), a],
+              presets: const {'type': 'correlation'});
         case OutcomeType.continuous:
           return SampleSizePlan('power_means', tr('Comparer deux moyennes', 'Compare two means'),
               [tr('différence minimale cliniquement pertinente', 'minimal clinically important difference'), tr('écart-type attendu', 'expected SD'), if (q.pairing == Pairing.paired) tr('corrélation entre mesures appariées', 'correlation between paired measurements'), a]);
@@ -667,7 +691,7 @@ List<RoadmapStep> projectRoadmap(Project p) {
       if (q.needsAdjustment == true) tr('Facteurs de confusion à prendre en compte : les lister a priori (graphe causal).', 'Confounders to account for: list them a priori (causal graph).'),
       for (final c in a.questions) tr('À préciser : ${c.prompt}', 'To specify: ${c.prompt}'),
     ]),
-    RoadmapStep(Step.analysisPlan, st(Step.analysisPlan, proposed: main != null), calculator: sampleSizePlan(q)?.calculator, [
+    RoadmapStep(Step.analysisPlan, st(Step.analysisPlan, proposed: main != null), calculator: sampleSizePlan(q)?.calculator, calculatorPresets: sampleSizePlan(q)?.presets ?? const {}, [
       if (main != null) tr('Méthode principale proposée : ${main.name}.', 'Proposed main method: ${main.name}.') else tr('Méthode : répondre d\'abord aux précisions de l\'étape 2.', 'Method: first answer the clarifications of step 2.'),
       if (a.options.length > 1) tr('Alternatives défendables : ${[for (final o in a.options) if (o != main) o.name].join(' ; ')}.', 'Defensible alternatives: ${[for (final o in a.options) if (o != main) o.name].join('; ')}.'),
       if (sampleSizePlan(q) case final ss?) ...[

@@ -80,6 +80,7 @@ export 'src/inference/interrupted_series.dart';
 export 'src/inference/bayesian.dart';
 export 'src/project/protocol.dart';
 export 'src/project/review.dart';
+export 'src/project/checklist_protocol.dart';
 export 'src/inference/survival.dart';
 export 'src/meta/meta_regression.dart';
 export 'src/meta/diagnostic_meta.dart';

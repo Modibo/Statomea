@@ -4,6 +4,7 @@
 library;
 
 import '../i18n.dart';
+import '../audit/audit.dart' show foldAccents;
 import 'dataset.dart';
 
 /// Alias reconnus pour les colonnes du dictionnaire (insensibles à la casse et aux accents simples).
@@ -75,11 +76,17 @@ DictionaryReport applyDataDictionary(Dataset ds, Dataset dictionary, {String tim
   final applied = <String>[], notInData = <String>[], warnings = <String>[];
   var removed = 0, recoded = 0, k = 0;
   for (var i = 0; i < dictionary.rowCount; i++) {
-    final name = get(i, 'variable');
+    var name = get(i, 'variable');
     if (name == null) continue;
     if (!ds.names.contains(name)) {
-      notInData.add(name);
-      continue;
+      // « inr » du dictionnaire ↔ « INR » des données : correspondance sans casse ni accents, si elle est unique.
+      final key = foldAccents(name.toLowerCase());
+      final alt = [for (final n in ds.names) if (foldAccents(n.toLowerCase()) == key) n];
+      if (alt.length != 1) {
+        notInData.add(name);
+        continue;
+      }
+      name = alt.first;
     }
     applied.add(name);
     final v = out.dictionary[name]!;

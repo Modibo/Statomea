@@ -49,7 +49,9 @@ class ReviewFinding {
   final String? evidence; // passage du protocole ou du projet
   final ReviewFix? fix;
   final String? calculator; // calculateur à ouvrir (effectif)
-  const ReviewFinding(this.id, this.level, this.step, this.title, this.problem, this.correction, {this.evidence, this.fix, this.calculator});
+  final Map<String, String> calculatorPresets; // valeurs lues dans le protocole, préremplies dans le calculateur
+  const ReviewFinding(this.id, this.level, this.step, this.title, this.problem, this.correction,
+      {this.evidence, this.fix, this.calculator, this.calculatorPresets = const {}});
 }
 
 class ProjectReview {
@@ -264,7 +266,7 @@ ProjectReview reviewProject(Project p) {
     add(ReviewFinding('sample_size_missing', ReviewLevel.missing, Step.analysisPlan, tr('Nombre de sujets non justifié', 'Sample size not justified'),
         tr('Un comité d\'éthique demande comment l\'effectif a été calculé (hypothèses, risque α, puissance ou précision).', 'An ethics committee asks how the sample size was computed (assumptions, α, power or precision).'),
         ssPlan == null ? tr('Justifier l\'effectif à l\'étape 3.', 'Justify the sample size at step 3.') : '${ssPlan.title}. ${tr('Hypothèses à renseigner : ', 'Assumptions to provide: ')}${ssPlan.hypotheses.join(tr(' ; ', '; '))}.',
-        calculator: ssPlan?.calculator));
+        calculator: ssPlan?.calculator, calculatorPresets: ssPlan?.presets ?? const {}));
   }
   if (ssText.isNotEmpty) {
     final ints = [
@@ -312,7 +314,8 @@ ProjectReview reviewProject(Project p) {
       } else if (ints.isNotEmpty) {
         add(ReviewFinding('precision_mismatch', ReviewLevel.error, Step.analysisPlan, tr('Calcul de précision non reproductible', 'Precision calculation not reproducible'),
             tr('Avec les hypothèses citées ($formula), l\'effectif serait ${n0.ceil()} ; le protocole ne donne pas ce nombre.', 'With the stated assumptions ($formula), the sample size would be ${n0.ceil()}; the protocol does not give this number.'),
-            tr('Vérifier les hypothèses ou retenir n = ${n0.ceil()}.', 'Check the assumptions or use n = ${n0.ceil()}.'), evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size'));
+            tr('Vérifier les hypothèses ou retenir n = ${n0.ceil()}.', 'Check the assumptions or use n = ${n0.ceil()}.'), evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size',
+            calculatorPresets: {'type': 'prop', 'p': _fmt(pr, 4), 'd': _fmt(i, 4)}));
       }
       final half = math.min(pr, 1 - pr) / 2;
       if (i > half + 1e-9) {
@@ -323,7 +326,8 @@ ProjectReview reviewProject(Project p) {
             tr('Une marge de ± ${_fmt(i * 100, 1)} points autour de ${_fmt(pr * 100, 1)} % donne un intervalle de ${_fmt(math.max(0, pr - i) * 100, 1)} à ${_fmt((pr + i) * 100, 1)} % : l\'estimation resterait très imprécise (la marge dépasse la moitié de la proportion).',
                 'A margin of ± ${_fmt(i * 100, 1)} points around ${_fmt(pr * 100, 1)}% gives an interval from ${_fmt(math.max(0, pr - i) * 100, 1)} to ${_fmt((pr + i) * 100, 1)}%: the estimate would remain very imprecise (the margin exceeds half the proportion).'),
             tr('Viser une marge d\'environ un quart de la proportion : ± ${_fmt(i2 * 100, 1)} points → n = $n2 sujets (avant majoration pour les pertes).', 'Aim for a margin of about a quarter of the proportion: ± ${_fmt(i2 * 100, 1)} points → n = $n2 subjects (before adjustment for losses).'),
-            evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size'));
+            evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size',
+            calculatorPresets: {'type': 'prop', 'p': _fmt(pr, 4), 'd': _fmt(i2, 4)}));
       }
       // c) Base du calcul incohérente avec l'objectif principal.
       if (q.objective == StudyObjective.explanatory || q.objective == StudyObjective.predictive) {
@@ -336,7 +340,8 @@ ProjectReview reviewProject(Project p) {
                 ? tr('Pour une corrélation (α = 5 %, puissance 80 %, transformation de Fisher) : r = 0,3 → ${fisher(0.3)} sujets ; r = 0,2 → ${fisher(0.2)} sujets. Retenir la plus petite corrélation cliniquement pertinente.',
                     'For a correlation (α = 5%, power 80%, Fisher transformation): r = 0.3 → ${fisher(0.3)} subjects; r = 0.2 → ${fisher(0.2)} subjects. Use the smallest clinically relevant correlation.')
                 : (ssPlan == null ? tr('Refaire le calcul pour l\'objectif principal.', 'Redo the calculation for the primary aim.') : '${ssPlan.title}. ${tr('Hypothèses : ', 'Assumptions: ')}${ssPlan.hypotheses.join(tr(' ; ', '; '))}.'),
-            evidence: _quote(ssText, RegExp(r"prevalence|proportion|frequence")), calculator: corr ? 'sample_size' : ssPlan?.calculator));
+            evidence: _quote(ssText, RegExp(r"prevalence|proportion|frequence")), calculator: corr ? 'sample_size' : ssPlan?.calculator,
+            calculatorPresets: corr ? {'type': 'correlation', 'r': _fmt(0.3), if (x != null) 'drop': _fmt(x, 4)} : (ssPlan?.presets ?? const {})));
       }
     }
     // d) Modèle de prédiction : critères de Riley.
@@ -360,7 +365,7 @@ ProjectReview reviewProject(Project p) {
         } else {
           add(ReviewFinding('riley_mismatch', ReviewLevel.error, Step.analysisPlan, tr('Critère (i) de Riley non reproductible', 'Riley criterion (i) not reproducible'),
               tr('Avec p = $par, R² = ${_fmt(r2)} et S = ${_fmt(s)}, le critère (i) donne ${n1.ceil()} sujets ; ce nombre n\'apparaît pas dans le protocole.', 'With p = $par, R² = ${_fmt(r2)} and S = ${_fmt(s)}, criterion (i) gives ${n1.ceil()} subjects; this number does not appear in the protocol.'),
-              tr('Reprendre le calcul (pmsampsize) avec ces hypothèses.', 'Redo the calculation (pmsampsize) with these assumptions.'), calculator: 'prediction_logistic_internal'));
+              tr('Reprendre le calcul (pmsampsize) avec ces hypothèses.', 'Redo the calculation (pmsampsize) with these assumptions.'), calculator: 'sample_size', calculatorPresets: {'type': 'riley', 'params': '$par', 'r2': _fmt(r2), 's': _fmt(s), if (phi != null) 'prev': _fmt(phi, 4)}));
         }
         if (phi != null && phi > 0 && phi < 1) {
           final rl = rileySampleSize(parameters: par, prevalence: phi, r2CoxSnell: r2, shrinkage: s);
@@ -369,7 +374,7 @@ ProjectReview reviewProject(Project p) {
           if (planned != null && planned < need) {
             add(ReviewFinding('riley_insufficient', ReviewLevel.error, Step.analysisPlan, tr('Effectif inférieur au minimum de Riley', 'Sample size below the Riley minimum'),
                 tr('Les trois critères de Riley ($crit, prévalence ${_fmt(phi * 100, 1)} %) imposent au moins $need sujets ; le protocole en prévoit $planned.', 'The three Riley criteria ($crit, prevalence ${_fmt(phi * 100, 1)}%) require at least $need subjects; the protocol plans $planned.'),
-                tr('Porter l\'effectif à $need (avant pertes) ou réduire le nombre de paramètres candidats.', 'Increase the sample size to $need (before losses) or reduce the number of candidate parameters.'), calculator: 'prediction_logistic_internal'));
+                tr('Porter l\'effectif à $need (avant pertes) ou réduire le nombre de paramètres candidats.', 'Increase the sample size to $need (before losses) or reduce the number of candidate parameters.'), calculator: 'sample_size', calculatorPresets: {'type': 'riley', 'params': '$par', 'r2': _fmt(r2), 's': _fmt(s), 'prev': _fmt(phi, 4)}));
           } else {
             final epp = planned == null ? null : planned * phi / par;
             add(ReviewFinding('riley_all', ReviewLevel.ok, Step.analysisPlan, tr('Critères de Riley respectés', 'Riley criteria met'),
@@ -537,6 +542,98 @@ ProjectReview reviewProject(Project p) {
     }
   }
 
+  // ---- 4 bis. Essai randomisé : randomisation, dissimulation, aveugle, intention de traiter ----
+  if (q.design == StudyDesign.rct) {
+    bool any(String re) => RegExp(re).hasMatch(nAll);
+    if (!any(r"(randomis\w*|tirage au sort)[^.]{0,60}(blocs?|stratifi|informatis|ordinateur|logiciel|liste)|sequence (de randomisation|aleatoire)|liste de randomisation|block randomi|computer-generated|randomisation stratifiee")) {
+      add(ReviewFinding('rct_randomisation', ReviewLevel.missing, Step.studyPlan, tr('Méthode de randomisation non décrite', 'Randomisation method not described'),
+          tr('« Randomisé » ne suffit pas : la génération de la séquence (logiciel, blocs, stratification) conditionne la comparabilité des groupes (CONSORT 8).', '"Randomised" is not enough: how the sequence is generated (software, blocks, stratification) determines group comparability (CONSORT 8).'),
+          tr('Liste générée par ordinateur, blocs de taille variable, stratification sur le centre et les facteurs pronostiques majeurs.', 'Computer-generated list, variable block sizes, stratification by centre and major prognostic factors.'),
+          fix: ReviewFix(tr('Paragraphe « randomisation » ajouté', '"Randomisation" paragraph added'), (p) => _appendPlan(p, tr('randomisation', 'randomisation'),
+              tr('Randomisation 1:1 par liste générée par ordinateur (blocs de taille variable 4 ou 6), stratifiée sur le centre ; la liste est établie par un statisticien indépendant de l\'inclusion.', '1:1 randomisation by computer-generated list (variable block sizes of 4 or 6), stratified by centre; the list is prepared by a statistician independent of recruitment.')))));
+    }
+    if (!any(r"enveloppes?[^.]{0,30}(opaques?|scellees?|numerotees?)|centralis|dissimul|concealment|serveur|interactive web|iwrs|par telephone")) {
+      add(ReviewFinding('rct_concealment', ReviewLevel.missing, Step.studyPlan, tr('Dissimulation de l\'allocation non prévue', 'Allocation concealment not planned'),
+          tr('Si l\'investigateur peut connaître le prochain bras avant d\'inclure, il choisit — même sans le vouloir — qui inclure : la randomisation est contournée (CONSORT 9).', 'If the investigator can know the next arm before enrolling, they choose — even unintentionally — whom to enrol: randomisation is bypassed (CONSORT 9).'),
+          tr('Allocation centralisée (serveur ou téléphone) ou enveloppes opaques, scellées et numérotées, ouvertes après l\'inclusion.', 'Central allocation (web or phone) or opaque, sealed, numbered envelopes opened after enrolment.'),
+          fix: ReviewFix(tr('Paragraphe « dissimulation de l\'allocation » ajouté', '"Allocation concealment" paragraph added'), (p) => _appendPlan(p, tr('dissimulation de l\'allocation', 'allocation concealment'),
+              tr('L\'allocation est dissimulée : le bras n\'est révélé qu\'après l\'inclusion définitive, par un système centralisé (ou des enveloppes opaques, scellées et numérotées séquentiellement).', 'Allocation is concealed: the arm is revealed only after definitive enrolment, by a central system (or opaque, sealed, sequentially numbered envelopes).')))));
+    }
+    if (!any(r"aveugle|insu|masqu|blind|ouvert|open[- ]label")) {
+      add(ReviewFinding('rct_blinding', ReviewLevel.missing, Step.studyPlan, tr('Aveugle non précisé', 'Blinding not specified'),
+          tr('Qui connaît le traitement attribué (patient, soignant, évaluateur, statisticien) ? Sans aveugle, l\'évaluation d\'un critère subjectif est biaisée.', 'Who knows the allocated treatment (patient, carer, assessor, statistician)? Without blinding, assessment of a subjective outcome is biased.'),
+          tr('Préciser l\'aveugle ; si l\'essai est ouvert, faire évaluer le critère principal par une personne en aveugle.', 'Specify blinding; if the trial is open-label, have the primary outcome assessed by a blinded person.'),
+          fix: ReviewFix(tr('Paragraphe « aveugle » ajouté', '"Blinding" paragraph added'), (p) => _appendPlan(p, tr('aveugle', 'blinding'),
+              tr('Le patient et l\'évaluateur du critère principal ignorent le bras attribué ; si l\'aveugle du patient est impossible, l\'évaluation du critère principal est faite en aveugle et le statisticien analyse les bras codés.', 'The patient and the primary outcome assessor are blind to the allocated arm; if patient blinding is impossible, the primary outcome is assessed blind and the statistician analyses coded arms.')))));
+    }
+    if (!any(r"intention de traiter|intention-to-treat|\bitt\b")) {
+      add(ReviewFinding('rct_itt', ReviewLevel.error, Step.analysisPlan, tr('Analyse en intention de traiter non prévue', 'Intention-to-treat analysis not planned'),
+          tr('Exclure les patients qui n\'ont pas suivi le traitement attribué détruit la comparabilité créée par la randomisation.', 'Excluding patients who did not follow the allocated treatment destroys the comparability created by randomisation.'),
+          tr('Analyse principale en intention de traiter (tous les randomisés dans leur bras) ; analyse per protocole en sensibilité.', 'Primary analysis by intention to treat (all randomised in their arm); per-protocol analysis as sensitivity.'),
+          fix: ReviewFix(tr('Paragraphe « intention de traiter » ajouté', '"Intention to treat" paragraph added'), (p) => _appendPlan(p, tr('population d\'analyse', 'analysis population'),
+              tr('L\'analyse principale porte sur tous les patients randomisés, dans le bras attribué (intention de traiter), les données manquantes étant imputées ; une analyse per protocole est présentée en sensibilité.', 'The primary analysis includes all randomised patients in their allocated arm (intention to treat), with missing data imputed; a per-protocol analysis is presented as sensitivity.')))));
+    }
+  }
+
+  // ---- 4 ter. Critères d'inclusion (protocole importé) ----
+  final popText = prot('population');
+  if (imported && popText.isNotEmpty) {
+    final nPop = _n(popText);
+    if (!RegExp(r"\d+\s*ans|\bage\b|\bages?\b|years|\d+\s*mois|nouveau-nes?|nourrissons?|adultes?|enfants?|adolescents?|majeurs?|mineurs?|adults?|children").hasMatch(nPop)) {
+      add(ReviewFinding('inclusion_age', ReviewLevel.warning, Step.question, tr('Âge des participants non précisé', 'Participants\' age not specified'),
+          tr('Sans borne d\'âge, la population est ambiguë (mineurs inclus ? consentement des parents ?) et les résultats ne sont pas transposables.', 'Without an age limit, the population is ambiguous (minors included? parental consent?) and results cannot be transposed.'),
+          tr('Préciser l\'âge minimal (et maximal si besoin) dans les critères d\'inclusion.', 'Specify the minimum (and maximum if needed) age in the inclusion criteria.'), evidence: _quote(popText, RegExp(r"^.{0,80}"))));
+    }
+    if (!RegExp(r"non[- ]?inclusion|exclusion|ne seront pas inclus|seront exclus|exclu|not (be )?included|excluded").hasMatch(nPop)) {
+      add(ReviewFinding('exclusion_criteria', ReviewLevel.missing, Step.question, tr('Critères de non-inclusion absents', 'Exclusion criteria missing'),
+          tr('Les critères de non-inclusion protègent les participants (contre-indications) et évitent les situations qui fausseraient la mesure du critère principal.', 'Exclusion criteria protect participants (contraindications) and avoid situations that would distort measurement of the primary outcome.'),
+          tr('Lister les critères de non-inclusion (refus de consentement, contre-indications, conditions qui faussent la mesure).', 'List the exclusion criteria (refusal of consent, contraindications, conditions that distort measurement).')));
+    }
+  }
+
+  // ---- 4 quater. Faisabilité du recrutement ----
+  final planned = int.tryParse(p.inferred['plannedSampleSize'] ?? '');
+  if (imported && planned != null) {
+    final months = _studyMonths([prot('design'), prot('period'), prot('sampleSize'), prot('_text')].join('\n'));
+    if (months != null && months > 0) {
+      final need = planned / months;
+      final centres = _centres(nAll);
+      final rate = _recruitmentPerMonth(nAll);
+      final perCentre = centres == null || centres < 2 ? '' : tr(' (soit ${_fmt(need / centres, 1)} par centre et par mois pour $centres centres)', ' (i.e. ${_fmt(need / centres, 1)} per centre per month for $centres centres)');
+      if (rate != null && rate * months < planned) {
+        add(ReviewFinding('recruitment_unrealistic', ReviewLevel.error, Step.studyPlan, tr('Recrutement insuffisant pour l\'effectif prévu', 'Recruitment insufficient for the planned sample size'),
+            tr('Au rythme indiqué (${_fmt(rate, 1)} sujets par mois), $months mois permettent d\'inclure ${(rate * months).floor()} sujets, moins que les $planned prévus.', 'At the stated rate (${_fmt(rate, 1)} subjects per month), $months months allow ${(rate * months).floor()} subjects, fewer than the $planned planned.'),
+            tr('Allonger la période d\'inclusion à ${(planned / rate).ceil()} mois, ajouter des centres ou revoir l\'effectif.', 'Extend recruitment to ${(planned / rate).ceil()} months, add centres or revise the sample size.')));
+      } else if (rate == null) {
+        add(ReviewFinding('recruitment_feasibility', ReviewLevel.warning, Step.studyPlan, tr('Faisabilité du recrutement non documentée', 'Recruitment feasibility not documented'),
+            tr('$planned sujets en $months mois imposent d\'inclure ${_fmt(need, 1)} sujets par mois$perCentre ; le protocole n\'indique pas combien de patients éligibles sont reçus chaque mois.', '$planned subjects in $months months require enrolling ${_fmt(need, 1)} subjects per month$perCentre; the protocol does not say how many eligible patients the department(s) receive.'),
+            tr('Indiquer la file active (patients éligibles par mois, d\'après les registres de l\'année précédente) et le taux de participation attendu.', 'State the active caseload (eligible patients per month, from last year\'s registers) and the expected participation rate.')));
+      } else {
+        add(ReviewFinding('recruitment_ok', ReviewLevel.ok, Step.studyPlan, tr('Recrutement compatible avec l\'effectif', 'Recruitment compatible with the sample size'),
+            tr('${_fmt(rate, 1)} sujets par mois pendant $months mois : ${(rate * months).floor()} sujets possibles pour $planned prévus.', '${_fmt(rate, 1)} subjects per month for $months months: ${(rate * months).floor()} possible for $planned planned.'), ''));
+      }
+    }
+  }
+
+  // ---- 4 quinquies. Variables à recueillir ----
+  if (imported) {
+    final vars = protocolVariables(p);
+    if (vars.isEmpty && prot('variables').isEmpty) {
+      add(ReviewFinding('variables_missing', ReviewLevel.missing, Step.dataControl, tr('Variables à recueillir non listées', 'Variables to collect not listed'),
+          tr('Sans liste des variables (et de leur définition), la fiche de recueil et la base de données ne peuvent pas être préparées, et l\'analyse ajustée n\'est pas vérifiable.', 'Without a list of variables (and their definitions), the case report form and database cannot be prepared, and the adjusted analysis cannot be checked.'),
+          tr('Lister les variables : identifiant, critère principal, exposition, facteurs d\'ajustement, avec unité et modalités.', 'List the variables: identifier, primary outcome, exposure, adjustment factors, with unit and levels.')));
+    } else if (vars.isNotEmpty && p.dataset != null) {
+      final names = [for (final n in p.dataset!.names) _slug(n)];
+      final absent = [for (final v in vars) if (!names.any((n) => n == v.code || n.contains(v.code) || v.code.contains(n) && n.length >= 3)) v];
+      if (absent.isNotEmpty) {
+        add(ReviewFinding('variables_absent', ReviewLevel.warning, Step.dataControl, tr('Variables prévues absentes des données', 'Planned variables absent from the data'),
+            tr('${absent.length} variable(s) prévue(s) par le protocole ne se retrouve(nt) pas dans le fichier de données : ${absent.map((v) => v.label).take(12).join(', ')}${absent.length > 12 ? '…' : ''}.',
+                '${absent.length} variable(s) planned in the protocol are not found in the data file: ${absent.map((v) => v.label).take(12).join(', ')}${absent.length > 12 ? '…' : ''}.'),
+            tr('Vérifier les noms de colonnes (le dictionnaire de données tiré du protocole donne les noms proposés) ou justifier l\'absence.', 'Check the column names (the data dictionary drawn from the protocol gives the proposed names) or justify the absence.')));
+      }
+    }
+  }
+
   // ---- 5. Éthique (protocole importé) ----
   if (imported && prot('ethics').isEmpty && !RegExp(r"ethique|consentement|comite|helsinki|ethics|consent").hasMatch(nAll)) {
     add(ReviewFinding('ethics', ReviewLevel.missing, Step.studyPlan, tr('Aspects éthiques absents', 'Ethical aspects missing'),
@@ -571,7 +668,8 @@ String? _associationWording(String text) {
 /// Applique la correction d'un constat et la trace dans le projet.
 AppliedCorrection applyCorrection(Project p, ReviewFinding f, {String? date}) {
   f.fix!.apply(p);
-  final c = AppliedCorrection(id: f.id, title: f.title, date: date ?? DateTime.now().toIso8601String().substring(0, 10), detail: f.fix!.detail);
+  final c = AppliedCorrection(
+      id: f.id, title: f.title, date: date ?? DateTime.now().toIso8601String().substring(0, 10), detail: f.fix!.detail, level: f.level.name, problem: f.problem, evidence: f.evidence);
   p.corrections.add(c);
   return c;
 }
@@ -596,3 +694,120 @@ List<AppliedCorrection> applyAllCorrections(Project p, {String? date}) {
 }
 
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+const _monthNames = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+const _numberWords = {'six': 6, 'neuf': 9, 'dix': 10, 'douze': 12, 'quinze': 15, 'dix-huit': 18, 'vingt': 20, 'vingt-quatre': 24, 'trente': 30, 'trente-six': 36, 'quarante-huit': 48, 'soixante': 60};
+
+/// Durée de l'étude en mois : « 36 mois », « trente-six mois », « 2 ans », « du 1 avril au 31 décembre 2023 ».
+int? _studyMonths(String text) {
+  final t = _n(text);
+  final mo = _monthNames.join('|');
+  final range = RegExp('(?:du\\s+)?(?:\\d{1,2}(?:er)?\\s+)?($mo)\\s*(\\d{4})?\\s*(?:-|–|a|au|to)\\s*(?:(?:le\\s+)?\\d{1,2}\\s+)?($mo)\\s*(\\d{4})?').firstMatch(t);
+  if (range != null) {
+    final m1 = _monthNames.indexOf(range.group(1)!), m2 = _monthNames.indexOf(range.group(3)!);
+    final y2 = int.tryParse(range.group(4) ?? '') ?? 0, y1 = int.tryParse(range.group(2) ?? '') ?? y2;
+    var d = (y2 * 12 + m2) - (y1 * 12 + m1) + 1;
+    if (d <= 0) d += 12;
+    return d;
+  }
+  final m = RegExp(r"(?:duree|pendant|sur|period|over|durant|etalera|deroulera)[^.]{0,40}?(\d{1,3}|" + _numberWords.keys.join('|') + r")\s*(mois|ans?|annees?|months?|years?)").firstMatch(t);
+  if (m == null) return null;
+  final v = int.tryParse(m.group(1)!) ?? _numberWords[m.group(1)!];
+  if (v == null) return null;
+  return m.group(2)!.startsWith('mois') || m.group(2)!.startsWith('month') ? v : v * 12;
+}
+
+/// Nombre de centres participants (« 5 centres », « cinq centres », « Le nombre de centre participant = 5 »).
+int? _centres(String t) {
+  final m = RegExp(r"(\d{1,2}|deux|trois|quatre|cinq|six|sept|huit|dix)\s+(?:centres|sites|hopitaux|structures)|nombre de centres?[^.=]{0,20}=\s*(\d{1,2})").firstMatch(t);
+  if (m == null) return null;
+  const w = {'deux': 2, 'trois': 3, 'quatre': 4, 'cinq': 5, 'six': 6, 'sept': 7, 'huit': 8, 'dix': 10};
+  final g = m.group(1) ?? m.group(2)!;
+  return int.tryParse(g) ?? w[g];
+}
+
+/// Capacité de recrutement déclarée, ramenée au mois (« 20 patients par mois », « 5 nouveaux cas par semaine »).
+double? _recruitmentPerMonth(String t) {
+  final m = RegExp(r"(\d{1,4})\s*(?:nouveaux?\s+|nouvelles?\s+)?(?:patients?|cas|malades|consultations|admissions|sujets|femmes|enfants|blesses|participants)\s*(?:eligibles?\s*)?(?:\(\w+\)\s*)?(?:par|/)\s*(jour|semaine|mois|an|annee|day|week|month|year)").firstMatch(t);
+  if (m == null) return null;
+  final v = double.parse(m.group(1)!);
+  return switch (m.group(2)!) {
+    'jour' || 'day' => v * 30.4,
+    'semaine' || 'week' => v * 4.35,
+    'an' || 'annee' || 'year' => v / 12,
+    _ => v,
+  };
+}
+
+String _slug(String s) => _n(s).replaceAll(RegExp(r"[^a-z0-9]+"), '_').replaceAll(RegExp(r"^_+|_+$"), '');
+
+/// Variable prévue par le protocole.
+class PlannedVariable {
+  final String label; // libellé tel qu'écrit
+  final String code; // nom de colonne proposé
+  final String type; // numérique | catégorielle
+  const PlannedVariable(this.label, this.code, this.type);
+}
+
+const _categoricalWords = r"sexe|genre|profession|niveau|statut|mecanisme|traitements?|ethnie|residence|situation|groupe|type|antecedents?|origine|service|centre|lieu|stade|classe|mode|etat|consentement|tabagisme|alcool|vaccination";
+
+/// Variables énumérées dans la rubrique « variables » du protocole (« … comprendront le sexe, l'âge, le poids et la
+/// taille »), avec un nom de colonne et un type proposés ; l'abréviation entre parenthèses sert de nom quand elle existe.
+List<PlannedVariable> protocolVariables(Project p) {
+  final text = p.protocol['variables'] ?? '';
+  if (text.isEmpty) return const [];
+  final out = <PlannedVariable>[];
+  final seen = <String>{};
+  // Phrases (le point d'un décimal ne coupe pas).
+  for (final sentence in text.split(RegExp(r"(?<!\d)\.(?!\d)|\n"))) {
+    var t = sentence.replaceAll('’', "'");
+    final trig = RegExp(r":|comprendront|comprennent|comprendra|incluront|incluent|inclura|il s'agissait de|il s'agit de|à travers|a travers|à savoir|notamment|tels? que|telles? que|suivantes?|suivants?|including|includes?|such as|namely", caseSensitive: false);
+    final ms = trig.allMatches(t).toList();
+    if (ms.isNotEmpty) t = t.substring(ms.last.end);
+    // Parenthèses : abréviation retenue comme nom, le reste retiré.
+    final abbrev = <String, String>{};
+    t = t.replaceAllMapped(RegExp(r"([^,()]+?)\s*\(([^()]*)\)"), (m) {
+      final inner = m.group(2)!.trim();
+      final code = inner.split(RegExp(r"[,;]")).last.trim();
+      final label = m.group(1)!;
+      if (RegExp(r"^[A-Za-z][A-Za-z0-9²⁺⁻₂₃]{1,7}$").hasMatch(code)) abbrev[label.trim()] = code;
+      return label;
+    });
+    final items = [for (final x in t.split(RegExp(r",|;|\s+et\s+|\s+ainsi que\s+|\s+and\s+"))) x.trim()];
+    final good = <String>[];
+    for (var it in items) {
+      it = it.replaceFirst(RegExp(r"^(?:enfin|puis|aussi)\s+", caseSensitive: false), '');
+      it = it.replaceFirst(RegExp(r"^(?:de la |de l'|du |des |de |d'|le |la |les |l'|un |une |the )+", caseSensitive: false), '').trim();
+      final words = it.split(RegExp(r"\s+")).where((w) => w.isNotEmpty).length;
+      if (it.length < 2 || it.length > 60 || words > 6) continue;
+      if (RegExp(r"\b(sera|seront|est|sont|etait|été|will|were|was)\b", caseSensitive: false).hasMatch(it)) continue;
+      good.add(it);
+    }
+    if (good.length < 2) continue;
+    for (final it in good) {
+      String? ab;
+      for (final e in abbrev.entries) {
+        if (e.key.endsWith(it) || it.endsWith(e.key.replaceFirst(RegExp(r"^(?:de la |de l'|du |des |de |d'|le |la |les |l')+", caseSensitive: false), ''))) ab = e.value;
+      }
+      final base = ab ?? it;
+      var code = _slug(base.replaceAll('²', '2').replaceAll('₂', '2').replaceAll('₃', '3').replaceAll(RegExp(r"[⁺⁻]"), ''));
+      if (ab == null) code = code.split('_').where((w) => w.length > 2 || w == 'ph' || RegExp(r"\d").hasMatch(w)).take(3).join('_');
+      if (code.isEmpty || !seen.add(code)) continue;
+      final type = RegExp(_categoricalWords).hasMatch(_n(it)) ? tr('catégorielle', 'categorical') : tr('numérique', 'numeric');
+      out.add(PlannedVariable(it, code, type));
+    }
+  }
+  return out;
+}
+
+/// Dictionnaire de données (CSV, séparateur « ; ») tiré du protocole : variable, type, libellé, unité ; à compléter puis
+/// à importer avec les données à l'étape 4.
+String protocolDictionaryCsv(Project p) {
+  final rows = <List<String>>[
+    ['variable', 'type', tr('libelle', 'label'), tr('unite', 'unit')],
+    ['id', tr('identifiant', 'identifier'), tr('Identifiant anonyme du participant', 'Anonymous participant identifier'), ''],
+    for (final v in protocolVariables(p)) [v.code, v.type, v.label, ''],
+  ];
+  String cell(String c) => c.contains(';') || c.contains('"') ? '"${c.replaceAll('"', '""')}"' : c;
+  return '${rows.map((r) => r.map(cell).join(';')).join('\r\n')}\r\n';
+}

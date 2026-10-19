@@ -488,6 +488,8 @@ MethodInfo? methodInfo(String id) {
     'sample_size_two_means': 'sample_size',
     'sample_size_two_proportions': 'sample_size',
     'sample_size_proportion': 'sample_size',
+    'sample_size_correlation': 'sample_size',
+    'sample_size_prediction': 'sample_size',
     'power_means': 'sample_size',
     'power_proportions': 'sample_size',
     'proportion_difference': 'proportion_ci',
