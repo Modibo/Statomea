@@ -118,6 +118,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     final theme = Theme.of(context);
     final fixable = r.fixable;
     final vars = protocolVariables(p);
+    final labs = protocolLabTests(p);
     final grid = p.protocol.isEmpty ? null : protocolChecklist(p);
     Widget count(ReviewLevel l) {
       final (c, icon) = reviewLevelStyle(context, l);
@@ -196,18 +197,24 @@ class _ReviewScreenState extends State<ReviewScreen> {
             ),
           ),
         ],
-        if (vars.isNotEmpty) ...[
+        if (vars.isNotEmpty || labs.isNotEmpty) ...[
           const SizedBox(height: 8),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr('Variables prévues par le protocole (${vars.length})', 'Variables planned in the protocol (${vars.length})'), style: theme.textTheme.titleSmall),
+                if (vars.isNotEmpty) Text(tr('Variables prévues par le protocole (${vars.length})', 'Variables planned in the protocol (${vars.length})'), style: theme.textTheme.titleSmall),
                 const SizedBox(height: 4),
                 Text(tr('Noms de colonnes et types proposés : le dictionnaire de données sert de modèle pour la saisie et s\'importe avec les données à l\'étape 4.', 'Proposed column names and types: the data dictionary serves as a template for data entry and is imported with the data at step 4.'),
                     style: theme.textTheme.bodySmall),
                 const SizedBox(height: 8),
                 Wrap(spacing: 6, runSpacing: 6, children: [for (final v in vars) Chip(label: Text('${v.code} · ${v.type}'), visualDensity: VisualDensity.compact)]),
+                if (labs.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(tr('Examens de laboratoire prévus (${labs.length})', 'Planned laboratory tests (${labs.length})'), style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 4),
+                  for (final l in labs) Text('• ${l.label}${l.method == null ? '' : ' — ${l.method}'}', style: theme.textTheme.bodySmall),
+                ],
                 const SizedBox(height: 8),
                 CrfButtons(p),
               ]),

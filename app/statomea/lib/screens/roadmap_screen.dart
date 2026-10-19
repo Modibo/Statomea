@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../services/article_document.dart';
 import '../services/file_saver.dart';
 import '../services/pdf_export.dart';
 import '../services/protocol_document.dart';
@@ -67,6 +68,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             onPressed: () async {
               final bytes = await buildProtocolPdf(project);
               await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'protocole-${project.id}.pdf');
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.article_outlined),
+            label: Text(tr('Article (Word)', 'Article (Word)')),
+            onPressed: () async {
+              final where = await saveFile('article-${project.id}.docx', articleDocx(project), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Article enregistré : $where', 'Article saved: $where'))));
             },
           ),
           OutlinedButton.icon(

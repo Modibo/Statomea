@@ -72,4 +72,38 @@ void main() {
     expect(rep.dataset.dictionary['sexe_nouveau']!.order, ['F', 'M']);
     expect(rep.dataset.dictionary['tabagisme']!.type, VarType.binary);
   });
+
+  test('examens des rubriques de dosage : analytes, méthodes, ajoutés à la fiche et au budget', () {
+    final p = _imported("""
+Titre du projet
+Suivi du diabète de type 2 : étude transversale
+Variables étudiées
+Les informations suivantes seront recueillies : le sexe, l'âge et le poids.
+Examens de laboratoire
+Prélèvement sur tube fluoré et tube sec. Les dosages porteront sur la glycémie, l'HbA1c, le cholestérol total, les triglycérides et la créatinine.
+C.1. Principe du dosage du glucose
+Méthode enzymatique de référence avec hexokinase.
+C.2. Principe du dosage du cholestérol total
+Méthode colorimétrique enzymatique.
+C.3. Principe du dosage de la créatinine
+La méthode a été normalisée par rapport à la méthode de référence. Test cinétique colorimétrique (Jaffé).
+Gestion et analyse des données
+Les données seront analysées avec R.
+""");
+    final labs = protocolLabTests(p);
+    expect(labs.map((l) => l.code), ['glycemie', 'hba1c', 'cholesterol_total', 'triglycerides', 'creatinine']);
+    String? method(String c) => labs.firstWhere((l) => l.code == c).method;
+    expect(method('glycemie'), 'methode enzymatique de reference avec hexokinase');
+    expect(method('cholesterol_total'), 'methode colorimetrique enzymatique');
+    expect(method('creatinine'), contains('colorimetrique'), reason: '« la méthode a été normalisée » n\'est pas une technique');
+    expect(method('triglycerides'), isNull);
+    final f = crfFields(p);
+    expect(f.map((x) => x.code), containsAllInOrder(['sexe', 'age', 'poids', 'glycemie', 'hba1c', 'cholesterol_total', 'triglycerides', 'creatinine']));
+    expect(f.firstWhere((x) => x.code == 'hba1c').unit, '%');
+    p.inferred['plannedSampleSize'] = '100';
+    final lab = studyPlanning(p).lines.firstWhere((l) => l.key == 'lab');
+    expect(lab.label, 'Examens biologiques (5 par participant)');
+    expect(lab.quantity, 500);
+    expect(p.protocol['analysis'], contains('analysées avec R'), reason: 'la rubrique d\'examens se ferme à la rubrique suivante');
+  });
 }

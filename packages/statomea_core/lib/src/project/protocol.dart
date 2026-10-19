@@ -428,6 +428,7 @@ const _sectionKeys = <String, String>{
   'design': r"^(schema|type (et (design|duree) )?(de l'|d')etude|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
   'analysis': r"^(analyses? statistiques?|plan d'analyse|methodes? statistiques?|(gestion|saisie|traitement)( et analyse)? des donnees( et analyse statistique)?|analyse des donnees|statistical (analysis|methods)|analysis plan|data analysis)\b",
   'variables': r"^(variables? (etudiees?|recueillies|cliniques|biologiques|d'interet|mesurees)|parametres (de l'etude|etudies|sociodemographiques|cliniques)|donnees (recueillies|collectees)|recueil des donnees|study variables|variables collected|data collected)\b",
+  'labtests': r"^(examens? (de laboratoire|biologiques?|paracliniques?|complementaires)|dosages?( des| du| de)?|parametres biologiques|bilan biologique|analyses biologiques|methodes? de dosage|techniques? de dosage|laboratory (tests|methods|analyses)|biological (tests|analyses))\b",
   'period': r"^(periode( d'etude)?|duree( de l'etude)?|calendrier|chronogramme|deroulement|study period|timeline|duration)\b",
   'ethics': r"^(considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|comite d'ethique|ethics|ethical (considerations|aspects))\b",
   'sampleSize': r"^(nombre de sujets?( necessaires?)?|(calcul (de )?(la )?)?taille (de l'|d')echantillon|calcul (de l'|d')effectif|effectif|sample size)\b",
@@ -435,7 +436,7 @@ const _sectionKeys = <String, String>{
 
 /// Intitulés qui ne sont pas des rubriques retenues : ils ferment la rubrique en cours (sinon la page de garde, le
 /// chronogramme ou les références s'y ajouteraient).
-final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|materiels? et methodes?|examens|definitions?( operationnelles?)?|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|acknowledg)");
+final _otherHeading = RegExp(r"^(introduction|contexte|justification|resume|abstract|background|rationale|lieu|cadre|materiels? et methodes?|definitions?( operationnelles?)?|budget|resultats attendus|impact attendu|livrables|forces et limites|limites|perspectives|references|bibliographie|annexes?|plan de surveillance|remerciements|expected (results|outcomes)|acknowledg)");
 
 final _refHeading = RegExp(r"^(references?|bibliographie|bibliography)( bibliographiques)?\s*:?$");
 

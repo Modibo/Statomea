@@ -622,4 +622,25 @@ void main() {
     b.writeln(planningParagraphs(p, (w) => '[To complete: $w]').join('\n'));
     expectEnglish('crf, results, planning', b.toString());
   });
+
+  test('table 1, article and laboratory tests', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    final t = table1(p.dataset!, group: 'residence');
+    final b = StringBuffer('${t.header.join(' ')}\n${t.cells.map((r) => r.join(' ')).join('\n')}\n${t.notes.join('\n')}\n');
+    final r = table1Result(p.dataset!, group: 'residence');
+    b.writeln('${r.methodName} ${r.formula} ${r.interpretation.whyThisMethod} ${r.interpretation.whatItMeans} ${r.interpretation.notJustified}');
+    for (final s in articleOutline(p)) {
+      b.writeln(s.title);
+      b.writeln(s.paragraphs.where((l) => !l.contains(p.question.text) && !l.contains(p.question.population) && !l.contains(p.question.outcome) && !l.contains(p.question.exposure) && !l.contains(p.resultsText.trim()) && !p.analysisPlan.contains(l)).join('\n'));
+      for (final tb in s.tables) {
+        b.writeln('${tb.title} ${tb.header.join(' ')}');
+      }
+    }
+    final lab = Project(id: 'l', title: 'L', createdAt: '')..protocol = {'labtests': 'Assays will cover fasting glucose, HbA1c and creatinine. Glucose assay: enzymatic reference method with hexokinase.'};
+    for (final l in protocolLabTests(lab)) {
+      b.writeln('${l.label} ${l.method ?? ''}');
+    }
+    expect(protocolLabTests(lab).map((l) => l.code), ['glycemie', 'hba1c', 'creatinine']);
+    expectEnglish('table 1, article', b.toString());
+  });
 }

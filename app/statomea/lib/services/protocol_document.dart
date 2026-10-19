@@ -35,6 +35,11 @@ Uint8List protocolDocx(Project p) {
       body.write(para(l));
     }
   }
+  return packDocx(body.toString());
+}
+
+/// Paquet .docx minimal (styles Titre, Sous-titre, Titre 1 et Titre 2) autour du corps [body] (XML WordprocessingML).
+Uint8List packDocx(String body) {
   const w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
   final document = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       '<w:document xmlns:w="$w"><w:body>$body'
@@ -49,6 +54,8 @@ Uint8List protocolDocx(Project p) {
       '<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:rPr><w:sz w:val="28"/></w:rPr></w:style>'
       '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/>'
       '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="80"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="1F4E79"/><w:sz w:val="28"/></w:rPr></w:style>'
+      '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/>'
+      '<w:pPr><w:keepNext/><w:spacing w:before="160" w:after="60"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>'
       '</w:styles>';
   const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
       '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'

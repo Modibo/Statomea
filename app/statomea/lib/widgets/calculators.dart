@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../screens/lesson_screen.dart';
+import '../services/file_saver.dart';
+import '../services/table_export.dart';
 import '../state/app_state.dart';
 import 'common.dart';
 import 'genomics_workshop.dart';
@@ -16,6 +20,7 @@ import 'variable_roles.dart';
 List<(String, String, IconData, String)> get calculatorKinds => [
   ('proportion_ci', tr('Proportion / prévalence', 'Proportion / prevalence'), Icons.percent, tr('Descriptif', 'Descriptive')),
   ('describe', tr('Statistiques descriptives', 'Descriptive statistics'), Icons.bar_chart, tr('Descriptif', 'Descriptive')),
+  ('table1', tr('Tableau 1 : caractéristiques des participants', 'Table 1: participant characteristics'), Icons.table_chart_outlined, tr('Descriptif', 'Descriptive')),
   ('two_by_two', tr('Tableau 2 × 2 (RR, OR, DR)', '2 × 2 table (RR, OR, RD)'), Icons.grid_on, 'Association'),
   ('chi_square_rxc', 'χ² r × c', Icons.grid_4x4, 'Association'),
   ('diagnostic_accuracy', tr('Performance diagnostique', 'Diagnostic accuracy'), Icons.biotech_outlined, 'Diagnostic'),
@@ -63,6 +68,7 @@ String calculatorFor(String methodId) => switch (methodId) {
       'differential_expression' || 'local_alignment' => 'genomics',
       'power_means' || 'power_proportions' || 'power_case_control' || 'power_survival' || 'power_gwas' => 'power',
       'describe_numeric' => 'describe',
+      'describe_table1' => 'table1',
       _ => calculatorKinds.any((k) => k.$1 == methodId) ? methodId : 'proportion_ci',
     };
 
@@ -71,6 +77,7 @@ String calculatorFor(String methodId) => switch (methodId) {
 Map<String, String> get _calculatorKeywords => {
       'proportion_ci': tr('prévalence fréquence pourcentage intervalle de confiance wilson exact taux', 'prevalence frequency percentage confidence interval wilson exact rate'),
       'describe': tr('moyenne médiane écart-type quartiles distribution résumé', 'mean median standard deviation quartiles distribution summary'),
+      'table1': tr('tableau 1 caractéristiques participants population baseline groupes article', 'table 1 characteristics participants baseline groups article'),
       'two_by_two': tr('risque relatif odds ratio rapport de cotes chi deux fisher exposition cohorte cas-témoins', 'relative risk odds ratio chi square fisher exposure cohort case-control'),
       'chi_square_rxc': tr('chi deux contingence qualitatives association cramer', 'chi square contingency categorical association cramer'),
       'diagnostic_accuracy': tr('sensibilité spécificité valeur prédictive vpp vpn rapport de vraisemblance test diagnostique', 'sensitivity specificity predictive value ppv npv likelihood ratio diagnostic test'),
@@ -181,6 +188,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
     final form = switch (kind) {
       'proportion_ci' => ProportionCalc(ds, onResult),
       'describe' => DescribeCalc(ds, onResult),
+      'table1' => Table1Calc(ds, onResult),
       'two_by_two' => TwoByTwoCalc(ds, p?.question.design ?? StudyDesign.unknown, onResult),
       'chi_square_rxc' => ChiRxCCalc(ds, onResult),
       'diagnostic_accuracy' => DiagnosticCalc(p?.question.design ?? StudyDesign.diagnosticAccuracy, onResult),
@@ -414,6 +422,65 @@ class _DescribeCalcState extends State<DescribeCalc> {
           return describeNumeric(parseSeries(series.text));
         }, widget.onResult);
       }),
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------- Tableau 1
+
+class Table1Calc extends StatefulWidget {
+  final Dataset? ds;
+  final OnResult onResult;
+  const Table1Calc(this.ds, this.onResult, {super.key});
+  @override
+  State<Table1Calc> createState() => _Table1CalcState();
+}
+
+class _Table1CalcState extends State<Table1Calc> {
+  String? group;
+  Table1? table;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    if (ds == null) {
+      return Text(tr('Tableau 1 : importer d\'abord les données du projet (étape 4).', 'Table 1: first import the project data (step 4).'));
+    }
+    final groups = [
+      for (final n in ds.names)
+        if (ds.dictionary[n]!.type != VarType.numeric && ds.dictionary[n]!.type != VarType.identifier && ds.levels(n).length >= 2 && ds.levels(n).length <= 6) (n, n)
+    ];
+    Future<void> save(String name, Uint8List bytes, String mime) async {
+      final where = await saveFile(name, bytes, mime);
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Enregistré : $where', 'Saved: $where'))));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Tableau 1 : caractéristiques des participants', 'Table 1: participant characteristics'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      Pick<String?>(tr('Comparer selon (facultatif)', 'Compare by (optional)'), group, [(null, tr('— aucun groupe —', '— no group —')), for (final g in groups) (g.$1, g.$2)],
+          (v) => setState(() => group = v)),
+      _computeButton(context, () {
+        run(context, () {
+          table = table1(ds, group: group);
+          setState(() {});
+          return table1Result(ds, group: group);
+        }, widget.onResult);
+      }),
+      if (table != null)
+        Wrap(spacing: 10, runSpacing: 8, children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.description_outlined),
+            label: Text(tr('Tableau 1 (Word)', 'Table 1 (Word)')),
+            onPressed: () => save('tableau1.docx', tableDocx(tr('Tableau 1. Caractéristiques des participants', 'Table 1. Participant characteristics'), table!.header, table!.cells, notes: table!.notes),
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.grid_on_outlined),
+            label: Text(tr('Tableau 1 (Excel)', 'Table 1 (Excel)')),
+            onPressed: () => save('tableau1.xlsx', tableXlsx(tr('Tableau 1', 'Table 1'), table!.header, table!.cells, notes: table!.notes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+          ),
+        ]),
     ]);
   }
 }

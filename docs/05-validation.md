@@ -1200,3 +1200,19 @@ bandeau de la feuille de route mis à jour.
   de l'étude moins préparation, suivi, gel de la base, analyse et rédaction (12 mois → 5) ; suivi selon l'horizon
   (28 jours → 1 mois) ; examens biologiques comptés dans la fiche ; imprévus 10 % ; rubrique 13 du protocole
   prérédigé ; enregistrement. Écran vérifié (saisie d'un coût, total, durée modifiée).
+
+## Examens des rubriques de dosage, Tableau 1, article prérédigé — 1.60.0
+
+- Examens (`crf_test.dart`) : rubriques « Examens de laboratoire », « Dosage des paramètres… » reconnues ; analytes
+  dans l'ordre d'apparition (glycémie, HbA1c, lipides, ionogramme, NFS, CRP, transaminases…) ; méthode de dosage citée
+  dans le bloc de l'analyte (« méthode enzymatique de référence avec hexokinase », « test colorimétrique enzymatique
+  homogène » ; une phrase sans technique n'est pas retenue) ; ajoutés à la fiche de recueil et au budget. Protocole
+  réel SDT2 : 13 examens, 11 au budget.
+- Tableau 1 (`table1_test.dart`) : sur un jeu de 30 sujets, valeurs identiques à R 4.2.3 — moyennes et écarts-types,
+  médianes et quartiles (type 7), Welch (p = 1,09e-5), Mann-Whitney (0,0045 exact), χ² sans correction (0,1025),
+  Fisher pour un 2 × 2 à effectif attendu < 5 (0,0686), ANOVA (4,38e-6), Kruskal-Wallis (0,0084), χ² 2 × 3 (0,2005) ;
+  choix moyenne/médiane par l'asymétrie (|γ₁| ≤ 1). Exports Word et Excel relus (lecteur de l'application, Python).
+- Article (`article_test.dart`) : sections IMRaD dans l'ordre, grille de publication selon le plan (CONSORT, STROBE,
+  STARD, TRIPOD+AI, PRISMA), Tableau 1 des données (groupe = exposition déclarée), Tableau 2 des résultats du journal
+  (estimation, IC, p), limites selon le plan (chronologie en transversal, confusion résiduelle, effectif non atteint,
+  analyses exploratoires), conclusion en termes d'association hors essai ; paquet Word valide.

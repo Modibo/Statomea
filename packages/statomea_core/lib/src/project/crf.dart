@@ -59,7 +59,18 @@ final List<_Known> _known = [
   (r"chlore|chlorure|chloride|^cl$", CrfType.numeric, 'mmol/L', 60, 150, _none),
   (r"calcium ionise|ionized calcium|^ica", CrfType.numeric, 'mmol/L', 0.3, 2.5, _none),
   (r"bicarbonate|hco3", CrfType.numeric, 'mmol/L', 2, 60, _none),
+  (r"\bhdl\b", CrfType.numeric, 'mmol/L', 0.1, 5, _none),
+  (r"\bldl\b", CrfType.numeric, 'mmol/L', 0.1, 15, _none),
   (r"cholesterol", CrfType.numeric, 'mmol/L', 0.1, 20, _none),
+  (r"\bcrp\b|proteine c reactive|c-reactive", CrfType.numeric, 'mg/L', 0, 500, _none),
+  (r"\basat\b|\bast\b|\bsgot\b|aspartate", CrfType.numeric, 'UI/L', 0, 5000, _none),
+  (r"\balat\b|\balt\b|\bsgpt\b|alanine", CrfType.numeric, 'UI/L', 0, 5000, _none),
+  (r"acide urique|uric acid", CrfType.numeric, 'µmol/L', 50, 1500, _none),
+  (r"albumin", CrfType.numeric, 'g/L', 5, 60, _none),
+  (r"ferritin", CrfType.numeric, 'µg/L', 1, 5000, _none),
+  (r"\btsh\b", CrfType.numeric, 'mUI/L', 0.001, 100, _none),
+  (r"bilirubin", CrfType.numeric, 'µmol/L', 1, 800, _none),
+  (r"microalbumin|proteinurie|proteinuria", CrfType.numeric, 'mg/L', 0, 5000, _none),
   (r"triglycerid", CrfType.numeric, 'mmol/L', 0.1, 50, _none),
   (r"\binr\b|prothrombin", CrfType.numeric, '', 0.5, 15, _none),
   (r"cephaline|\btca\b|aptt|\bptt\b", CrfType.numeric, 's', 15, 200, _none),
@@ -92,6 +103,74 @@ CrfField _field(String code, String label) {
 
 String _slug(String s) => _n(s).replaceAll(RegExp(r"[^a-z0-9]+"), '_').replaceAll(RegExp(r"^_+|_+$"), '');
 
+/// Analyte reconnu dans les rubriques d'examens (« Examens de laboratoire », « Dosage des paramètres… »).
+class LabTest {
+  final String code, label;
+  final String? method; // méthode de dosage citée à proximité
+  const LabTest(this.code, this.label, this.method);
+}
+
+/// Analytes usuels : nom de colonne, libellé, motif de reconnaissance (texte normalisé).
+final List<(String, String Function(), String)> _analytes = [
+  ('hba1c', () => tr('Hémoglobine glyquée (HbA1c)', 'Glycated haemoglobin (HbA1c)'), r"hba1c|hemoglobine glyquee|glycated h"),
+  ('glycemie', () => tr('Glycémie à jeun', 'Fasting glucose'), r"glycemie|glucose"),
+  ('cholesterol_total', () => tr('Cholestérol total', 'Total cholesterol'), r"cholesterol total|total cholesterol"),
+  ('hdl', () => tr('Cholestérol HDL', 'HDL cholesterol'), r"\bhdl\b"),
+  ('ldl', () => tr('Cholestérol LDL', 'LDL cholesterol'), r"\bldl\b"),
+  ('triglycerides', () => tr('Triglycérides', 'Triglycerides'), r"triglycerid"),
+  ('creatinine', () => tr('Créatinine', 'Creatinine'), r"creatinin"),
+  ('uree', () => tr('Urée', 'Urea'), r"\buree\b|\burea\b"),
+  ('acide_urique', () => tr('Acide urique', 'Uric acid'), r"acide urique|uric acid"),
+  ('sodium', () => tr('Sodium (Na⁺)', 'Sodium (Na⁺)'), r"\bsodium\b|\bna\+"),
+  ('potassium', () => tr('Potassium (K⁺)', 'Potassium (K⁺)'), r"potassium|\bk\+"),
+  ('chlore', () => tr('Chlore (Cl⁻)', 'Chloride (Cl⁻)'), r"\bchlore\b|chlorure|chloride|\bcl-"),
+  ('hemoglobine', () => tr('Hémoglobine', 'Haemoglobin'), r"hemoglobine(?! glyquee)|\bhb\b(?!a1c)|haemoglobin(?! a1c)"),
+  ('leucocytes', () => tr('Leucocytes', 'White blood cells'), r"leucocyt|globules blancs|\bgb\b|white blood"),
+  ('plaquettes', () => tr('Plaquettes', 'Platelets'), r"plaquett|platelet|\bplt\b"),
+  ('crp', () => tr('Protéine C réactive (CRP)', 'C-reactive protein (CRP)'), r"\bcrp\b|proteine c reactive"),
+  ('asat', () => tr('ASAT', 'AST'), r"\basat\b|\bsgot\b"),
+  ('alat', () => tr('ALAT', 'ALT'), r"\balat\b|\bsgpt\b"),
+  ('albumine', () => tr('Albumine', 'Albumin'), r"albumin(?!urie)"),
+  ('microalbuminurie', () => tr('Microalbuminurie', 'Microalbuminuria'), r"microalbumin"),
+  ('ferritine', () => tr('Ferritine', 'Ferritin'), r"ferritin"),
+  ('tsh', () => 'TSH', r"\btsh\b"),
+  ('bilirubine', () => tr('Bilirubine totale', 'Total bilirubin'), r"bilirubin"),
+];
+
+/// Analytes cités dans les rubriques d'examens du protocole, dans l'ordre d'apparition, avec la méthode de dosage
+/// citée dans les 250 caractères qui suivent (« méthode colorimétrique enzymatique », « électrode ion-sélective »…).
+List<LabTest> protocolLabTests(Project p) {
+  final raw = p.protocol['labtests'] ?? '';
+  if (raw.isEmpty) return const [];
+  final t = _n(raw);
+  final found = <(int, LabTest)>[];
+  for (final (code, label, re) in _analytes) {
+    final ms = RegExp(re).allMatches(t).toList();
+    if (ms.isEmpty) continue;
+    final methodRe = RegExp(r"(methode [a-z\- ]{4,50}?|test [a-z\- ]*(enzymatique|colorimetrique|immuno)[a-z\- ]*|electrode[a-z\- ]{0,30}|impedance[a-z\- ]{0,20}|cytometrie[a-z\- ]{0,20}|chromatographie[a-z\- ]{0,30}|turbidimetri[a-z\- ]{0,20}|immunoturbidimetri[a-z\- ]{0,20})(?=[.,;:(]|\s{2}|$)");
+    // Première mention suivie d'une méthode de dosage (la première mention est souvent une simple liste).
+    String? method;
+    for (final m in ms) {
+      var after = t.substring(m.end, (m.end + 250).clamp(0, t.length));
+      // La fenêtre s'arrête au bloc suivant (« Principe du dosage du … »).
+      final next = RegExp(r"principe d|dosage (du|de la|de l'|des|d')").firstMatch(after);
+      if (next != null) after = after.substring(0, next.start);
+      final tech = RegExp(r"enzymat|colorim|immuno|electrode|chromatograph|turbidim|impedance|cytometr|hexokinase|oxydase|jaffe|potentiometr|spectrophotom|hplc|ion[- ]selecti|photometr|nephelometr|clauss|coagulom");
+      for (final mm in methodRe.allMatches(after)) {
+        if (tech.hasMatch(mm.group(1)!)) {
+          method = mm.group(1)!.trim();
+          break;
+        }
+      }
+      if (method != null) break;
+    }
+    final m = ms.first;
+    found.add((m.start, LabTest(code, label(), method)));
+  }
+  found.sort((a, b) => a.$1.compareTo(b.$1));
+  return [for (final f in found) f.$2];
+}
+
 /// Champs de la fiche : identifiant, date d'inclusion, variables du protocole (la pression artérielle donne deux
 /// champs, systolique et diastolique), critère de jugement principal s'il n'est pas déjà couvert. Liste vide si le
 /// projet ne décrit aucune variable.
@@ -103,8 +182,9 @@ List<CrfField> crfFields(Project p) {
   }
 
   final vars = protocolVariables(p);
-  final fromData = vars.isEmpty && p.dataset != null;
-  if (vars.isEmpty && !fromData) return const [];
+  final labs = protocolLabTests(p);
+  final fromData = vars.isEmpty && labs.isEmpty && p.dataset != null;
+  if (vars.isEmpty && labs.isEmpty && !fromData) return const [];
   add(CrfField('id', tr('Identifiant anonyme du participant', 'Anonymous participant identifier'), CrfType.identifier));
   add(CrfField('date_inclusion', tr('Date d\'inclusion', 'Date of enrolment'), CrfType.date));
   if (fromData) {
@@ -133,6 +213,12 @@ List<CrfField> crfFields(Project p) {
         continue;
       }
       add(_field(v.code, v.label[0].toUpperCase() + v.label.substring(1)));
+    }
+    // Examens décrits dans les rubriques de dosage, s'ils ne sont pas déjà dans la liste des variables.
+    for (final l in labs) {
+      final stem = l.code.split('_').first;
+      if (out.any((f) => f.code == l.code || f.code.startsWith(stem) || _n(f.label).contains(stem))) continue;
+      add(_field(l.code, l.label));
     }
   }
   // Critère de jugement principal, s'il n'est pas déjà dans la liste.

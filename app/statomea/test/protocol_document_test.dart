@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:statomea/services/article_document.dart';
 import 'package:statomea/services/crf_workbook.dart';
 import 'package:statomea/services/document_text.dart';
 import 'package:statomea/services/pdf_export.dart';
@@ -157,6 +158,25 @@ Les informations suivantes seront recueillies : le sexe, l'âge, la pression art
       expect('${r.stdout}', contains('|Dictionnaire'), reason: 'deux feuilles (le « é » peut être échappé selon la locale de R)');
       expect('${r.stdout}', contains('9 variable 15'));
     }
+    await dir.delete(recursive: true);
+  });
+
+  test('article Word : paquet valide (Python), sections, Tableau 1 et résultats, passages à compléter', () async {
+    final p = buildDemoAghbs(File('../../packages/statomea_core/test/reference/aghbs_simule.csv').readAsStringSync());
+    final bytes = articleDocx(p);
+    final text = docxText(bytes);
+    for (final h in ['Résumé', 'Méthodes', 'Analyse statistique', 'Résultats principaux', 'Discussion', 'Tableau 1. Caractéristiques des participants', 'Tableau 2. Résultats principaux']) {
+      expect(text, contains(h));
+    }
+    expect(text, contains('[À compléter : auteurs et affiliations]'));
+    final doc = utf8.decode(ZipDecoder().decodeBytes(bytes).findFile('word/document.xml')!.content as List<int>);
+    expect(RegExp('<w:tbl>').allMatches(doc).length, 2);
+    expect(doc, contains('<w:pStyle w:val="Heading2"/>'));
+    final dir = await Directory.systemTemp.createTemp('statomea_article');
+    final file = File('${dir.path}/article.docx')..writeAsBytesSync(bytes);
+    File('${Directory.systemTemp.path}/statomea-article-demo.txt').writeAsStringSync(text);
+    final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
+    expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
     await dir.delete(recursive: true);
   });
 }
