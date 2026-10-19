@@ -63,13 +63,13 @@ String get guideImportedProject => tr(
 
 /// Relecture méthodologique et corrections.
 String get guideReview => tr(
-    'Relecture et corrections : bouton « Relire et corriger » (feuille de route, étape 1 ou icône de vérification dans un projet). Statoméa relit la question, le plan, le nombre de sujets (recalculé quand les hypothèses sont données) et le plan d\'analyse — pour un protocole importé, sur son propre texte — et classe les points en erreurs, à revoir et manquants, en citant le passage en cause. « Appliquer la correction » (ou toutes d\'un coup) corrige le projet ; chaque correction est tracée et reprise dans le protocole prérédigé. Rapport de relecture en PDF ; conformité à la grille adaptée (SPIRIT, STROBE, STARD, TRIPOD) ; « Calculer l\'effectif » ouvre le calculateur prérempli avec les hypothèses du protocole ; dictionnaire de données tiré des variables du protocole ; « Protocole corrigé (Word) » renvoie votre propre fichier Word annoté (commentaires sur les passages en cause, récapitulatif en fin de document).',
-    'Review and corrections: "Review and correct" button (roadmap, step 1 or the check icon in a project). Statoméa reviews the question, design, sample size (recomputed when the assumptions are given) and analysis plan — for an imported protocol, on its own text — and classifies points as errors, to review and missing, quoting the passage concerned. "Apply the correction" (or all at once) fixes the project; each correction is logged and included in the pre-drafted protocol. Review report as PDF; compliance with the relevant checklist (SPIRIT, STROBE, STARD, TRIPOD); "Compute the sample size" opens the calculator prefilled with the protocol\'s assumptions; data dictionary drawn from the protocol\'s variables; "Corrected protocol (Word)" returns your own Word file annotated (comments on the passages concerned, summary at the end).');
+    'Relecture et corrections : bouton « Relire et corriger » (feuille de route, étape 1 ou icône de vérification dans un projet). Statoméa relit la question, le plan, le nombre de sujets (recalculé quand les hypothèses sont données) et le plan d\'analyse — pour un protocole importé, sur son propre texte — et classe les points en erreurs, à revoir et manquants, en citant le passage en cause. « Appliquer la correction » (ou toutes d\'un coup) corrige le projet ; chaque correction est tracée et reprise dans le protocole prérédigé. Rapport de relecture en PDF ; conformité à la grille adaptée (SPIRIT, STROBE, STARD, TRIPOD) ; fiche de recueil (PDF) et masque de saisie Excel (listes et bornes) ; résultats confrontés au protocole (critère changé, effectif non atteint, analyses et sous-groupes non prévus) ; « Calculer l\'effectif » ouvre le calculateur prérempli avec les hypothèses du protocole ; dictionnaire de données tiré des variables du protocole ; « Protocole corrigé (Word) » renvoie votre propre fichier Word annoté (commentaires sur les passages en cause, récapitulatif en fin de document).',
+    'Review and corrections: "Review and correct" button (roadmap, step 1 or the check icon in a project). Statoméa reviews the question, design, sample size (recomputed when the assumptions are given) and analysis plan — for an imported protocol, on its own text — and classifies points as errors, to review and missing, quoting the passage concerned. "Apply the correction" (or all at once) fixes the project; each correction is logged and included in the pre-drafted protocol. Review report as PDF; compliance with the relevant checklist (SPIRIT, STROBE, STARD, TRIPOD); case report form (PDF) and Excel data-entry template (lists and bounds); results checked against the protocol (outcome switched, sample size not reached, unplanned analyses and subgroups); "Compute the sample size" opens the calculator prefilled with the protocol\'s assumptions; data dictionary drawn from the protocol\'s variables; "Corrected protocol (Word)" returns your own Word file annotated (comments on the passages concerned, summary at the end).');
 
 /// Feuille de route et protocole prérédigé.
 String get guideRoadmap => tr(
-    'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime. « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
-    'Roadmap: "Roadmap" button (route icon) in a project. It lists the 10 steps, what is done, what is proposed and what remains; "Compute the sample size" opens the right calculator; "Print / PDF" prints it. "Protocol (Word)" and "Protocol (PDF)" produce a pre-drafted protocol in 13 sections (ethics committee format): highlighted "[To complete: …]" passages are for the researcher to write.');
+    'Feuille de route : bouton « Feuille de route » (icône d\'itinéraire) dans un projet. Elle donne les 10 étapes, ce qui est fait, ce qui est proposé et ce qui reste à faire ; « Calculer l\'effectif » ouvre le bon calculateur ; « Imprimer / PDF » l\'imprime ; « Budget et chronogramme » propose le Gantt et le budget (coûts à saisir), repris dans le protocole. « Protocole (Word) » et « Protocole (PDF) » produisent un protocole prérédigé en 13 rubriques (format comité d\'éthique) : les passages surlignés « [À compléter : …] » sont à rédiger par le chercheur.',
+    'Roadmap: "Roadmap" button (route icon) in a project. It lists the 10 steps, what is done, what is proposed and what remains; "Compute the sample size" opens the right calculator; "Print / PDF" prints it; "Budget and timeline" proposes the Gantt chart and budget (costs to enter), included in the protocol. "Protocol (Word)" and "Protocol (PDF)" produce a pre-drafted protocol in 13 sections (ethics committee format): highlighted "[To complete: …]" passages are for the researcher to write.');
 
 /// Empreinte FNV-1a 32 bits (identifie une version de données dans le journal).
 String fingerprint(String s) {
@@ -261,6 +261,9 @@ class Project {
   /// Corrections appliquées depuis la relecture méthodologique (traçabilité).
   final List<AppliedCorrection> corrections;
 
+  /// Budget et chronogramme : coûts unitaires, devise et durées saisis par le chercheur (clé → valeur).
+  Map<String, String> planning;
+
   Project({
     required this.id,
     required this.title,
@@ -280,7 +283,9 @@ class Project {
     Map<String, String>? inferred,
     Map<String, String>? protocol,
     List<AppliedCorrection>? corrections,
+    Map<String, String>? planning,
   })  : inferred = inferred ?? {},
+        planning = planning ?? {},
         protocol = protocol ?? {},
         corrections = corrections ?? [],
         checklistAnswers = checklistAnswers ?? {},
@@ -310,6 +315,7 @@ class Project {
         if (inferred.isNotEmpty) 'inferred': inferred,
         if (protocol.isNotEmpty) 'protocol': protocol,
         if (corrections.isNotEmpty) 'corrections': [for (final c in corrections) c.toJson()],
+        if (planning.isNotEmpty) 'planning': planning,
       };
 
   factory Project.fromJson(Map<String, Object?> j) => Project(
@@ -331,6 +337,7 @@ class Project {
         inferred: ((j['inferred'] as Map?) ?? {}).cast<String, String>(),
         protocol: ((j['protocol'] as Map?) ?? {}).cast<String, String>(),
         corrections: [for (final c in (j['corrections'] as List? ?? [])) AppliedCorrection.fromJson((c as Map).cast())],
+        planning: ((j['planning'] as Map?) ?? {}).cast<String, String>(),
       );
 
   /// JSON exporté, avec une empreinte d'intégrité (voir `projectChecksum`).

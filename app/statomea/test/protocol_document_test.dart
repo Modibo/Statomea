@@ -4,10 +4,12 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:statomea/services/crf_workbook.dart';
 import 'package:statomea/services/document_text.dart';
 import 'package:statomea/services/pdf_export.dart';
 import 'package:statomea/services/protocol_annotate.dart';
 import 'package:statomea/services/protocol_document.dart';
+import 'package:statomea/services/xlsx_import.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 Project _project() {
@@ -125,6 +127,36 @@ void main() {
     final file = File('${dir.path}/annote.docx')..writeAsBytesSync(a.bytes);
     final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
     expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
+    await dir.delete(recursive: true);
+  });
+
+  test('fiche de recueil : PDF relu par l\'extracteur ; masque Excel valide, relu par l\'application et par R (readxl)', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final d = protocolFromText("""
+Titre du projet
+Hémostase des blessés
+Variables étudiées
+Les informations suivantes seront recueillies : le sexe, l'âge, la pression artérielle, l'INR (temps de prothrombine), le fibrinogène et le lactate.
+""");
+    final p = Project(id: 'f', title: d.title, createdAt: '')..protocol = Map.of(d.fullSections);
+    final fields = crfFields(p);
+    final pdf = pdfText(await buildCrfPdf(p, fields)).replaceAll(RegExp(r'\s+'), ' ');
+    expect(pdf, contains('Fiche de recueil'));
+    expect(pdf, contains('Pression artérielle systolique'));
+    expect(pdf, contains('(0,5 – 15)'));
+    final bytes = crfWorkbook(fields, title: p.title);
+    final wb = openXlsx(bytes);
+    expect(wb.sheet().names, ['id', 'date_inclusion', 'sexe', 'age', 'pas', 'pad', 'inr', 'fibrinogene', 'lactate']);
+    expect(dictionarySheet(wb), 'Dictionnaire');
+    final dir = await Directory.systemTemp.createTemp('statomea_crf');
+    final file = File('${dir.path}/saisie.xlsx')..writeAsBytesSync(bytes);
+    final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
+    expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
+    final r = await Process.run('Rscript', ['-e', 'suppressMessages(library(readxl)); p <- commandArgs(TRUE)[1]; cat(excel_sheets(p), sep="|"); cat("\\n"); d <- read_excel(p, sheet = 2); cat(nrow(d), names(d)[1], d\$max[d\$variable == "inr"], "\\n")', file.path]);
+    if (r.exitCode == 0) {
+      expect('${r.stdout}', contains('|Dictionnaire'), reason: 'deux feuilles (le « é » peut être échappé selon la locale de R)');
+      expect('${r.stdout}', contains('9 variable 15'));
+    }
     await dir.delete(recursive: true);
   });
 }

@@ -8,6 +8,7 @@ import '../services/protocol_document.dart';
 import '../state/app_state.dart';
 import '../widgets/calculators.dart';
 import '../widgets/common.dart';
+import 'planning_screen.dart';
 import 'project_screen.dart';
 import 'review_screen.dart';
 
@@ -69,6 +70,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             },
           ),
           OutlinedButton.icon(
+            icon: const Icon(Icons.view_timeline_outlined),
+            label: Text(tr('Budget et chronogramme', 'Budget and timeline')),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => PlanningScreen(project)));
+              setState(() {});
+            },
+          ),
+          OutlinedButton.icon(
             icon: const Icon(Icons.open_in_new),
             label: Text(tr('Ouvrir le projet', 'Open the project')),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(project: project))),
@@ -98,6 +107,7 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       padding: const EdgeInsets.only(top: 3),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('•  '), Expanded(child: Text(l))]),
                     ),
+                  if (road[k].step.name == 'dataControl') Padding(padding: const EdgeInsets.only(top: 8), child: CrfButtons(project)),
                   if (road[k].calculator != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),

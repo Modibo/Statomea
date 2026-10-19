@@ -1183,3 +1183,20 @@ bandeau de la feuille de route mis à jour.
   ordre du schéma), identifiants sans collision avec les commentaires existants conservés, relations et types de
   contenu uniques, texte d'origine intact, récapitulatif en fin de document, XML vérifié par Python. Ouvert dans macOS
   (textutil) sur les deux protocoles réels.
+
+## Fiche de recueil, résultats confrontés au protocole, budget et chronogramme — 1.59.0
+
+- Fiche de recueil (`crf_test.dart`) : identifiant, date d'inclusion, variables du protocole avec unités et bornes
+  usuelles (âge 0–120 ans, PAS 40–300 mmHg — la pression artérielle donne deux champs —, INR 0,5–15…), modalités (sexe,
+  oui/non, niveau d'instruction), critère principal ajouté s'il manque. Masque Excel : feuilles « Données » (en-tête
+  figé, listes déroulantes, bornes, dates contrôlées) et « Dictionnaire », XML vérifié par Python, relu par le lecteur
+  Excel de l'application (validé contre readxl) et par readxl 1.4 dans R ; dictionnaire appliqué aux données saisies
+  (types, unités, bornes, modalités). Fiche PDF relue par l'extracteur. Protocoles réels : 13 et 24 champs.
+- Résultats confrontés au protocole (`review_test.dart`) : critère principal remplacé (erreur), non rapporté, effectif
+  atteint (300 / 550 = 55 % → puissance réduite ; 560 / 550 vérifié), analyses du journal absentes du plan (Cox signalé,
+  logistique prévue non signalée), sous-groupes non annoncés, valeurs de p sans IC ; mentions « exploratoire » ajoutées
+  aux résultats par les corrections, sans masquer les autres constats.
+- Budget et chronogramme (`planning_test.dart`) : inclusions = effectif / rythme déclaré (100 / 10 → 10 mois) ou durée
+  de l'étude moins préparation, suivi, gel de la base, analyse et rédaction (12 mois → 5) ; suivi selon l'horizon
+  (28 jours → 1 mois) ; examens biologiques comptés dans la fiche ; imprévus 10 % ; rubrique 13 du protocole
+  prérédigé ; enregistrement. Écran vérifié (saisie d'un coût, total, durée modifiée).

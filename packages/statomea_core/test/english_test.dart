@@ -587,4 +587,39 @@ void main() {
     expect(protocolVariables(t).map((v) => v.code), ['sex', 'age', 'weight', 'height']);
     expectEnglish('review (trial)', b2.toString());
   });
+
+  test('case report form, results review, budget and timeline', () {
+    final p = Project(id: 'cf', title: 'Anaemia in pregnancy', createdAt: '');
+    p.question = const ResearchQuestion(text: 'What factors are associated with anaemia in pregnant women?', outcome: 'anaemia', outcomeType: OutcomeType.binary, design: StudyDesign.crossSectional, objective: StudyObjective.explanatory, horizon: '28 days');
+    p.protocol = {'variables': 'Data collected will include sex, age, weight, blood pressure, haemoglobin and smoking.', '_text': 'Cross-sectional study. Study period: 12 months.', 'analysis': 'Logistic regression at the 5% level.'};
+    p.inferred['plannedSampleSize'] = '400';
+    p.planning.addAll({'u_lab': '2500', 'u_participants': '1000'});
+    p.journal.add(const JournalEntry(id: 'j', timestamp: '', methodId: 'cox', methodName: 'Cox model', result: {}));
+    p.resultsText = '250 patients were included. The primary outcome was haemoglobin level (p = 0.03). Among women, the effect was larger.';
+    final fields = crfFields(p);
+    expect(fields.map((f) => f.code), containsAll(['sex', 'age', 'weight', 'sbp', 'dbp', 'haemoglobin', 'smoking']));
+    final b = StringBuffer();
+    for (final f in fields) {
+      b.writeln('${f.label} ${crfTypeWord(f.type)} ${f.unit} ${f.levels.join(' ')}');
+    }
+    b.writeln(crfDictionaryCsv(fields));
+    final parts = crfWorkbookParts(fields);
+    b.writeln(RegExp(r'(?:error|prompt)="([^"]*)"').allMatches(parts['xl/worksheets/sheet1.xml']!).map((m) => m.group(1)).join('\n'));
+    b.writeln(parts['xl/workbook.xml']);
+    final r = reviewProject(p);
+    expect(r.findings.map((f) => f.id), containsAll(['outcome_switch', 'sample_attained', 'unplanned_analysis', 'subgroups', 'p_without_ci']));
+    for (final f in r.findings) {
+      b.writeln('${f.title} ${f.problem} ${f.correction} ${f.fix?.detail ?? ''}');
+    }
+    final pl = studyPlanning(p);
+    for (final ph in pl.phases) {
+      b.writeln(ph.label);
+    }
+    for (final l in pl.lines) {
+      b.writeln('${l.label} ${l.unitLabel}');
+    }
+    b.writeln(pl.assumptions.join(' '));
+    b.writeln(planningParagraphs(p, (w) => '[To complete: $w]').join('\n'));
+    expectEnglish('crf, results, planning', b.toString());
+  });
 }

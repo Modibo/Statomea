@@ -18,6 +18,7 @@ import '../i18n.dart';
 import '../model/design.dart';
 import '../model/result.dart' show StatInputError;
 import '../version.dart';
+import 'planning.dart' show planningParagraphs;
 import 'project.dart';
 
 /// Une déduction : champ, valeur lisible, passage du texte qui la justifie.
@@ -132,7 +133,7 @@ QuestionInference inferQuestion(String text) {
     (OutcomeType.timeToEvent, RegExp(r"survie|delai (de|jusqu|avant)|temps jusqu|time to|survival|time until|sans recidive|sans progression|disease[- ]free|progression[- ]free")),
     (OutcomeType.count, RegExp(r"nombre (de|d') ?(episodes|crises|hospitalisations|exacerbations|evenements|visites|admissions)|nombre moyen d|taux d'incidence|number of (episodes|events|admissions|visits)|counts?\b")),
     (OutcomeType.ordinal, RegExp(r"stade|grade (\d|de)|echelle de likert|score (faible|moyen|eleve)|leger, modere|mild, moderate|ordinal")),
-    (OutcomeType.binary, RegExp(r"risque (de|d')|risk of|survenue|deces|mortalite|guerison|reussite|echec|infection|recidive|rechute|complication|hospitalisation|reponse au traitement|proportion|prevalence|death|mortality|cure|success|failure|relapse|occurrence|odds")),
+    (OutcomeType.binary, RegExp(r"risque (de|d')|risk of|survenue|deces|mortalite|guerison|reussite|echec|infection|recidive|rechute|complication|hospitalisation|reponse au traitement|proportion|prevalence|death|mortality|cure|success|failure|relapse|occurrence|odds|oui ou non|oui/non|yes or no|yes/no|presence (de|d')|facteurs associes a|factors associated with")),
     (OutcomeType.continuous, RegExp(r"moyenne|concentration|pression arterielle|glycemie|hba1c|cholesterol|poids|imc|taille|tension|creatinine|hemoglobine|score|niveau de|duree de sejour|mean|level of|blood pressure|weight|length of stay")),
   ];
   for (final (t, re) in outRules) {
@@ -559,7 +560,7 @@ ProtocolDraft protocolFromText(String raw) {
   final title = t0.length > 160 ? '${t0.substring(0, 160)}…' : t0;
   final question = q ?? objectiveFirst ?? title;
   // Le titre dit souvent le plan (« Essai randomisé… », « Étude transversale… »).
-  final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>(), if (titleLine != null) titleLine].join('\n');
+  final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>(), ?titleLine].join('\n');
   final inf = inferQuestion(basis);
   final ss = full['sampleSize'] == null ? null : _plannedSampleSize(full['sampleSize']!);
   return ProtocolDraft(title: title, question: question, sections: sections, inference: inf, sampleSize: ss, fullSections: {
@@ -815,6 +816,6 @@ List<ProtocolSection> protocolOutline(Project p) {
       tr('Information et consentement : ${_todo('modalités')}', 'Information and consent: ${_todo('procedures')}'),
       tr('Confidentialité : données pseudonymisées, sans identifiant direct ; ${_todo('conservation, accès, déclaration réglementaire')}', 'Confidentiality: pseudonymised data, no direct identifier; ${_todo('storage, access, regulatory declaration')}'),
     ]),
-    ProtocolSection(tr('Calendrier, budget et diffusion', 'Timeline, budget and dissemination'), [_todo(tr('calendrier prévisionnel, budget, plan de publication', 'provisional timeline, budget, publication plan'))]),
+    ProtocolSection(tr('Calendrier, budget et diffusion', 'Timeline, budget and dissemination'), planningParagraphs(p, _todo)),
   ];
 }

@@ -296,4 +296,34 @@ Test t de Student au seuil de 5 %.
     expect(sp2.missing.map((i) => i.code), containsAll(['2', '22', '24', '26']), reason: 'enregistrement, événements indésirables, éthique : à rédiger par le chercheur');
     expect(protocolChecklist(Project(id: 'u', title: 'U', createdAt: '')), isNull, reason: 'plan non précisé : pas de grille');
   });
+
+  test('résultats confrontés au protocole : critère changé, effectif non atteint, analyse non prévue, sous-groupes, p sans IC', () {
+    final p = imported(recherche);
+    p.question = p.question.copyWith(outcome: 'mortalité à 28 jours');
+    p.journal.add(const JournalEntry(id: 'j1', timestamp: '2026-10-19', methodId: 'cox', methodName: 'Modèle de Cox', result: {}));
+    p.journal.add(const JournalEntry(id: 'j2', timestamp: '2026-10-19', methodId: 'logistic_regression', methodName: 'Régression logistique', result: {}));
+    p.resultsText = '300 patients ont été inclus. Le critère principal était la transfusion massive, plus fréquente en cas de fibrinogène bas (p = 0,03). Chez les hommes, l\'effet était plus marqué (p = 0,01).';
+    final r = reviewProject(p);
+    expect(find(r, 'outcome_switch')!.level, ReviewLevel.error);
+    expect(find(r, 'sample_attained')!.problem, startsWith('300 sujets analysés pour 550 prévus (55 %)'));
+    final un = find(r, 'unplanned_analysis')!;
+    expect(un.problem, startsWith('Modèle de Cox'), reason: 'la régression logistique était prévue, pas Cox');
+    expect(un.problem, isNot(contains('Régression logistique')));
+    expect(find(r, 'subgroups')!.evidence, contains('Chez les hommes'));
+    expect(find(r, 'p_without_ci'), isNotNull);
+    applyAllCorrections(p);
+    expect(p.resultsText, allOf(contains('présentées à titre exploratoire : Modèle de Cox'), contains('sous-groupes n\'étaient pas prévues')));
+    final left = reviewProject(p).problems.map((f) => f.id).toSet();
+    expect(left.intersection({'unplanned_analysis', 'subgroups'}), isEmpty);
+    expect(left, containsAll(['outcome_switch', 'sample_attained', 'p_without_ci']), reason: 'à corriger par le chercheur');
+
+    // Résultats conformes : critère rapporté avec IC, effectif atteint.
+    final ok = imported(recherche)..question = p.question;
+    ok.resultsText = '560 patients ont été inclus. La mortalité à 28 jours était de 14 % (IC à 95 % : 11–17 %).';
+    final r2 = reviewProject(ok);
+    expect(find(r2, 'outcome_switch'), isNull);
+    expect(find(r2, 'outcome_not_reported'), isNull);
+    expect(find(r2, 'sample_attained_ok')!.level, ReviewLevel.ok);
+    expect(find(r2, 'p_without_ci'), isNull);
+  });
 }

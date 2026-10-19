@@ -403,3 +403,81 @@ Future<Uint8List> buildReviewPdf(Project p, {required String generatedAt}) async
   ));
   return doc.save();
 }
+
+/// Fiche de recueil imprimable : en-tête (étude, n° de participant, date, enquêteur), puis un champ par variable avec
+/// son unité et ses bornes ; cases à cocher pour les variables qualitatives ; [copies] fiches vierges.
+Future<Uint8List> buildCrfPdf(Project p, List<CrfField> fields, {int copies = 1}) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  pw.Widget box() => pw.Container(width: 9, height: 9, margin: const pw.EdgeInsets.only(right: 3), decoration: pw.BoxDecoration(border: pw.Border.all(width: 0.8)));
+  pw.Widget line(double w) => pw.Container(width: w, height: 14, decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 0.6))));
+  pw.Widget entry(CrfField f) {
+    String n(double v) => v == v.roundToDouble() ? v.toInt().toString() : tr('$v'.replaceAll('.', ','), '$v');
+    switch (f.type) {
+      case CrfType.binary:
+      case CrfType.categorical when f.levels.isNotEmpty:
+        return pw.Wrap(spacing: 12, runSpacing: 4, children: [
+          for (final l in f.levels) pw.Row(mainAxisSize: pw.MainAxisSize.min, children: [box(), pw.Text(l, style: const pw.TextStyle(fontSize: 9.5))]),
+        ]);
+      case CrfType.date:
+        return pw.Text('__ __ / __ __ / __ __ __ __', style: const pw.TextStyle(fontSize: 11, letterSpacing: 1));
+      case CrfType.numeric:
+        return pw.Row(children: [
+          line(80),
+          pw.SizedBox(width: 4),
+          pw.Text(f.unit, style: const pw.TextStyle(fontSize: 9.5)),
+          if (f.min != null && f.max != null) pw.Text('   (${n(f.min!)} – ${n(f.max!)})', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+        ]);
+      default:
+        return line(190);
+    }
+  }
+
+  for (var c = 0; c < copies; c++) {
+    doc.addPage(pw.MultiPage(
+      theme: theme,
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(36, 30, 36, 30),
+      header: (ctx) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+        pw.Row(children: [
+          pw.Expanded(child: pw.Text(p.title, style: pw.TextStyle(fontSize: 10.5, fontWeight: pw.FontWeight.bold))),
+          pw.Text(tr('Fiche de recueil', 'Case report form'), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+        ]),
+        pw.SizedBox(height: 4),
+        pw.Row(children: [
+          pw.Text(tr('N° participant : ', 'Participant no.: '), style: const pw.TextStyle(fontSize: 9)), line(70), pw.SizedBox(width: 14),
+          pw.Text(tr('Enquêteur : ', 'Investigator: '), style: const pw.TextStyle(fontSize: 9)), line(110), pw.SizedBox(width: 14),
+          pw.Text(tr('Page ${ctx.pageNumber}', 'Page ${ctx.pageNumber}'), style: const pw.TextStyle(fontSize: 9)),
+        ]),
+        pw.Divider(thickness: 0.6),
+      ]),
+      footer: (ctx) => pw.Text(
+          tr('Statoméa — fiche tirée du protocole ; bornes indicatives (refus des saisies aberrantes). Ne porter ni nom ni contact du participant sur cette fiche.',
+              'Statoméa — form drawn from the protocol; indicative bounds (to reject implausible entries). Do not write the participant\'s name or contact details on this form.'),
+          style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+      build: (_) => [
+        pw.Table(
+          border: pw.TableBorder.symmetric(inside: const pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+          columnWidths: {0: const pw.FlexColumnWidth(2.2), 1: const pw.FlexColumnWidth(3)},
+          children: [
+            for (final f in fields)
+              pw.TableRow(verticalAlignment: pw.TableCellVerticalAlignment.middle, children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                  child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                    pw.Text(f.label, style: const pw.TextStyle(fontSize: 9.5)),
+                    pw.Text(f.code, style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600)),
+                  ]),
+                ),
+                pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 4), child: entry(f)),
+              ]),
+          ],
+        ),
+      ],
+    ));
+  }
+  return doc.save();
+}

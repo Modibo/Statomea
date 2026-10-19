@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../services/crf_workbook.dart';
 import '../services/file_saver.dart';
 import '../services/pdf_export.dart';
 import '../services/protocol_annotate.dart';
@@ -208,14 +209,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 const SizedBox(height: 8),
                 Wrap(spacing: 6, runSpacing: 6, children: [for (final v in vars) Chip(label: Text('${v.code} · ${v.type}'), visualDensity: VisualDensity.compact)]),
                 const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.table_view_outlined),
-                  label: Text(tr('Dictionnaire de données (CSV)', 'Data dictionary (CSV)')),
-                  onPressed: () async {
-                    final where = await saveFile('dictionnaire-${p.id}.csv', utf8.encode('\uFEFF${protocolDictionaryCsv(p)}'), 'text/csv');
-                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Dictionnaire enregistré : $where', 'Dictionary saved: $where'))));
-                  },
-                ),
+                CrfButtons(p),
               ]),
             ),
           ),
@@ -337,5 +331,44 @@ class ReviewBanner extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// Fiche de recueil (PDF imprimable), masque de saisie (Excel, listes et bornes) et dictionnaire de données (CSV).
+class CrfButtons extends StatelessWidget {
+  final Project project;
+  const CrfButtons(this.project, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final fields = crfFields(project);
+    if (fields.isEmpty) return const SizedBox.shrink();
+    void done(String where) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Enregistré : $where', 'Saved: $where'))));
+    return Wrap(spacing: 10, runSpacing: 8, children: [
+      OutlinedButton.icon(
+        icon: const Icon(Icons.assignment_outlined),
+        label: Text(tr('Fiche de recueil (PDF)', 'Case report form (PDF)')),
+        onPressed: () async {
+          final bytes = await buildCrfPdf(project, fields);
+          await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'fiche-recueil-${project.id}.pdf');
+        },
+      ),
+      OutlinedButton.icon(
+        icon: const Icon(Icons.grid_on_outlined),
+        label: Text(tr('Masque de saisie (Excel)', 'Data entry template (Excel)')),
+        onPressed: () async {
+          final where = await saveFile('saisie-${project.id}.xlsx', crfWorkbook(fields, title: project.title), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          if (context.mounted) done(where);
+        },
+      ),
+      OutlinedButton.icon(
+        icon: const Icon(Icons.table_view_outlined),
+        label: Text(tr('Dictionnaire de données (CSV)', 'Data dictionary (CSV)')),
+        onPressed: () async {
+          final where = await saveFile('dictionnaire-${project.id}.csv', utf8.encode('\uFEFF${crfDictionaryCsv(fields)}'), 'text/csv');
+          if (context.mounted) done(where);
+        },
+      ),
+    ]);
   }
 }

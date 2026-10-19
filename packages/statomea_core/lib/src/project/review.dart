@@ -440,7 +440,7 @@ ProjectReview reviewProject(Project p) {
                 tr('Les seuils de décision sont choisis à l\'intérieur de chaque échantillon bootstrap ; sensibilité, spécificité et bénéfice net sont rapportés corrigés de l\'optimisme ; ils devront être confirmés par une validation externe.', 'Decision cut-offs are chosen within each bootstrap sample; sensitivity, specificity and net benefit are reported optimism-corrected; they must be confirmed by external validation.')))));
       }
     }
-    if (observational && q.objective == StudyObjective.explanatory && !plan(r"ajust|multivari|confusion|regression (logistique|lineaire|de cox|de poisson|binomiale)|propension|modele mixte|adjust|multivariable|confound")) {
+    if (observational && q.objective == StudyObjective.explanatory && !plan(r"ajust|multivari|confusion|regression (logistique|lineaire|de cox|de poisson|binomiale)|propension|modele mixte|adjust|multivariable|confound|(logistic|linear|poisson|cox) (regression|model)|propensity")) {
       final model = switch (q.outcomeType) {
         OutcomeType.binary => q.design == StudyDesign.cohort
             ? tr('régression de Poisson à variance robuste (risque relatif) ou logistique (odds ratio)', 'Poisson regression with robust variance (relative risk) or logistic regression (odds ratio)')
@@ -508,7 +508,7 @@ ProjectReview reviewProject(Project p) {
               tr('L\'objectif principal fait l\'objet de l\'analyse confirmatoire au seuil de 5 % ; les objectifs secondaires sont exploratoires : leurs valeurs de p sont ajustées par la méthode de Benjamini-Hochberg et interprétées avec prudence.',
                   'The primary objective is the confirmatory analysis at the 5% level; secondary objectives are exploratory: their p-values are adjusted by the Benjamini-Hochberg method and interpreted cautiously.')))));
     }
-    if (!plan(r"0[.,]05|(?<!9)5 ?% (bilateral|two-sided)|seuil (de signification|de significativite|alpha|de 5)|risque (alpha|α|de premiere espece)|\balpha\b|α|bilater|two-sided|significance level")) {
+    if (!plan(r"0[.,]05|(?<!9)5 ?% (bilateral|two-sided)|seuil (de signification|de significativite|alpha|de 5)|risque (alpha|α|de premiere espece)|\balpha\b|α|bilater|two-sided|significance level|5 ?% level|level of 5 ?%")) {
       add(ReviewFinding('alpha', ReviewLevel.missing, Step.analysisPlan, tr('Seuil de signification non précisé', 'Significance level not specified'),
           tr('Le risque α et le caractère bilatéral des tests doivent être fixés à l\'avance.', 'The α level and two-sidedness of tests must be set in advance.'),
           tr('Tests bilatéraux, seuil de 5 %.', 'Two-sided tests, 5% level.'),
@@ -631,6 +631,79 @@ ProjectReview reviewProject(Project p) {
                 '${absent.length} variable(s) planned in the protocol are not found in the data file: ${absent.map((v) => v.label).take(12).join(', ')}${absent.length > 12 ? '…' : ''}.'),
             tr('Vérifier les noms de colonnes (le dictionnaire de données tiré du protocole donne les noms proposés) ou justifier l\'absence.', 'Check the column names (the data dictionary drawn from the protocol gives the proposed names) or justify the absence.')));
       }
+    }
+  }
+
+  // ---- 4 sexies. Résultats confrontés au protocole (étape 8) ----
+  final res = p.resultsText.trim();
+  final nRes = _n(res);
+  if (res.isNotEmpty || p.journal.isNotEmpty) {
+    // Critère principal annoncé, rapporté, ou remplacé.
+    final outWords = [for (final w in _n(q.outcome).split(RegExp(r"[^a-z0-9]+"))) if (w.length > 3 && !_stop.contains(w)) w];
+    if (res.isNotEmpty && outWords.isNotEmpty) {
+      final declared = RegExp(r"(?:critere (?:de jugement )?principal|primary (?:outcome|endpoint))[^.:]{0,25}?(?:est|etait|:|a ete|is|was)\s+(?:la |le |l'|les |the )?([^.,;]{3,60})").firstMatch(nRes);
+      if (declared != null && !outWords.any((w) => declared.group(1)!.contains(w))) {
+        add(ReviewFinding('outcome_switch', ReviewLevel.error, Step.interpretation, tr('Critère principal changé entre protocole et résultats', 'Primary outcome changed between protocol and results'),
+            tr('Le protocole annonce « ${q.outcome} » ; les résultats présentent un autre critère principal. Changer de critère après avoir vu les données est un biais de publication sélective.',
+                'The protocol states "${q.outcome}"; the results present another primary outcome. Switching outcome after seeing the data is selective reporting bias.'),
+            tr('Rapporter d\'abord le critère principal prévu ; présenter l\'autre comme secondaire, en signalant le changement et sa raison.', 'Report the planned primary outcome first; present the other as secondary, stating the change and its reason.'),
+            evidence: _quote(res, RegExp(RegExp.escape(declared.group(0)!.substring(0, math.min(30, declared.group(0)!.length)))))));
+      } else if (!outWords.any((w) => nRes.contains(w.substring(0, math.min(w.length, 6))))) {
+        add(ReviewFinding('outcome_not_reported', ReviewLevel.warning, Step.interpretation, tr('Critère principal non retrouvé dans les résultats', 'Primary outcome not found in the results'),
+            tr('Le texte de résultats ne mentionne pas « ${q.outcome} », le critère principal du protocole.', 'The results text does not mention "${q.outcome}", the protocol\'s primary outcome.'),
+            tr('Présenter en premier le résultat du critère principal (effet et IC à 95 %), qu\'il soit significatif ou non.', 'Present the primary outcome result first (effect and 95% CI), whether significant or not.')));
+      }
+    }
+    // Effectif atteint.
+    final plannedN = int.tryParse(p.inferred['plannedSampleSize'] ?? '');
+    final m = RegExp(r"(\d{2,6})\s*(?:patients?|sujets?|participants?|femmes|enfants|malades|cas)\s*(?:ont ete |ont |were |have been )?(?:inclus|analyses|recrutes|enrolled|included|analysed|analyzed)").firstMatch(nRes);
+    final attained = p.dataset?.rowCount ?? (m == null ? null : int.parse(m.group(1)!));
+    if (plannedN != null && attained != null) {
+      final pct = attained / plannedN;
+      if (pct < 0.8) {
+        add(ReviewFinding('sample_attained', ReviewLevel.warning, Step.interpretation, tr('Effectif prévu non atteint', 'Planned sample size not reached'),
+            tr('$attained sujets analysés pour $plannedN prévus (${_fmt(pct * 100, 0)} %) : la puissance est inférieure à celle visée ; un résultat non significatif ne permet pas de conclure à l\'absence d\'effet.',
+                '$attained subjects analysed for $plannedN planned (${_fmt(pct * 100, 0)}%): power is below target; a non-significant result does not show absence of effect.'),
+            tr('Le dire dans la discussion et s\'appuyer sur l\'IC à 95 % plutôt que sur la valeur de p.', 'State it in the discussion and rely on the 95% CI rather than the p-value.')));
+      } else {
+        add(ReviewFinding('sample_attained_ok', ReviewLevel.ok, Step.interpretation, tr('Effectif atteint', 'Sample size reached'),
+            tr('$attained sujets pour $plannedN prévus (${_fmt(pct * 100, 0)} %).', '$attained subjects for $plannedN planned (${_fmt(pct * 100, 0)}%).'), ''));
+      }
+    }
+    // Analyses faites mais non prévues.
+    final planAll = _n([prot('analysis'), p.analysisPlan].join('\n'));
+    final unplanned = <String>[];
+    for (final e in p.journal) {
+      final re = _planned(e.methodId);
+      if (re != null && !RegExp(re).hasMatch(planAll) && !unplanned.contains(e.methodName)) unplanned.add(e.methodName);
+    }
+    if (unplanned.isNotEmpty) {
+      add(ReviewFinding('unplanned_analysis', ReviewLevel.warning, Step.interpretation, tr('Analyses réalisées mais non prévues au plan', 'Analyses performed but not planned'),
+          tr('${unplanned.join(' ; ')} : absentes du plan d\'analyse. Présentées comme confirmatoires, elles exposent aux résultats trouvés par hasard.', '${unplanned.join('; ')}: absent from the analysis plan. Presented as confirmatory, they expose to chance findings.'),
+          tr('Les présenter comme exploratoires, ou ajouter au plan (daté) la raison du changement.', 'Present them as exploratory, or add to the (dated) plan the reason for the change.'),
+          fix: res.isEmpty
+              ? null
+              : ReviewFix(tr('Mention « exploratoire » ajoutée aux résultats', '"Exploratory" statement added to the results'), (p) {
+                  p.resultsText = '${p.resultsText.trimRight()}\n\n${tr('Analyses non prévues au protocole, présentées à titre exploratoire : ${unplanned.join(' ; ')}.', 'Analyses not planned in the protocol, presented as exploratory: ${unplanned.join('; ')}.')}';
+                })));
+    }
+    // Sous-groupes non annoncés.
+    final sub = RegExp(r"sous-groupes?|chez les (hommes|femmes)|selon (le sexe|l'age|la tranche)|stratifie|subgroups?|among (men|women)");
+    if (sub.hasMatch(nRes) && !RegExp(r"sous-groupes?|interaction|stratifi|subgroup").hasMatch(planAll) && !RegExp(r"sous-groupes?[^.]{0,80}(exploratoire|non prevue|pas prevue)|subgroups?[^.]{0,80}(exploratory|not planned)").hasMatch(nRes)) {
+      add(ReviewFinding('subgroups', ReviewLevel.warning, Step.interpretation, tr('Analyses en sous-groupes non annoncées', 'Subgroup analyses not pre-specified'),
+          tr('Des résultats par sous-groupe sont présentés sans avoir été prévus ni testés par une interaction : une différence entre sous-groupes est souvent due au hasard.', 'Subgroup results are presented without being planned or tested by an interaction: a difference between subgroups is often due to chance.'),
+          tr('Les signaler comme exploratoires ; comparer les sous-groupes par un test d\'interaction, pas par deux valeurs de p.', 'Flag them as exploratory; compare subgroups with an interaction test, not with two p-values.'),
+          evidence: _quote(res, sub),
+          fix: ReviewFix(tr('Mention « sous-groupes exploratoires » ajoutée aux résultats', '"Exploratory subgroups" statement added to the results'), (p) {
+            p.resultsText = '${p.resultsText.trimRight()}\n\n${tr('Les analyses en sous-groupes n\'étaient pas prévues au protocole : elles sont exploratoires et n\'ont pas fait l\'objet d\'un test d\'interaction préalable.', 'Subgroup analyses were not planned in the protocol: they are exploratory and were not pre-specified with an interaction test.')}';
+          })));
+    }
+    // Valeur de p sans intervalle de confiance.
+    if (RegExp(r"\bp\s*[<=>≤≥]\s*0?[.,]\d").hasMatch(nRes) && !RegExp(r"\bic\b|intervalle de confiance|\bci\b|confidence interval|\[\s*-?\d").hasMatch(nRes)) {
+      add(ReviewFinding('p_without_ci', ReviewLevel.warning, Step.interpretation, tr('Valeurs de p sans intervalle de confiance', 'p-values without confidence intervals'),
+          tr('Une valeur de p ne dit ni la taille ni la précision de l\'effet ; les recommandations (CONSORT, STROBE) demandent l\'estimation avec son IC à 95 %.', 'A p-value tells neither the size nor the precision of the effect; guidelines (CONSORT, STROBE) require the estimate with its 95% CI.'),
+          tr('Rapporter chaque effet (OR, RR, différence…) avec son IC à 95 %, la valeur de p en complément.', 'Report each effect (OR, RR, difference…) with its 95% CI, the p-value as a complement.'),
+          evidence: _quote(res, RegExp(r"\bp\s*[<=>≤≥]\s*0?[.,]\d"))));
     }
   }
 
@@ -811,3 +884,37 @@ String protocolDictionaryCsv(Project p) {
   String cell(String c) => c.contains(';') || c.contains('"') ? '"${c.replaceAll('"', '""')}"' : c;
   return '${rows.map((r) => r.map(cell).join(';')).join('\r\n')}\r\n';
 }
+
+const _stop = {'avec', 'sans', 'pour', 'dans', 'chez', 'apres', 'avant', 'jours', 'mois', 'semaines', 'with', 'from', 'days', 'months', 'oui', 'non'};
+
+/// Mots du plan d'analyse qui montrent qu'une méthode était prévue (null : méthode descriptive ou de planification).
+String? _planned(String methodId) {
+  final id = methodId;
+  if (id.startsWith('describe') || id.startsWith('sample_size') || id.startsWith('power') || id == 'multiple_imputation') return null;
+  if (id.contains('logistic') || id == 'firth_logistic') return r"logisti";
+  if (id == 'linear_regression' || id == 'restricted_cubic_spline') return r"regression lineaire|lineaire|linear regression|spline";
+  if (id == 'poisson_robust' || id == 'count_regression') return r"poisson|binomiale negative|comptage|negative binomial";
+  if (id == 'cox' || id == 'fine_gray' || id == 'cumulative_incidence') return r"\bcox\b|fine|gray|survie|concurren|survival|competing";
+  if (id == 'kaplan_meier' || id == 'rmst' || id == 'landmark') return r"kaplan|survie|log-?rank|survival";
+  if (id.startsWith('t_test') || id == 'paired_t_test') return r"student|\bt de\b|test t|t-test|welch";
+  if (id == 'mann_whitney' || id == 'wilcoxon_signed_rank') return r"mann|wilcoxon|non parametrique|nonparametric";
+  if (id.startsWith('anova')) return r"anova|analyse de (la )?variance";
+  if (id == 'kruskal_wallis') return r"kruskal";
+  if (id == 'chi_square_rxc' || id == 'two_by_two' || id == 'mcnemar') return r"khi|chi|fisher|mcnemar|proportions?";
+  if (id == 'pearson' || id == 'spearman') return r"correl|pearson|spearman";
+  if (id == 'proportion_ci') return r"proportion|prevalence|frequence|pourcentage";
+  if (id.startsWith('meta')) return r"meta";
+  if (id.startsWith('prediction') || id.startsWith('external_validation') || id == 'calibration') return r"predict|score|modele|calibration";
+  if (id == 'bland_altman' || id == 'passing_bablok' || id == 'deming') return r"bland|passing|deming|accord|agreement";
+  if (id.startsWith('propensity')) return r"propension|propensity";
+  if (id == 'lmm_longitudinal' || id == 'gee' || id == 'glmm_longitudinal') return r"mixte|repet|longitudin|gee|mixed";
+  if (id == 'diagnostic_accuracy') return r"sensibilite|specificite|sensitivity|specificity";
+  return null;
+}
+
+/// Durée de l'étude (mois), capacité de recrutement (sujets par mois) et nombre de centres lus dans le protocole.
+int? protocolStudyMonths(Project p) => p.protocol.isEmpty
+    ? null
+    : _studyMonths([p.protocol['design'] ?? '', p.protocol['period'] ?? '', p.protocol['sampleSize'] ?? '', p.protocol['_text'] ?? ''].join('\n'));
+double? protocolRecruitmentPerMonth(Project p) => _recruitmentPerMonth(_n([...p.protocol.values].join('\n')));
+int? protocolCentres(Project p) => _centres(_n([...p.protocol.values].join('\n')));

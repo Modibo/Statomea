@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:statomea/screens/planning_screen.dart';
 import 'package:statomea/screens/review_screen.dart';
 import 'package:statomea/screens/roadmap_screen.dart';
 import 'package:statomea/services/document_text.dart';
@@ -105,6 +106,41 @@ Proportion avec IC à 95 % (Wilson), seuil de 5 %, données manquantes décrites
     expect(find.textContaining('626', skipOffstage: false), findsWidgets);
     expect(p.journal.last.methodId, 'sample_size_proportion');
     await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('budget et chronogramme : Gantt, coût unitaire saisi, total, enregistrement dans le projet', (t) async {
+    await t.binding.setSurfaceSize(const Size(1100, 3000));
+    final state = AppState(MemoryStorage());
+    await state.load();
+    final d = protocolFromText("""
+Titre du projet
+Anémie des femmes enceintes : étude transversale
+Type et durée de l'étude
+Étude transversale ; la durée totale de l'étude sera de douze mois.
+Nombre de sujets nécessaires
+Il faut 400 femmes.
+Variables étudiées
+Les informations suivantes seront recueillies : l'âge, le poids, l'hémoglobine et la glycémie.
+""");
+    final p = state.createProject(d.title)
+      ..question = d.toQuestion()
+      ..protocol = Map.of(d.fullSections);
+    p.inferred['plannedSampleSize'] = '400';
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: PlanningScreen(p))));
+    await t.pumpAndSettle();
+    expect(find.text('CHRONOGRAMME (12 MOIS)'), findsOneWidget);
+    expect(find.text('Inclusions et recueil des données'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('plan-u_lab')), '2500');
+    await t.pumpAndSettle();
+    expect(p.planning['u_lab'], '2500');
+    expect(find.text('2 000 000 FCFA'), findsOneWidget);
+    expect(find.textContaining('Total : 2 200 000 FCFA'), findsOneWidget);
+    await t.enterText(find.byKey(const ValueKey('plan-m_recruit')), '8');
+    await t.pumpAndSettle();
+    expect(find.text('CHRONOGRAMME (15 MOIS)'), findsOneWidget);
+    await t.pump(const Duration(seconds: 3));
+    expect(state.projects.first.planning['m_recruit'], '8');
     expect(t.takeException(), isNull);
   });
 }
