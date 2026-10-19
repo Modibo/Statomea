@@ -20,6 +20,7 @@ import '../model/result.dart' show StatInputError;
 import '../version.dart';
 import 'planning.dart' show planningParagraphs;
 import 'project.dart';
+import 'references.dart';
 
 /// Une déduction : champ, valeur lisible, passage du texte qui la justifie.
 class Inference {
@@ -745,7 +746,18 @@ String _todo(String what) => tr('[À compléter : $what]', '[To complete: $what]
 
 /// Protocole prérédigé à partir du projet (question, plan, effectif, plan d'analyse, variables), avec les rubriques
 /// attendues par un comité d'éthique ; ce qui ne peut pas être déduit est marqué « à compléter ».
+/// Protocole prérédigé ; les citations « [@clé] » sont numérotées et une rubrique « Références » est ajoutée.
 List<ProtocolSection> protocolOutline(Project p) {
+  final sections = _protocolSections(p);
+  if (p.references.isEmpty) return sections;
+  final numbers = referenceNumbers(p.references, sections.expand((s) => s.paragraphs));
+  return [
+    for (final s in sections) ProtocolSection(s.title, [for (final l in s.paragraphs) formatCitations(l, numbers)]),
+    ProtocolSection(tr('Références', 'References'), referenceList(p.references, numbers)),
+  ];
+}
+
+List<ProtocolSection> _protocolSections(Project p) {
   final q = p.question;
   String or(String v, String what) => v.trim().isEmpty ? _todo(what) : v.trim();
   final ss = sampleSizePlan(q);

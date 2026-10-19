@@ -9,8 +9,10 @@ import '../services/protocol_document.dart';
 import '../state/app_state.dart';
 import '../widgets/calculators.dart';
 import '../widgets/common.dart';
+import 'flow_screen.dart';
 import 'planning_screen.dart';
 import 'project_screen.dart';
+import 'references_screen.dart';
 import 'review_screen.dart';
 
 /// Feuille de route : les 10 étapes du projet dans l'ordre, avec ce que l'application propose à chacune ; impression
@@ -68,6 +70,22 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             onPressed: () async {
               final bytes = await buildProtocolPdf(project);
               await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'protocole-${project.id}.pdf');
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.menu_book_outlined),
+            label: Text(tr('Bibliographie (${project.references.length})', 'Bibliography (${project.references.length})')),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => ReferencesScreen(project)));
+              setState(() {});
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.account_tree_outlined),
+            label: Text(tr('Diagramme de flux', 'Flow diagram')),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => FlowScreen(project)));
+              setState(() {});
             },
           ),
           OutlinedButton.icon(

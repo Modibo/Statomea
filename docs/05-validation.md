@@ -1216,3 +1216,19 @@ bandeau de la feuille de route mis à jour.
   STARD, TRIPOD+AI, PRISMA), Tableau 1 des données (groupe = exposition déclarée), Tableau 2 des résultats du journal
   (estimation, IC, p), limites selon le plan (chronologie en transversal, confusion résiduelle, effectif non atteint,
   analyses exploratoires), conclusion en termes d'association hors essai ; paquet Word valide.
+
+## Diagramme de flux, Tableau 2 ajusté, bibliographie — 1.61.0
+
+- Diagramme de flux (`flow_test.dart`) : STROBE (évalués → exclus avec motifs → inclus → non analysés → analysés) et
+  CONSORT (randomisés, alloués par bras, perdus de vue avec motifs, analysés) ; effectifs proposés depuis le fichier de
+  données ; contrôles arithmétiques (évalués − exclus = inclus ; alloués − perdus = analysés, sinon préciser
+  l'intention de traiter) ; phrase et Figure 1 dans l'article ; PDF imprimable.
+- Tableau 2 (`association_table_test.dart`) : OR bruts (une variable à la fois) et ajustés (toutes ensemble) identiques à
+  `glm(binomial)` de R 4.2.3 à 1e-6 (estimations, IC de Wald `confint.default`, p) sur aghbs ~ résidence + âge +
+  parité ; RP (Poisson robuste) et β (linéaire, sans la constante) ; avertissement « sophisme du Tableau 2 » ; repris
+  dans l'article (Tableau 2, les résultats principaux devenant le Tableau 3).
+- Bibliographie (`references_test.dart`) : RIS de Zotero, BibTeX (accolades imbriquées, guillemets, @comment ignoré),
+  MEDLINE de PubMed (lignes de continuation, DOI dans LID) ; noms au format de Vancouver (initiales, particules
+  « van der ») ; clés « auteur+année » dédoublonnées ; style de Vancouver (6 auteurs puis « et al. ») ; citations
+  « [@clé] » numérotées dans l'ordre de première citation, suites « [1–3] », clés inconnues laissées telles quelles ;
+  liste dans l'article et rubrique « Références » du protocole.

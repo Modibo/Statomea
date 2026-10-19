@@ -481,3 +481,49 @@ Future<Uint8List> buildCrfPdf(Project p, List<CrfField> fields, {int copies = 1}
   }
   return doc.save();
 }
+
+/// Diagramme de flux imprimable (une page A4) : boîtes principales reliées par des flèches, boîtes latérales pour les
+/// exclusions et les perdus de vue.
+Future<Uint8List> buildFlowPdf(Project p) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final d = flowDiagram(p);
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  pw.Widget box(FlowBox b, {bool side = false}) => pw.Container(
+        width: side ? 190 : 175,
+        padding: const pw.EdgeInsets.all(6),
+        decoration: pw.BoxDecoration(border: pw.Border.all(width: side ? 0.6 : 1), color: side ? PdfColors.grey100 : PdfColors.white),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Text(b.label, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+          pw.Text(b.n == null ? 'n = —' : 'n = ${b.n}', style: const pw.TextStyle(fontSize: 9)),
+          for (final r in b.details) pw.Text('• $r', style: const pw.TextStyle(fontSize: 8)),
+        ]),
+      );
+  final rows = <pw.Widget>[];
+  for (var i = 0; i < d.stages.length; i++) {
+    final st = d.stages[i];
+    if (i > 0) rows.add(pw.Padding(padding: const pw.EdgeInsets.symmetric(vertical: 2), child: pw.Text('↓', style: const pw.TextStyle(fontSize: 14))));
+    rows.add(pw.Row(mainAxisAlignment: pw.MainAxisAlignment.center, crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+      for (var k = 0; k < st.main.length; k++) ...[if (k > 0) pw.SizedBox(width: 16), box(st.main[k])],
+      for (final s in st.side.whereType<FlowBox>()) ...[pw.Padding(padding: const pw.EdgeInsets.symmetric(horizontal: 4), child: pw.Text('→')), box(s, side: true)],
+    ]));
+  }
+  doc.addPage(pw.Page(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(36),
+    build: (_) => pw.Column(children: [
+      pw.Text(tr('Diagramme de flux des participants (${d.guideline})', 'Participant flow diagram (${d.guideline})'), style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+      pw.Text(p.title, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+      pw.SizedBox(height: 14),
+      ...rows,
+      if (d.warnings.isNotEmpty) ...[
+        pw.SizedBox(height: 12),
+        for (final w in d.warnings) pw.Text('⚠ $w', style: const pw.TextStyle(fontSize: 8, color: PdfColors.orange800)),
+      ],
+    ]),
+  ));
+  return doc.save();
+}

@@ -490,6 +490,7 @@ MethodInfo? methodInfo(String id) {
     'sample_size_proportion': 'sample_size',
     'sample_size_correlation': 'sample_size',
     'describe_table1': 'describe_numeric',
+    'association_table': 'logistic_regression',
     'sample_size_prediction': 'sample_size',
     'power_means': 'sample_size',
     'power_proportions': 'sample_size',

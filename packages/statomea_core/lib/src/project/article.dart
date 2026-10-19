@@ -12,7 +12,9 @@ import '../model/result.dart';
 import '../version.dart';
 import 'checklist_protocol.dart';
 import 'crf.dart';
+import 'flow.dart';
 import 'project.dart';
+import 'references.dart';
 import 'review.dart';
 
 class ArticleSection {
@@ -50,8 +52,20 @@ String reportingGuideline(ResearchQuestion q) => switch ((q.design, q.objective)
       _ => 'STROBE',
     };
 
-/// Sections de l'article.
-List<ArticleSection> articleOutline(Project p) {
+/// Sections de l'article ; les citations « [@clé] » sont numérotées et la liste des références remplie.
+List<ArticleSection> articleOutline(Project p) => _withReferences(p, _articleSections(p));
+
+List<ArticleSection> _withReferences(Project p, List<ArticleSection> sections) {
+  if (p.references.isEmpty) return sections;
+  final numbers = referenceNumbers(p.references, sections.expand((s) => s.paragraphs));
+  return [
+    for (final s in sections)
+      ArticleSection(s.title, s.title == tr('Références', 'References') ? referenceList(p.references, numbers) : [for (final l in s.paragraphs) formatCitations(l, numbers)],
+          tables: s.tables, sub: s.sub),
+  ];
+}
+
+List<ArticleSection> _articleSections(Project p) {
   final q = p.question;
   final prot = p.protocol;
   final design = q.design == StudyDesign.unknown ? _todo(tr('plan d\'étude', 'study design')) : designLabel(q.design);
@@ -64,14 +78,23 @@ List<ArticleSection> articleOutline(Project p) {
   final mains = <(String, Estimate?, String)>[];
   for (final e in p.journal) {
     final id = e.methodId;
-    if (id.startsWith('describe') || id.startsWith('sample_size') || id.startsWith('power')) continue;
+    if (id.startsWith('describe') || id.startsWith('sample_size') || id.startsWith('power') || id == 'association_table') continue;
     final ests = [for (final x in (e.result['estimates'] as List? ?? const [])) Estimate.fromJson((x as Map).cast())];
     final interp = (e.result['interpretation'] as Map?)?['whatItMeans'] as String? ?? '';
     mains.add((e.methodName, ests.isEmpty ? null : ests.first, interp));
   }
+  // Tableau 2 des associations brutes et ajustées (le dernier calculé), s'il existe.
+  ResultTable? assoc;
+  for (final e in p.journal.reversed) {
+    if (e.methodId == 'association_table' && (e.result['tables'] as List?)?.isNotEmpty == true) {
+      assoc = ResultTable.fromJson(((e.result['tables'] as List).first as Map).cast());
+      break;
+    }
+  }
+  final mainNo = assoc == null ? 2 : 3;
   final resultsTable = mains.isEmpty
       ? null
-      : ResultTable(tr('Tableau 2. Résultats principaux', 'Table 2. Main results'), [tr('Analyse', 'Analysis'), tr('Estimation', 'Estimate'), tr('IC à 95 %', '95% CI'), 'p'], [
+      : ResultTable(tr('Tableau $mainNo. Résultats principaux', 'Table $mainNo. Main results'), [tr('Analyse', 'Analysis'), tr('Estimation', 'Estimate'), tr('IC à 95 %', '95% CI'), 'p'], [
           for (final (name, e, _) in mains)
             [
               name,
@@ -107,6 +130,20 @@ List<ArticleSection> articleOutline(Project p) {
   final fields = crfFields(p);
   final review = reviewProject(p);
   final grid = prot.isEmpty ? null : protocolChecklist(p);
+
+  // Diagramme de flux : phrase et figure (tableau d'étapes) si des effectifs ont été saisis.
+  final flow = p.flow.isEmpty ? null : flowDiagram(p);
+  final flowText = flow == null ? '' : flowSentence(flow);
+  final flowFigure = flow == null
+      ? null
+      : ResultTable(tr('Figure 1. Diagramme de flux des participants (${flow.guideline})', 'Figure 1. Participant flow diagram (${flow.guideline})'),
+          [tr('Étape', 'Stage'), tr('Exclusions, perdus de vue', 'Exclusions, losses')], [
+          for (final st in flow.stages)
+            [
+              st.main.map((b) => b.text).join(' | '),
+              st.side.whereType<FlowBox>().map((b) => [b.text, ...b.details].join(' ; ')).join(' | '),
+            ]
+        ]);
 
   final limits = <String>[
     if (q.design == StudyDesign.crossSectional) tr('Le plan transversal ne permet pas d\'établir la chronologie entre exposition et issue.', 'The cross-sectional design does not establish the temporal order of exposure and outcome.'),
@@ -168,17 +205,21 @@ List<ArticleSection> articleOutline(Project p) {
     ], sub: true),
     ArticleSection(tr('Résultats', 'Results'), const []),
     ArticleSection(tr('Participants', 'Participants'), [
-      analysed == null
-          ? _todo(tr('nombre de sujets éligibles, inclus, analysés (diagramme de flux)', 'number of eligible, included, analysed subjects (flow diagram)'))
-          : tr('$analysed participants ont été analysés${planned == null ? '' : ' (effectif prévu : $planned)'}. ${_todo('diagramme de flux : éligibles, inclus, exclus et motifs')}', '$analysed participants were analysed${planned == null ? '' : ' (planned: $planned)'}. ${_todo('flow diagram: eligible, included, excluded and reasons')}'),
+      if (flowText.isNotEmpty)
+        '$flowText${planned == null ? '' : tr(' L\'effectif prévu était de $planned.', ' The planned sample size was $planned.')} ${tr('Le flux des participants est présenté dans la Figure 1.', 'Participant flow is shown in Figure 1.')}'
+      else if (analysed == null)
+        _todo(tr('nombre de sujets éligibles, inclus, analysés (diagramme de flux)', 'number of eligible, included, analysed subjects (flow diagram)'))
+      else
+        tr('$analysed participants ont été analysés${planned == null ? '' : ' (effectif prévu : $planned)'}. ${_todo('diagramme de flux : éligibles, inclus, exclus et motifs')}', '$analysed participants were analysed${planned == null ? '' : ' (planned: $planned)'}. ${_todo('flow diagram: eligible, included, excluded and reasons')}'),
+      ...?flow?.warnings.map((w) => _todo(tr('vérifier les effectifs : $w', 'check the numbers: $w'))),
       if (t1 != null) tr('Leurs caractéristiques sont présentées dans le Tableau 1.', 'Their characteristics are shown in Table 1.'),
       ...t1notes,
-    ], tables: [?t1], sub: true),
+    ], tables: [?flowFigure, ?t1], sub: true),
     ArticleSection(tr('Résultats principaux', 'Main results'), [
       if (mains.isEmpty) _todo(tr('résultat du critère principal (effet et IC à 95 %)', 'primary outcome result (effect and 95% CI)')),
       for (final (name, e, interp) in mains) '$name${e == null ? '' : '${tr(' : ', ': ')}${_est(e)}'}${interp.isEmpty ? '.' : '. $interp'}',
       if (p.resultsText.trim().isNotEmpty) p.resultsText.trim(),
-    ], tables: [?resultsTable], sub: true),
+    ], tables: [?assoc, ?resultsTable], sub: true),
     ArticleSection(tr('Discussion', 'Discussion'), [
       '${tr('Principaux résultats : ', 'Main findings: ')}${_todo(tr('résumé en deux phrases', 'two-sentence summary'))}',
       '${tr('Comparaison avec la littérature : ', 'Comparison with the literature: ')}${_todo(tr('études comparables et explications des différences', 'comparable studies and explanations of differences'))}',

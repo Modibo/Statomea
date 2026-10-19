@@ -21,6 +21,7 @@ List<(String, String, IconData, String)> get calculatorKinds => [
   ('proportion_ci', tr('Proportion / prévalence', 'Proportion / prevalence'), Icons.percent, tr('Descriptif', 'Descriptive')),
   ('describe', tr('Statistiques descriptives', 'Descriptive statistics'), Icons.bar_chart, tr('Descriptif', 'Descriptive')),
   ('table1', tr('Tableau 1 : caractéristiques des participants', 'Table 1: participant characteristics'), Icons.table_chart_outlined, tr('Descriptif', 'Descriptive')),
+  ('table2', tr('Tableau 2 : associations brutes et ajustées', 'Table 2: crude and adjusted associations'), Icons.table_rows_outlined, 'Association'),
   ('two_by_two', tr('Tableau 2 × 2 (RR, OR, DR)', '2 × 2 table (RR, OR, RD)'), Icons.grid_on, 'Association'),
   ('chi_square_rxc', 'χ² r × c', Icons.grid_4x4, 'Association'),
   ('diagnostic_accuracy', tr('Performance diagnostique', 'Diagnostic accuracy'), Icons.biotech_outlined, 'Diagnostic'),
@@ -69,6 +70,7 @@ String calculatorFor(String methodId) => switch (methodId) {
       'power_means' || 'power_proportions' || 'power_case_control' || 'power_survival' || 'power_gwas' => 'power',
       'describe_numeric' => 'describe',
       'describe_table1' => 'table1',
+      'association_table' => 'table2',
       _ => calculatorKinds.any((k) => k.$1 == methodId) ? methodId : 'proportion_ci',
     };
 
@@ -77,6 +79,7 @@ String calculatorFor(String methodId) => switch (methodId) {
 Map<String, String> get _calculatorKeywords => {
       'proportion_ci': tr('prévalence fréquence pourcentage intervalle de confiance wilson exact taux', 'prevalence frequency percentage confidence interval wilson exact rate'),
       'describe': tr('moyenne médiane écart-type quartiles distribution résumé', 'mean median standard deviation quartiles distribution summary'),
+      'table2': tr('tableau 2 facteurs associés brut ajusté OR RR multivarié univarié confusion', 'table 2 associated factors crude adjusted OR RR multivariable univariable confounding'),
       'table1': tr('tableau 1 caractéristiques participants population baseline groupes article', 'table 1 characteristics participants baseline groups article'),
       'two_by_two': tr('risque relatif odds ratio rapport de cotes chi deux fisher exposition cohorte cas-témoins', 'relative risk odds ratio chi square fisher exposure cohort case-control'),
       'chi_square_rxc': tr('chi deux contingence qualitatives association cramer', 'chi square contingency categorical association cramer'),
@@ -189,6 +192,7 @@ class _CalculatorPanelState extends State<CalculatorPanel> {
       'proportion_ci' => ProportionCalc(ds, onResult),
       'describe' => DescribeCalc(ds, onResult),
       'table1' => Table1Calc(ds, onResult),
+      'table2' => Table2Calc(ds, p, onResult),
       'two_by_two' => TwoByTwoCalc(ds, p?.question.design ?? StudyDesign.unknown, onResult),
       'chi_square_rxc' => ChiRxCCalc(ds, onResult),
       'diagnostic_accuracy' => DiagnosticCalc(p?.question.design ?? StudyDesign.diagnosticAccuracy, onResult),
@@ -479,6 +483,106 @@ class _Table1CalcState extends State<Table1Calc> {
             icon: const Icon(Icons.grid_on_outlined),
             label: Text(tr('Tableau 1 (Excel)', 'Table 1 (Excel)')),
             onPressed: () => save('tableau1.xlsx', tableXlsx(tr('Tableau 1', 'Table 1'), table!.header, table!.cells, notes: table!.notes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+          ),
+        ]),
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------- Tableau 2
+
+class Table2Calc extends StatefulWidget {
+  final Dataset? ds;
+  final Project? project;
+  final OnResult onResult;
+  const Table2Calc(this.ds, this.project, this.onResult, {super.key});
+  @override
+  State<Table2Calc> createState() => _Table2CalcState();
+}
+
+class _Table2CalcState extends State<Table2Calc> {
+  String? outcome, event, model;
+  final selected = <String>{};
+  ResultTable? table;
+  List<String> notes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    final ds = widget.ds;
+    final roles = widget.project?.roles.validFor(ds);
+    if (ds != null && roles != null) {
+      outcome = roles.outcome;
+      event = roles.eventLevel;
+      selected.addAll([?roles.exposure, ...roles.covariates]);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = widget.ds;
+    if (ds == null) return Text(tr('Tableau 2 : importer d\'abord les données du projet (étape 4).', 'Table 2: first import the project data (step 4).'));
+    final candidates = [for (final n in ds.names) if (n != outcome && !const [VarType.identifier, VarType.date, VarType.text].contains(ds.dictionary[n]!.type)) n];
+    final outNumeric = outcome != null && ds.dictionary[outcome]!.type == VarType.numeric;
+    final m = model ?? (outNumeric ? 'linear' : 'logistic');
+    final design = widget.project?.question.design ?? StudyDesign.unknown;
+    Future<void> save(String name, Uint8List bytes, String mime) async {
+      final where = await saveFile(name, bytes, mime);
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Enregistré : $where', 'Saved: $where'))));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(tr('Tableau 2 : associations brutes et ajustées', 'Table 2: crude and adjusted associations'), style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 4),
+      Text(tr('Prérempli avec les rôles déclarés (issue, exposition, facteurs d\'ajustement).', 'Prefilled with the declared roles (outcome, exposure, adjustment factors).'), style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: 8),
+      Wrap(spacing: 12, runSpacing: 8, children: [
+        Pick<String>(tr('Issue', 'Outcome'), outcome, [for (final n in ds.names) (n, n)], (v) => setState(() {
+              outcome = v;
+              event = null;
+              selected.remove(v);
+            })),
+        if (outcome != null && !outNumeric)
+          Pick<String>(tr('Modalité « événement »', '"Event" level'), event, [for (final l in ds.levels(outcome!)) (l, l)], (v) => setState(() => event = v)),
+        Pick<String>(tr('Modèle', 'Model'), m, [
+          ('logistic', tr('Logistique (OR)', 'Logistic (OR)')),
+          ('poisson', design == StudyDesign.crossSectional ? tr('Poisson robuste (RP)', 'Robust Poisson (PR)') : tr('Poisson robuste (RR)', 'Robust Poisson (RR)')),
+          ('linear', tr('Linéaire (β)', 'Linear (β)')),
+        ], (v) => setState(() => model = v)),
+      ]),
+      const SizedBox(height: 8),
+      Text(tr('Variables du tableau', 'Variables in the table'), style: Theme.of(context).textTheme.labelLarge),
+      Wrap(spacing: 6, runSpacing: 4, children: [
+        for (final n in candidates)
+          FilterChip(label: Text(n), selected: selected.contains(n), onSelected: (v) => setState(() => v ? selected.add(n) : selected.remove(n))),
+      ]),
+      _computeButton(context, () {
+        run(context, () {
+          if (outcome == null) throw StatInputError('missing', tr('Choisir l\'issue.', 'Choose the outcome.'));
+          if (!outNumeric && event == null) throw StatInputError('missing', tr('Choisir la modalité « événement ».', 'Choose the "event" level.'));
+          final terms = [
+            for (final n in candidates)
+              if (selected.contains(n))
+                ds.dictionary[n]!.type == VarType.numeric ? TermSpec(n) : TermSpec(n, categorical: true, reference: (ds.dictionary[n]!.order ?? ds.levels(n)).first)
+          ];
+          final r = associationTable(ds, ModelFormula(outcome!, terms, eventLevel: outNumeric ? null : event), model: m, design: design);
+          table = r.tables.single;
+          notes = [for (final a in r.alerts) if (a.code == 'association_table_note') a.message];
+          setState(() {});
+          return r;
+        }, widget.onResult, options: {'model': m});
+      }),
+      if (table != null)
+        Wrap(spacing: 10, runSpacing: 8, children: [
+          OutlinedButton.icon(
+            icon: const Icon(Icons.description_outlined),
+            label: Text(tr('Tableau 2 (Word)', 'Table 2 (Word)')),
+            onPressed: () => save('tableau2.docx', tableDocx(table!.title, table!.header, table!.rows, notes: notes), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.grid_on_outlined),
+            label: Text(tr('Tableau 2 (Excel)', 'Table 2 (Excel)')),
+            onPressed: () => save('tableau2.xlsx', tableXlsx(tr('Tableau 2', 'Table 2'), table!.header, table!.rows, notes: notes), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
           ),
         ]),
     ]);

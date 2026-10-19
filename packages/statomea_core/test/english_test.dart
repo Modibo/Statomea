@@ -643,4 +643,38 @@ void main() {
     expect(protocolLabTests(lab).map((l) => l.code), ['glycemie', 'hba1c', 'creatinine']);
     expectEnglish('table 1, article', b.toString());
   });
+
+  test('flow diagram, table 2, references', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    p.flow.addAll({'assessed': '700', 'excluded_reasons': 'declined: 40', 'included': '650', 'analysed': '640'});
+    final d = flowDiagram(p);
+    final b = StringBuffer('${d.guideline}\n');
+    for (final st in d.stages) {
+      for (final x in [...st.main, ...st.side.whereType<FlowBox>()]) {
+        b.writeln(x.text);
+      }
+    }
+    b.writeln(d.warnings.join('\n'));
+    b.writeln(flowSentence(d));
+    final rct = Project(id: 'r', title: 'T', createdAt: '')..question = const ResearchQuestion(design: StudyDesign.rct);
+    rct.flow.addAll({'included': '200', 'arm1_allocated': '100', 'arm2_allocated': '99', 'arm1_lost': '3', 'arm1_analysed': '90'});
+    final dr = flowDiagram(rct);
+    for (final st in dr.stages) {
+      b.writeln(st.main.map((x) => x.text).join(' '));
+    }
+    b.writeln(dr.warnings.join('\n'));
+    final t2 = associationTable(p.dataset!, const ModelFormula('aghbs', [TermSpec('residence', categorical: true, reference: 'urbain'), TermSpec('age')], eventLevel: 'positif'), model: 'logistic', design: StudyDesign.cohort);
+    b.writeln('${t2.methodName} ${t2.formula.split(';').first} ${t2.tables.single.title} ${t2.tables.single.header.join(' ')}');
+    b.writeln([for (final a in t2.alerts) if (a.code == 'association_table_note') a.message].join('\n'));
+    b.writeln('${t2.interpretation.whyThisMethod} ${t2.interpretation.whatItMeans} ${t2.interpretation.notJustified}');
+    p.references.addAll(parseReferences('TY  - JOUR\nTI  - A study\nAU  - Smith, John\nPY  - 2020\nJO  - Lancet\nER  - \n'));
+    p.analysisPlan = 'Method as described [@smith2020].';
+    for (final s in articleOutline(p).where((s) => s.title == 'References' || s.title == 'Participants')) {
+      b.writeln(s.paragraphs.join('\n'));
+      for (final t in s.tables) {
+        b.writeln(t.title);
+      }
+    }
+    expectEnglish('flow, table 2, references', b.toString().replaceAll('urbain', '').replaceAll('rural', ''));
+  });
 }
