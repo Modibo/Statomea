@@ -133,7 +133,7 @@ const List<MethodInfo> _registryFr = [
       lessonId: 'or_rr', reference: 'R : glm(family = binomial), confint.default'),
   MethodInfo(id: 'poisson_robust', name: 'Poisson à variance robuste', category: 'Régression', status: _v,
       question: 'RR ou RP ajusté d\'une issue binaire fréquente', requiredData: 'Issue binaire, cohorte/essai/transversal',
-      conditions: ['Pas en cas-témoins'], diagnostics: ['Convergence', 'Probabilités prédites > 1'], output: 'RR ou RP ajustés (IC)',
+      conditions: ['Plan de cohorte, essai ou transversal (pas cas-témoins)'], diagnostics: ['Convergence', 'Probabilités prédites > 1'], output: 'RR ou RP ajustés (IC)',
       lessonId: 'or_rr', reference: 'R : glm(family = poisson) + sandwich::vcovHC(type = "HC0")'),
   MethodInfo(id: 'firth_logistic', name: 'Logistique de Firth (IC profilés pénalisés)', category: 'Régression', status: _v,
       question: 'Issue binaire avec peu d\'événements ou séparation', requiredData: 'Issue binaire, peu de prédicteurs',

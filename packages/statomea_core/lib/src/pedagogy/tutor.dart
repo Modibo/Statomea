@@ -138,7 +138,9 @@ List<TutorQuestion> tutorQuestions(Project p) {
           for (final c in m.conditions.take(1))
             if (!info.conditions.contains(c) && !c.toLowerCase().split(RegExp(r'[^a-zàâçéèêëîïôûùüÿœ]+')).any((w) => w.length >= 6 && key.contains(w.substring(0, 6)))) c
     ]..shuffle(_Rng(info.id.hashCode));
-    out.add(_q(Step.diagnostics, tr('Quelle condition faut-il vérifier pour ${info.name} ?', 'Which condition must be checked for ${info.name}?'), info.conditions.first, wrong.take(3).toList(),
+    // Condition formulée positivement (« Pas en cas-témoins » ferait une mauvaise réponse à cocher).
+    final cond = info.conditions.firstWhere((c) => !RegExp(r'^(pas |not |aucun|no )', caseSensitive: false).hasMatch(c), orElse: () => info.conditions.first);
+    out.add(_q(Step.diagnostics, tr('Quelle condition faut-il vérifier pour ${info.name} ?', 'Which condition must be checked for ${info.name}?'), cond, wrong.take(3).toList(),
         tr('Revoyez la fiche de la méthode : « Conditions à vérifier ».', 'Review the method\'s sheet: "Conditions to check".'),
         tr('Conditions de ${info.name} : ${info.conditions.join(' ; ')}.', 'Conditions for ${info.name}: ${info.conditions.join('; ')}.'), personalised: true));
   } else {

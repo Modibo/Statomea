@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/document_text.dart';
@@ -115,6 +116,11 @@ class ProjectsScreen extends StatelessWidget {
         ),
         TextButton.icon(icon: const Icon(Icons.save_alt_outlined), label: Text(tr('Sauvegarder tous les projets', 'Back up all projects')), onPressed: user.isEmpty ? null : () => _backup(context)),
         TextButton.icon(icon: const Icon(Icons.restore_outlined), label: Text(tr('Restaurer une sauvegarde', 'Restore a backup')), onPressed: () => _restore(context)),
+        TextButton.icon(
+          icon: const Icon(Icons.menu_book_outlined),
+          label: Text(tr('Guide d\'utilisation (PDF)', 'User guide (PDF)')),
+          onPressed: () => launchUrl(Uri.parse('https://statomea.komodi-labo.org/guide-statomea.pdf'), mode: LaunchMode.externalApplication),
+        ),
       ]),
       if (user.isNotEmpty && _backupDue(context.watch<AppState>().lastBackup))
         Card(

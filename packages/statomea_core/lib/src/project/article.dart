@@ -119,12 +119,25 @@ List<ArticleSection> _articleSections(Project p) {
     }
   }
 
-  // Plan d'analyse : texte du chercheur et paragraphes de correction, sans les intitulés techniques.
-  final plan = p.analysisPlan
+  // Plan d'analyse : pour un protocole importé, sa rubrique d'analyse et les corrections appliquées (pas la proposition
+  // rédigée par Statoméa à l'import) ; sinon le plan du chercheur ; sans les intitulés techniques.
+  final marker = RegExp(r'(Correction Statoméa|Statoméa correction) — ').firstMatch(p.analysisPlan);
+  var protocolPlan = (prot['analysis'] ?? '').replaceAll(RegExp(r'\s+'), ' ');
+  // Les phrases corrigées (citées par chaque correction) sont remplacées par leur correction.
+  for (final c in p.corrections) {
+    final ev = c.evidence?.replaceAll(RegExp(r'\s+'), ' ').replaceAll('…', '').trim();
+    if (ev != null && ev.length > 20) protocolPlan = protocolPlan.replaceAll(ev, '');
+  }
+  final planSource = prot.isNotEmpty && protocolPlan.trim().isNotEmpty
+      ? [protocolPlan.trim(), if (marker != null) p.analysisPlan.substring(marker.start)].join('\n')
+      : p.analysisPlan;
+  final plan = planSource
       .replaceAll(RegExp(r'(Correction Statoméa|Statoméa correction) — [^\n]*\n'), '')
+      .replaceAll(RegExp(r"^(Plan d'analyse du protocole|Protocol analysis plan) : ", multiLine: true), '')
+      .replaceAll(RegExp(r' \((et non|not) [^)]*\)'), '')
       .split(RegExp(r'\n+'))
       .map((l) => l.trim())
-      .where((l) => l.isNotEmpty)
+      .where((l) => l.isNotEmpty && !RegExp(r"^(Proposition de Statoméa|Statoméa proposal) :$").hasMatch(l))
       .toList();
   final labs = protocolLabTests(p);
   final fields = crfFields(p);

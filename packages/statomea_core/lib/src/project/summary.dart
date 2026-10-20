@@ -26,7 +26,10 @@ class ProjectSummary {
     if (stepsDone >= 10) return tr('terminé', 'completed');
     if (errors > 0) return tr('à relire', 'to review');
     if (stepsDone >= 8) return tr('prêt pour la rédaction', 'ready for writing');
-    if (stepsDone == 0 && analyses == 0) return tr('non commencé', 'not started');
+    if (stepsDone == 0 && analyses == 0) {
+      if (project.protocol.isNotEmpty) return project.corrections.isEmpty ? tr('protocole importé', 'protocol imported') : tr('protocole relu', 'protocol reviewed');
+      return tr('non commencé', 'not started');
+    }
     return tr('en cours', 'in progress');
   }
 

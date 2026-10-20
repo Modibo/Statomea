@@ -1269,3 +1269,21 @@ bandeau de la feuille de route mis à jour.
   projet), projets déjà présents gardés ou remplacés au choix ; rappel si aucune sauvegarde depuis 7 jours. Partage
   sans les données individuelles : fichier de données retiré (aucun identifiant de participant), question, plans et
   résultats agrégés du journal conservés.
+
+## Essai complet sur un protocole réel (SDT2), guide d'utilisation — 1.65.0
+
+Parcours complet sur le protocole de thèse SDT2 (import, relecture, corrections, documents). Relecture : 3 erreurs,
+7 points à revoir ; 7 corrections appliquées ; grille STROBE 10/16 puis 13/16 ; fiche de recueil de 26 champs
+(13 examens reconnus avec leur méthode de dosage) ; chronogramme de 9 mois ; 14 documents produits (rapport de
+relecture, protocole annoté, protocole prérédigé Word/PDF, fiche, masque Excel, dictionnaire, feuille de route,
+article, présentation, poster PowerPoint/PDF, projet). Défauts trouvés puis corrigés (tests ajoutés) :
+- l'hémoglobine de l'hémogramme était écartée comme doublon de l'HbA1c ;
+- le mode tuteur proposait une condition formulée négativement (« Pas en cas-témoins ») : condition reformulée dans le
+  registre (« Plan de cohorte, essai ou transversal (pas cas-témoins) ») et conditions positives préférées ;
+- le tableau de bord affichait « non commencé » pour un protocole importé et relu (statuts « protocole importé » et
+  « protocole relu ») ;
+- l'article reprenait la proposition interne de Statoméa et les phrases du protocole déjà corrigées : ses méthodes
+  reprennent désormais le plan du protocole sans les phrases corrigées, suivies des corrections
+  (`article_test.dart`, « protocole importé et corrigé »).
+Guide d'utilisation (`guide_test.dart`) : douze chapitres, captures des maquettes, PDF relu ; publié avec la page
+d'accueil (`guide-statomea.pdf`) et ouvert depuis l'écran Projets.

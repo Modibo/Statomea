@@ -41,4 +41,32 @@ void main() {
     expect(a.firstWhere((x) => x.title == 'Résultats principaux').paragraphs.single, contains('[À compléter'));
     expect(a.every((x) => x.tables.isEmpty), isTrue);
   });
+
+  test('protocole importé et corrigé : méthodes de l\'article = protocole sans les phrases corrigées + corrections', () {
+    const text = """
+Thème : Suivi de l'hémoglobine glyquée chez les diabétiques de type 2.
+Objectif général :
+Évaluer la relation entre l'hémoglobine glyquée et les autres paramètres chez les diabétiques de type 2.
+Type d'étude : Étude transversale.
+Calcul de la taille de l'échantillon
+Avec une prévalence de 7 % et une marge d'erreur de 5 %, le nombre requis sera de 100. Pour couvrir les refus et les perdus de vue, nous ajouterons 10% ce qui nous ramènera à 110 sujets nécessaires.
+Gestion et analyse des données
+Les données seront analysées avec R. Le test de Kolmogorov Smirnov sera utilisé pour évaluer la normalité. Le seuil de signification sera fixé à 0,05.
+""";
+    final d = protocolFromText(text);
+    final p = Project(id: 'a', title: d.title, createdAt: '')
+      ..question = d.toQuestion()
+      ..protocol = Map.of(d.fullSections)
+      ..analysisPlan = 'Plan d\'analyse du protocole : ${d.sections['analysis']}\n\nProposition de Statoméa :\n${draftAnalysisPlan(d.toQuestion())}';
+    p.inferred['plannedSampleSize'] = '${d.sampleSize}';
+    applyAllCorrections(p);
+    final plan = articleOutline(p).firstWhere((s) => s.title == 'Analyse statistique').paragraphs.join(' ');
+    expect(plan, contains('Les données seront analysées avec R.'));
+    expect(plan, isNot(contains('Kolmogorov')), reason: 'phrase corrigée retirée');
+    expect(plan, contains('Shapiro-Wilk'));
+    expect(plan, contains('n = 100 / (1 − 0,1) = 112 sujets'));
+    expect(plan, isNot(contains('et non')));
+    expect(plan, isNot(contains('Proposition de Statoméa')));
+    expect(plan, isNot(contains('Analyse principale :')), reason: 'la proposition interne n\'est pas reprise');
+  });
 }

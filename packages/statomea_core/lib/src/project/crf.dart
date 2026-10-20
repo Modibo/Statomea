@@ -216,8 +216,10 @@ List<CrfField> crfFields(Project p) {
     }
     // Examens décrits dans les rubriques de dosage, s'ils ne sont pas déjà dans la liste des variables.
     for (final l in labs) {
+      // Doublon : même nom de colonne, ou même premier mot (« glycemie » ↔ « glycemie_jeun ») ; l'hémoglobine (Hb) reste
+      // distincte de l'hémoglobine glyquée (HbA1c).
       final stem = l.code.split('_').first;
-      if (out.any((f) => f.code == l.code || f.code.startsWith(stem) || _n(f.label).contains(stem))) continue;
+      if (out.any((f) => f.code == l.code || f.code.split('_').first == stem)) continue;
       add(_field(l.code, l.label));
     }
   }
