@@ -41,7 +41,7 @@ void main() {
   });
 
   testWidgets('import d\'un protocole Word : aperçu, création du projet, feuille de route en 10 étapes', (t) async {
-    await t.binding.setSurfaceSize(const Size(1000, 3000));
+    await t.binding.setSurfaceSize(const Size(1000, 5200));
     final state = AppState(MemoryStorage());
     await state.load();
     late BuildContext ctx;

@@ -95,6 +95,11 @@ class ExportStep extends StatelessWidget {
           label: Text(tr('Projet complet (JSON)', 'Full project (JSON)')),
           onPressed: () => _save(context, 'statomea-$_slug-projet.json', p.encode(), 'application/json'),
         ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.share_outlined),
+          label: Text(tr('Partager sans les données individuelles (JSON)', 'Share without individual data (JSON)')),
+          onPressed: () => _save(context, 'statomea-$_slug-partage.json', shareableProject(p, includeData: false), 'application/json'),
+        ),
       ]),
       const SizedBox(height: 16),
       Text(tr('Tableaux et résultats (CSV)', 'Tables and results (CSV)'), style: Theme.of(context).textTheme.titleMedium),

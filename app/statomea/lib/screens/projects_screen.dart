@@ -8,10 +8,12 @@ import 'package:statomea_core/statomea_core.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/document_text.dart';
+import '../services/file_saver.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
 import 'project_screen.dart';
 import 'roadmap_screen.dart';
+import 'supervisor_screen.dart';
 
 class ProjectsScreen extends StatelessWidget {
   const ProjectsScreen({super.key});
@@ -104,7 +106,29 @@ class ProjectsScreen extends StatelessWidget {
           Row(children: [Expanded(child: newBtn), const SizedBox(width: 10), Expanded(child: importBtn(short: true))]),
         ]);
       }),
-      const SizedBox(height: 12),
+      const SizedBox(height: 8),
+      Wrap(spacing: 8, runSpacing: 4, children: [
+        TextButton.icon(
+          icon: const Icon(Icons.supervisor_account_outlined),
+          label: Text(tr('Tableau de bord encadrant', 'Supervisor dashboard')),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupervisorScreen())),
+        ),
+        TextButton.icon(icon: const Icon(Icons.save_alt_outlined), label: Text(tr('Sauvegarder tous les projets', 'Back up all projects')), onPressed: user.isEmpty ? null : () => _backup(context)),
+        TextButton.icon(icon: const Icon(Icons.restore_outlined), label: Text(tr('Restaurer une sauvegarde', 'Restore a backup')), onPressed: () => _restore(context)),
+      ]),
+      if (user.isNotEmpty && _backupDue(context.watch<AppState>().lastBackup))
+        Card(
+          margin: const EdgeInsets.only(top: 6, bottom: 4),
+          color: Colors.amber.withValues(alpha: 0.12),
+          child: ListTile(
+            leading: Icon(Icons.save_outlined, color: Colors.amber.shade800),
+            title: Text(context.watch<AppState>().lastBackup == null
+                ? tr('Vos projets ne sont enregistrés que sur cet appareil : faites une sauvegarde.', 'Your projects are only stored on this device: make a backup.')
+                : tr('Dernière sauvegarde le ${context.watch<AppState>().lastBackup} : pensez à en refaire une.', 'Last backup on ${context.watch<AppState>().lastBackup}: consider making a new one.')),
+            trailing: TextButton(onPressed: () => _backup(context), child: Text(tr('Sauvegarder', 'Back up'))),
+          ),
+        ),
+      const SizedBox(height: 4),
       const _StepsGuide(),
       const SizedBox(height: 12),
       if (user.isEmpty)
@@ -420,3 +444,73 @@ String _sectionLabel(String k) => switch (k) {
       'ethics' => tr('éthique', 'ethics'),
       _ => k,
     };
+
+
+/// Rappel de sauvegarde : jamais faite, ou plus de 7 jours.
+bool _backupDue(String? last) {
+  if (last == null) return true;
+  final d = DateTime.tryParse(last);
+  return d == null || DateTime.now().difference(d).inDays > 7;
+}
+
+/// Tous les projets de l'utilisateur dans un seul fichier.
+Future<void> _backup(BuildContext context) async {
+  final state = context.read<AppState>();
+  final date = AppState.now().substring(0, 10);
+  final user = [for (final p in state.projects) if (p.demoNotice.isEmpty) p];
+  final where = await saveFile('statomea-sauvegarde-$date.json', utf8.encode(backupAllProjects(user, date: date)), 'application/json');
+  state.markBackup(date);
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('${user.length} projet(s) sauvegardé(s) : $where. Gardez ce fichier ailleurs que sur l\'appareil (clé, nuage, courriel).', '${user.length} project(s) backed up: $where. Keep this file somewhere other than the device (USB key, cloud, email).'))));
+  }
+}
+
+/// Restauration : chaque projet passe par l'import habituel (contrôle d'intégrité) ; ceux déjà présents sont ignorés
+/// ou remplacés, au choix.
+Future<void> _restore(BuildContext context) async {
+  final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: ['json']);
+  if (files.isEmpty || !context.mounted) return;
+  final state = context.read<AppState>();
+  final List<String> texts;
+  try {
+    texts = projectsInBackup(utf8.decode(await files.single.xFile.readAsBytes(), allowMalformed: true));
+  } on StatInputError catch (e) {
+    if (context.mounted) showError(context, e.message);
+    return;
+  }
+  final existing = <String>[];
+  for (final t in texts) {
+    final id = (jsonDecode(t) as Map)['id'] as String?;
+    if (id != null && state.projects.any((p) => p.id == id)) existing.add(id);
+  }
+  var replace = false;
+  if (existing.isNotEmpty && context.mounted) {
+    final choice = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Restaurer ${texts.length} projet(s)', 'Restore ${texts.length} project(s)')),
+        content: Text(tr('${existing.length} projet(s) existent déjà sur cet appareil. Les remplacer par la version de la sauvegarde, ou les garder tels quels ?', '${existing.length} project(s) already exist on this device. Replace them with the backup version, or keep them as they are?')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Garder', 'Keep'))),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Remplacer', 'Replace'))),
+        ],
+      ),
+    );
+    if (choice == null) return;
+    replace = choice;
+  }
+  var restored = 0;
+  for (final t in texts) {
+    final id = (jsonDecode(t) as Map)['id'] as String?;
+    final old = state.projects.where((p) => p.id == id).firstOrNull;
+    if (old != null) {
+      if (!replace) continue;
+      await state.delete(old);
+    }
+    try {
+      await state.addImported(state.prepareImport(t).project);
+      restored++;
+    } catch (_) {}
+  }
+  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('$restored projet(s) restauré(s).', '$restored project(s) restored.'))));
+}

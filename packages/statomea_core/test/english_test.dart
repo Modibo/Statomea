@@ -712,4 +712,17 @@ void main() {
     b.writeln(extractionGridCsv(refs).split('\r\n').first);
     expectEnglish('tutor, poster', b.toString());
   });
+
+  test('supervisor summary and backup', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    p.inferred['plannedSampleSize'] = '1000';
+    final s = summarizeProject(p);
+    final b = StringBuffer('${s.status}\n${s.attention.join('\n')}\n');
+    try {
+      projectsInBackup('{}');
+    } on StatInputError catch (e) {
+      b.writeln(e.message);
+    }
+    expectEnglish('summary, backup', b.toString());
+  });
 }

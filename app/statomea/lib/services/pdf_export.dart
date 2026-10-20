@@ -650,3 +650,35 @@ Future<Uint8List> buildTutorPdf(Project p, {required String generatedAt}) async 
   ));
   return doc.save();
 }
+
+/// Fiche de la promotion (tableau de bord de l'encadrant) : un projet par ligne, avancement et points d'attention.
+Future<Uint8List> buildSupervisorPdf(List<ProjectSummary> sums, {required String generatedAt}) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final doc = pw.Document(title: tr('Tableau de bord encadrant', 'Supervisor dashboard'), author: 'Statoméa', creator: '$engineName $engineVersion');
+  doc.addPage(pw.MultiPage(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4.landscape,
+    margin: const pw.EdgeInsets.all(30),
+    build: (_) => [
+      pw.Header(level: 0, child: pw.Text(tr('Tableau de bord encadrant', 'Supervisor dashboard'), style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold))),
+      pw.Text(tr('Établi le $generatedAt ; ${sums.length} projet(s).', 'Prepared on $generatedAt; ${sums.length} project(s).'), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+      pw.SizedBox(height: 8),
+      pw.TableHelper.fromTextArray(
+        headers: [tr('Projet', 'Project'), tr('Statut', 'Status'), tr('Étapes', 'Steps'), tr('Relecture (E / R / M)', 'Review (E / R / M)'), tr('Tuteur', 'Tutor'), tr('Analyses', 'Analyses'), tr('Effectif', 'Sample'), tr('Points d\'attention', 'Attention points')],
+        data: [
+          for (final s in sums)
+            [s.project.title, s.status, '${s.stepsDone}/10', '${s.errors} / ${s.warnings} / ${s.missing}', '${s.tutorSolved}/10', '${s.analyses}', '${s.analysed ?? '—'} / ${s.planned ?? '—'}', s.attention.join(' ; ')]
+        ],
+        headerStyle: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 8),
+        columnWidths: {0: const pw.FlexColumnWidth(3), 7: const pw.FlexColumnWidth(3)},
+      ),
+      pw.SizedBox(height: 6),
+      pw.Text(tr('E : erreurs de méthode ; R : points à revoir ; M : éléments manquants (relecture méthodologique de Statoméa).', 'E: methodological errors; R: points to review; M: missing items (Statoméa methodological review).'), style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+    ],
+  ));
+  return doc.save();
+}

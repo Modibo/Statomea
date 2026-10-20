@@ -24,6 +24,15 @@ class AppState extends ChangeNotifier {
   DateTime? lastUpdateCheck;
 
   final List<Project> projects = [];
+
+  /// Date (AAAA-MM-JJ) de la dernière sauvegarde de tous les projets.
+  String? lastBackup;
+
+  void markBackup(String date) {
+    lastBackup = date;
+    storage.writeString('lastBackup', date);
+    notifyListeners();
+  }
   bool expertMode = false;
   String localeCode = 'fr';
   /// Leçons dans la langue courante (reconstruites au changement de langue).
@@ -40,6 +49,7 @@ class AppState extends ChangeNotifier {
     setLang(localeCode == 'en' ? Lang.en : Lang.fr);
     checkUpdates = await storage.readBool('checkUpdates') ?? true;
     dismissedUpdate = await storage.readString('dismissedUpdate');
+    lastBackup = await storage.readString('lastBackup');
     loaded = true;
     notifyListeners();
   }

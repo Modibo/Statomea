@@ -1257,3 +1257,15 @@ bandeau de la feuille de route mis à jour.
   conditions, portée causale), options distinctes, bonne réponse à des positions variées, distracteurs sans synonyme
   de la bonne réponse ni méthode de génétique ; essais et réussite datée enregistrés ; écran (indice, explication,
   progression) et fiche de progression PDF vérifiés.
+
+## Feuille de route réorganisée, tableau de bord encadrant, sauvegarde et partage — 1.64.0
+
+- Feuille de route : outils regroupés en cinq sections avec une ligne d'aide (deux colonnes sur ordinateur, une sur
+  téléphone) ; captures régénérées.
+- Tableau de bord (`backup_test.dart`, `publication_test.dart`) : synthèse par projet (étapes, erreurs / points à revoir
+  / manques de la relecture, mode tuteur, analyses et dernière analyse, effectif analysé et prévu, statut, points
+  d'attention), import groupé des projets des étudiants, démonstrations masquées par défaut, fiche PDF de la promotion.
+- Sauvegarde : tous les projets dans un fichier ; restauration par l'import habituel (empreinte vérifiée pour chaque
+  projet), projets déjà présents gardés ou remplacés au choix ; rappel si aucune sauvegarde depuis 7 jours. Partage
+  sans les données individuelles : fichier de données retiré (aucun identifiant de participant), question, plans et
+  résultats agrégés du journal conservés.

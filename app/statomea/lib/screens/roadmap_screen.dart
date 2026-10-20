@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
@@ -36,6 +38,21 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
     await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'statomea-feuille-de-route-${slug.isEmpty ? project.id : slug}.pdf');
   }
 
+  static const _docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  static const _pptx = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+  Future<void> _save(String name, Uint8List bytes, String mime, String done) async {
+    final where = await saveFile(name, bytes, mime);
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$done : $where')));
+  }
+
+  Future<void> _open(Widget screen) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    if (mounted) setState(() {});
+  }
+
+  Widget _tool(IconData icon, String label, VoidCallback onPressed) => OutlinedButton.icon(icon: Icon(icon, size: 18), label: Text(label), onPressed: onPressed);
+
   @override
   Widget build(BuildContext context) {
     final road = projectRoadmap(project);
@@ -60,98 +77,46 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
         Wrap(spacing: 12, runSpacing: 8, children: [
           FilledButton.icon(icon: const Icon(Icons.print_outlined), label: Text(tr('Imprimer / PDF', 'Print / PDF')), onPressed: () => _print(context)),
           OutlinedButton.icon(
-            icon: const Icon(Icons.description_outlined),
-            label: Text(tr('Protocole (Word)', 'Protocol (Word)')),
-            onPressed: () async {
-              final where = await saveFile('protocole-${project.id}.docx', protocolDocx(project), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Protocole enregistré : $where', 'Protocol saved: $where'))));
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            label: Text(tr('Protocole (PDF)', 'Protocol (PDF)')),
-            onPressed: () async {
-              final bytes = await buildProtocolPdf(project);
-              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'protocole-${project.id}.pdf');
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.school_outlined),
-            label: Text(tr('Mode tuteur (${tutorProgress(project).where((x) => x.solved).length}/10)', 'Tutor mode (${tutorProgress(project).where((x) => x.solved).length}/10)')),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => TutorScreen(project)));
-              setState(() {});
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.menu_book_outlined),
-            label: Text(tr('Bibliographie (${project.references.length})', 'Bibliography (${project.references.length})')),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => ReferencesScreen(project)));
-              setState(() {});
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.account_tree_outlined),
-            label: Text(tr('Diagramme de flux', 'Flow diagram')),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => FlowScreen(project)));
-              setState(() {});
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.dashboard_outlined),
-            label: Text(tr('Poster (PowerPoint)', 'Poster (PowerPoint)')),
-            onPressed: () async {
-              final where = await saveFile('poster-${project.id}.pptx', posterPptx(project), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Poster enregistré : $where', 'Poster saved: $where'))));
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            label: Text(tr('Poster (PDF A0)', 'Poster (PDF A0)')),
-            onPressed: () async {
-              final bytes = await buildPosterPdf(project);
-              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'poster-${project.id}.pdf');
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.slideshow_outlined),
-            label: Text(tr('Présentation (PowerPoint)', 'Presentation (PowerPoint)')),
-            onPressed: () async {
-              final where = await saveFile('presentation-${project.id}.pptx', presentationPptx(project, date: AppState.now().substring(0, 10)), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Présentation enregistrée : $where', 'Presentation saved: $where'))));
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.article_outlined),
-            label: Text(tr('Article (Word)', 'Article (Word)')),
-            onPressed: () async {
-              final where = await saveFile('article-${project.id}.docx', articleDocx(project), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Article enregistré : $where', 'Article saved: $where'))));
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.forum_outlined),
-            label: Text(tr('Réponse aux relecteurs', 'Response to reviewers')),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => ReviewerScreen(project)));
-              setState(() {});
-            },
-          ),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.view_timeline_outlined),
-            label: Text(tr('Budget et chronogramme', 'Budget and timeline')),
-            onPressed: () async {
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => PlanningScreen(project)));
-              setState(() {});
-            },
-          ),
-          OutlinedButton.icon(
             icon: const Icon(Icons.open_in_new),
             label: Text(tr('Ouvrir le projet', 'Open the project')),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProjectScreen(project: project))),
           ),
+        ]),
+        const SizedBox(height: 12),
+        _ToolGroups([
+          _ToolGroup(Icons.description_outlined, tr('Protocole', 'Protocol'), tr('Rédiger, chiffrer et documenter le protocole avant le comité d\'éthique.', 'Write, cost and document the protocol before the ethics committee.'), [
+            _tool(Icons.description_outlined, tr('Protocole (Word)', 'Protocol (Word)'),
+                () => _save('protocole-${project.id}.docx', protocolDocx(project), _docx, tr('Protocole enregistré', 'Protocol saved'))),
+            _tool(Icons.picture_as_pdf_outlined, tr('Protocole (PDF)', 'Protocol (PDF)'), () async {
+              final bytes = await buildProtocolPdf(project);
+              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'protocole-${project.id}.pdf');
+            }),
+            _tool(Icons.view_timeline_outlined, tr('Budget et chronogramme', 'Budget and timeline'), () => _open(PlanningScreen(project))),
+            _tool(Icons.menu_book_outlined, tr('Bibliographie (${project.references.length})', 'Bibliography (${project.references.length})'), () => _open(ReferencesScreen(project))),
+          ]),
+          _ToolGroup(Icons.assignment_outlined, tr('Recueil des données', 'Data collection'), tr('Fiche de recueil, masque de saisie et dictionnaire tirés des variables du protocole.', 'Case report form, data-entry template and dictionary drawn from the protocol\'s variables.'), [
+            if (crfFields(project).isEmpty)
+              Text(tr('Disponible dès que le protocole importé décrit ses variables ou que des données sont importées.', 'Available once the imported protocol describes its variables or data are imported.'), style: Theme.of(context).textTheme.bodySmall)
+            else
+              CrfButtons(project),
+          ]),
+          _ToolGroup(Icons.article_outlined, tr('Résultats et publication', 'Results and publication'), tr('Flux des participants et article prérédigé avec Tableaux 1 et 2.', 'Participant flow and pre-drafted article with Tables 1 and 2.'), [
+            _tool(Icons.account_tree_outlined, tr('Diagramme de flux', 'Flow diagram'), () => _open(FlowScreen(project))),
+            _tool(Icons.article_outlined, tr('Article (Word)', 'Article (Word)'), () => _save('article-${project.id}.docx', articleDocx(project), _docx, tr('Article enregistré', 'Article saved'))),
+          ]),
+          _ToolGroup(Icons.campaign_outlined, tr('Communication', 'Communication'), tr('Soutenance, congrès et réponse aux relecteurs.', 'Defence, conference and response to reviewers.'), [
+            _tool(Icons.slideshow_outlined, tr('Présentation (PowerPoint)', 'Presentation (PowerPoint)'),
+                () => _save('presentation-${project.id}.pptx', presentationPptx(project, date: AppState.now().substring(0, 10)), _pptx, tr('Présentation enregistrée', 'Presentation saved'))),
+            _tool(Icons.dashboard_outlined, tr('Poster (PowerPoint)', 'Poster (PowerPoint)'), () => _save('poster-${project.id}.pptx', posterPptx(project), _pptx, tr('Poster enregistré', 'Poster saved'))),
+            _tool(Icons.picture_as_pdf_outlined, tr('Poster (PDF A0)', 'Poster (PDF A0)'), () async {
+              final bytes = await buildPosterPdf(project);
+              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'poster-${project.id}.pdf');
+            }),
+            _tool(Icons.forum_outlined, tr('Réponse aux relecteurs', 'Response to reviewers'), () => _open(ReviewerScreen(project))),
+          ]),
+          _ToolGroup(Icons.school_outlined, tr('Formation', 'Training'), tr('Vérifier sa compréhension, étape par étape, avec une fiche pour l\'encadrant.', 'Check understanding step by step, with a sheet for the supervisor.'), [
+            _tool(Icons.school_outlined, tr('Mode tuteur (${tutorProgress(project).where((x) => x.solved).length}/10)', 'Tutor mode (${tutorProgress(project).where((x) => x.solved).length}/10)'), () => _open(TutorScreen(project))),
+          ]),
         ]),
         const SizedBox(height: 12),
         for (var k = 0; k < road.length; k++)
@@ -177,7 +142,6 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
                       padding: const EdgeInsets.only(top: 3),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('•  '), Expanded(child: Text(l))]),
                     ),
-                  if (road[k].step.name == 'dataControl') Padding(padding: const EdgeInsets.only(top: 8), child: CrfButtons(project)),
                   if (road[k].calculator != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -199,5 +163,51 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
           ),
       ]),
     );
+  }
+}
+
+/// Groupe d'outils de la feuille de route : icône, titre, une ligne d'aide, boutons.
+class _ToolGroup {
+  final IconData icon;
+  final String title, help;
+  final List<Widget> children;
+  const _ToolGroup(this.icon, this.title, this.help, this.children);
+}
+
+/// Groupes d'outils sur deux colonnes (une sur téléphone).
+class _ToolGroups extends StatelessWidget {
+  final List<_ToolGroup> groups;
+  const _ToolGroups(this.groups);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(builder: (context, c) {
+      final two = c.maxWidth >= 700;
+      final w = two ? (c.maxWidth - 12) / 2 : c.maxWidth;
+      return Wrap(spacing: 12, runSpacing: 12, children: [
+        for (final g in groups)
+          SizedBox(
+            width: w,
+            child: Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Icon(g.icon, color: theme.colorScheme.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(child: Semantics(header: true, child: Text(g.title, style: theme.textTheme.titleSmall))),
+                  ]),
+                  const SizedBox(height: 4),
+                  Text(g.help, style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 8, children: g.children),
+                ]),
+              ),
+            ),
+          ),
+      ]);
+    });
   }
 }

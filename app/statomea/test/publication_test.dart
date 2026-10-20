@@ -7,6 +7,9 @@ import 'package:statomea/screens/flow_screen.dart';
 import 'package:statomea/screens/references_screen.dart';
 import 'package:statomea/screens/reviewer_screen.dart';
 import 'package:statomea/screens/tutor_screen.dart';
+import 'package:statomea/screens/supervisor_screen.dart';
+import 'package:statomea/screens/projects_screen.dart';
+import 'package:statomea/l10n/gen/app_localizations.dart';
 import 'package:statomea/services/reviewer_document.dart';
 import 'package:statomea/services/document_text.dart';
 import 'package:statomea/services/pdf_export.dart';
@@ -154,6 +157,41 @@ void main() {
     expect(p.tutor['attempts_question'], '2');
     final pdf = pdfText(await buildTutorPdf(p, generatedAt: '2026-10-20')).replaceAll(RegExp(r'\s+'), ' ');
     expect(pdf, contains('Étapes comprises : 1 / 10'));
+    await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('tableau de bord encadrant : projets d\'étudiants, statut, points d\'attention, démonstrations masquées, fiche PDF', (t) async {
+    await t.binding.setSurfaceSize(const Size(1200, 2400));
+    final (state, demo) = await _demo();
+    final student = state.createProject('Mémoire de Awa : anémie et grossesse')..inferred['plannedSampleSize'] = '200';
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: const MaterialApp(home: SupervisorScreen())));
+    await t.pumpAndSettle();
+    expect(find.text('Mémoire de Awa : anémie et grossesse'), findsOneWidget);
+    expect(find.text(demo.title), findsNothing, reason: 'démonstrations masquées par défaut');
+    await t.tap(find.text('Inclure les démonstrations'));
+    await t.pumpAndSettle();
+    expect(find.text(demo.title), findsOneWidget);
+    expect(find.textContaining('Tuteur : 0/10'), findsWidgets);
+    final pdf = pdfText(await buildSupervisorPdf([summarizeProject(student)], generatedAt: '2026-10-20')).replaceAll(RegExp(r'\s+'), ' ');
+    expect(pdf, contains('Tableau de bord encadrant'));
+    expect(pdf, contains('Mémoire de Awa'));
+    await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('rappel de sauvegarde affiché tant qu\'aucune sauvegarde n\'a été faite', (t) async {
+    await t.binding.setSurfaceSize(const Size(1200, 2400));
+    final state = AppState(MemoryStorage());
+    await state.load();
+    state.createProject('Mon projet');
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: const MaterialApp(localizationsDelegates: AppLocalizations.localizationsDelegates, supportedLocales: AppLocalizations.supportedLocales, locale: Locale('fr'), home: Scaffold(body: ProjectsScreen()))));
+    await t.pumpAndSettle();
+    expect(find.textContaining('faites une sauvegarde'), findsOneWidget);
+    state.markBackup(DateTime.now().toIso8601String().substring(0, 10));
+    await t.pumpAndSettle();
+    expect(find.textContaining('faites une sauvegarde'), findsNothing);
+    expect(find.textContaining('Dernière sauvegarde'), findsNothing, reason: 'sauvegarde récente : pas de rappel');
     await t.pump(const Duration(seconds: 3));
     expect(t.takeException(), isNull);
   });

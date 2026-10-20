@@ -91,6 +91,8 @@ export 'src/project/flow.dart';
 export 'src/project/references.dart';
 export 'src/project/presentation.dart';
 export 'src/project/reviewer.dart';
+export 'src/project/summary.dart';
+export 'src/project/backup.dart';
 export 'src/inference/survival.dart';
 export 'src/meta/meta_regression.dart';
 export 'src/meta/diagnostic_meta.dart';
