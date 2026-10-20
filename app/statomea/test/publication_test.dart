@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:statomea/screens/flow_screen.dart';
 import 'package:statomea/screens/references_screen.dart';
 import 'package:statomea/screens/reviewer_screen.dart';
+import 'package:statomea/screens/tutor_screen.dart';
 import 'package:statomea/services/reviewer_document.dart';
 import 'package:statomea/services/document_text.dart';
 import 'package:statomea/services/pdf_export.dart';
@@ -111,6 +112,48 @@ void main() {
     expect(letter, contains('Commentaire 2'));
     expect(letter, contains('Please report confidence intervals.'));
     expect(letter, contains('Modification : Résultats, page 8, lignes 12-20.'));
+    await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('bibliographie → méta-analyse : une étude par référence dans l\'atelier', (t) async {
+    await t.binding.setSurfaceSize(const Size(1200, 2600));
+    final (state, p) = await _demo();
+    p.references.addAll(parseReferences('TY  - JOUR\nTI  - A\nAU  - Smith, John\nPY  - 2019\nER  - \nTY  - JOUR\nTI  - B\nAU  - Diallo, Awa\nPY  - 2022\nER  - \n'));
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: ReferencesScreen(p))));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Méta-analyse (issue binaire)'));
+    await t.pumpAndSettle();
+    expect(p.studies.map((s) => s.label), ['Smith 2019', 'Diallo 2022']);
+    expect(find.text('Méta-analyse'), findsWidgets);
+    expect(find.text('Smith 2019', skipOffstage: false), findsWidgets);
+    expect(find.text('Diallo 2022', skipOffstage: false), findsWidgets);
+    await t.pump(const Duration(seconds: 3));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('mode tuteur : indice après une erreur, explication après la bonne réponse, progression, fiche PDF', (t) async {
+    await t.binding.setSurfaceSize(const Size(1000, 6000));
+    final (state, p) = await _demo();
+    await t.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: TutorScreen(p))));
+    await t.pumpAndSettle();
+    expect(find.text('Progression : 0 / 10 étapes comprises'), findsOneWidget);
+    final q = tutorQuestions(p).first;
+    final wrong = q.options[(q.correct + 1) % 4];
+    await t.tap(find.text(wrong).first);
+    await t.pump();
+    await t.tap(find.text('Vérifier').first);
+    await t.pumpAndSettle();
+    expect(find.textContaining('Indice : '), findsOneWidget);
+    await t.tap(find.text(q.options[q.correct]).first);
+    await t.pump();
+    await t.tap(find.text('Vérifier').first);
+    await t.pumpAndSettle();
+    expect(find.textContaining('Exact. '), findsOneWidget);
+    expect(find.text('Progression : 1 / 10 étapes comprises'), findsOneWidget);
+    expect(p.tutor['attempts_question'], '2');
+    final pdf = pdfText(await buildTutorPdf(p, generatedAt: '2026-10-20')).replaceAll(RegExp(r'\s+'), ' ');
+    expect(pdf, contains('Étapes comprises : 1 / 10'));
     await t.pump(const Duration(seconds: 3));
     expect(t.takeException(), isNull);
   });

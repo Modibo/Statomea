@@ -107,4 +107,28 @@ void main() {
     final back = Project.decode(p.encode());
     expect(back.references.map((r) => vancouver(r)), refs.map((r) => vancouver(r)));
   });
+
+  test('méta-analyse depuis la bibliographie : libellés, études à extraire, année, grille réimportable, calcul', () {
+    final refs = [
+      ...parseReferences(ris),
+      ...parseReferences('TY  - JOUR\nTI  - Another HBV study\nAU  - Coulibaly, Fatoumata\nPY  - 2021\nER  - \n', existingKeys: ['coulibaly2021']),
+    ];
+    expect(studyLabels(refs), ['Coulibaly 2021', 'Smith 2019', 'Coulibaly 2021b']);
+    final st = metaStudiesFromReferences(refs);
+    expect(st.map((s) => s.label), ['Coulibaly 2021', 'Smith 2019', 'Coulibaly 2021b']);
+    expect(st.first.values.keys, containsAll(['e1', 'n1', 'e2', 'n2', 'annee']));
+    expect(st.first.v('e1'), isNull);
+    expect(st.first.v('annee'), 2021);
+    expect(st.first.values['e1']!.source, '[@coulibaly2021]');
+    expect(metaStudiesFromReferences(refs, continuous: true).first.values.keys, containsAll(['m1', 'sd1', 'n1', 'm2', 'sd2', 'n2']));
+    final csv = extractionGridCsv(refs);
+    final grid = parseCsv(csv).dataset;
+    expect(grid.names, ['etude', 'e1', 'n1', 'e2', 'n2', 'sous_groupe', 'annee', 'cle', 'doi']);
+    expect(grid.rowCount, 3);
+    expect(grid.cell(0, 'doi'), '10.1186/s12879-021-0001');
+    // Valeurs extraites puis méta-analyse (OR, effets aléatoires).
+    final filled = [Study.binary(st[0].label, 12, 100, 20, 100), Study.binary(st[1].label, 8, 80, 15, 82), Study.binary(st[2].label, 30, 250, 41, 248)];
+    final r = metaAnalysis(filled, const MetaOptions(measure: EffectMeasure.or));
+    expect(r.estimates.first.value, lessThan(1));
+  });
 }

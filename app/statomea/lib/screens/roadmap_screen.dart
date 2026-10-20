@@ -15,6 +15,7 @@ import 'planning_screen.dart';
 import 'project_screen.dart';
 import 'references_screen.dart';
 import 'reviewer_screen.dart';
+import 'tutor_screen.dart';
 import 'review_screen.dart';
 
 /// Feuille de route : les 10 étapes du projet dans l'ordre, avec ce que l'application propose à chacune ; impression
@@ -75,6 +76,14 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             },
           ),
           OutlinedButton.icon(
+            icon: const Icon(Icons.school_outlined),
+            label: Text(tr('Mode tuteur (${tutorProgress(project).where((x) => x.solved).length}/10)', 'Tutor mode (${tutorProgress(project).where((x) => x.solved).length}/10)')),
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => TutorScreen(project)));
+              setState(() {});
+            },
+          ),
+          OutlinedButton.icon(
             icon: const Icon(Icons.menu_book_outlined),
             label: Text(tr('Bibliographie (${project.references.length})', 'Bibliography (${project.references.length})')),
             onPressed: () async {
@@ -88,6 +97,22 @@ class _RoadmapScreenState extends State<RoadmapScreen> {
             onPressed: () async {
               await Navigator.push(context, MaterialPageRoute(builder: (_) => FlowScreen(project)));
               setState(() {});
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.dashboard_outlined),
+            label: Text(tr('Poster (PowerPoint)', 'Poster (PowerPoint)')),
+            onPressed: () async {
+              final where = await saveFile('poster-${project.id}.pptx', posterPptx(project), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Poster enregistré : $where', 'Poster saved: $where'))));
+            },
+          ),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            label: Text(tr('Poster (PDF A0)', 'Poster (PDF A0)')),
+            onPressed: () async {
+              final bytes = await buildPosterPdf(project);
+              await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'poster-${project.id}.pdf');
             },
           ),
           OutlinedButton.icon(

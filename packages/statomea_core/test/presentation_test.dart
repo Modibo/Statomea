@@ -31,4 +31,20 @@ void main() {
     p.references.addAll(parseReferences('TY  - JOUR\nTI  - A study\nAU  - Smith, John\nPY  - 2020\nJO  - Lancet\nER  - \n'));
     expect(presentationSlides(p).map((x) => x.title), contains('Références'));
   });
+
+  test('poster : trois colonnes (contexte/objectif/méthodes ; participants/caractéristiques ; résultats/conclusion)', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    p.flow.addAll({'assessed': '700', 'excluded_reasons': 'refus : 60', 'included': '640', 'analysed': '640'});
+    final (title, authors, cols) = posterContent(p);
+    expect(title, p.title);
+    expect(authors.first, startsWith('[À compléter'));
+    expect(cols.length, 3);
+    expect(cols[0].map((b) => b.title), ['Contexte', 'Objectif', 'Méthodes']);
+    expect(cols[1].map((b) => b.title), ['Participants', 'Caractéristiques']);
+    expect(cols[1].first.table!.title, startsWith('Figure 1'));
+    expect(cols[2].map((b) => b.title), ['Résultats', 'Résultat principal', 'Limites', 'Conclusion']);
+    expect(cols[2][1].highlight, contains('IC 95 %'));
+    final empty = posterContent(Project(id: 'v', title: 'Vide', createdAt: '')).$3;
+    expect(empty[1].single.bullets.single, startsWith('[À compléter'));
+  });
 }

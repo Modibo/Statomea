@@ -5,6 +5,7 @@ library;
 
 import '../audit/audit.dart' show foldAccents;
 import '../i18n.dart';
+import '../meta/meta.dart' show Study, SourcedValue;
 import '../model/result.dart' show StatInputError;
 
 class Reference {
@@ -309,4 +310,47 @@ String formatCitations(String text, Map<String, int> numbers) => text.replaceAll
 List<String> referenceList(List<Reference> refs, Map<String, int> numbers) {
   final sorted = [...refs]..sort((a, b) => (numbers[a.key] ?? 1 << 30).compareTo(numbers[b.key] ?? 1 << 30));
   return [for (final r in sorted) '${numbers[r.key]}. ${vancouver(r)}'];
+}
+
+/// Libellé d'étude « Auteur année » (« Smith 2020 », « Smith 2020b » en cas de doublon).
+List<String> studyLabels(List<Reference> refs) {
+  final used = <String, int>{};
+  return [
+    for (final r in refs)
+      () {
+        final base = '${r.authors.isEmpty ? (r.title.split(' ').take(3).join(' ')) : r.authors.first.split(' ').first}${r.year.isEmpty ? '' : ' ${r.year}'}';
+        final k = used[base] = (used[base] ?? 0) + 1;
+        return k == 1 ? base : '$base${String.fromCharCode(96 + k)}';
+      }(),
+  ];
+}
+
+const _binKeys = ['e1', 'n1', 'e2', 'n2'], _contKeys = ['m1', 'sd1', 'n1', 'm2', 'sd2', 'n2'];
+
+/// Études de méta-analyse préparées à partir des références : libellé « Auteur année », valeurs à extraire (vides,
+/// source = clé de la référence), année gardée comme modérateur potentiel (méta-régression).
+List<Study> metaStudiesFromReferences(List<Reference> refs, {bool continuous = false}) {
+  final labels = studyLabels(refs);
+  final keys = continuous ? _contKeys : _binKeys;
+  return [
+    for (var i = 0; i < refs.length; i++)
+      Study(refs[i].key, labels[i], {
+        for (final k in keys) k: SourcedValue(null, source: '[@${refs[i].key}]'),
+        if (int.tryParse(refs[i].year) != null) 'annee': SourcedValue(double.parse(refs[i].year), source: '[@${refs[i].key}]'),
+      }),
+  ];
+}
+
+/// Grille d'extraction (CSV « ; ») : une ligne par référence ; colonnes lues par l'atelier de méta-analyse
+/// (étude, e1, n1, e2, n2 — ou m1, sd1, n1, m2, sd2, n2 — et sous_groupe), plus l'année, la clé et le DOI pour
+/// retrouver l'article.
+String extractionGridCsv(List<Reference> refs, {bool continuous = false}) {
+  final labels = studyLabels(refs);
+  final keys = continuous ? _contKeys : _binKeys;
+  String cell(String c) => c.contains(';') || c.contains('"') ? '"${c.replaceAll('"', '""')}"' : c;
+  final rows = [
+    ['etude', ...keys, 'sous_groupe', tr('annee', 'year'), tr('cle', 'key'), 'doi'],
+    for (var i = 0; i < refs.length; i++) [labels[i], for (final _ in keys) '', '', refs[i].year, refs[i].key, refs[i].doi],
+  ];
+  return '${rows.map((r) => r.map(cell).join(';')).join('\r\n')}\r\n';
 }

@@ -1243,3 +1243,17 @@ bandeau de la feuille de route mis à jour.
   paragraphes, lignes de continuation) ; dix thèmes reconnus ; réponses fondées sur le projet (effectif prévu et analysé,
   variables d'ajustement du Tableau 2, estimations du journal avec IC, données manquantes par variable, phrase du
   diagramme de flux, langage selon le plan) ; enregistrement ; lettre Word (commentaire, réponse, modification).
+
+## Poster, méta-analyse depuis la bibliographie, mode tuteur — 1.63.0
+
+- Poster A0 (`presentation_test.dart`, `protocol_document_test.dart`) : trois colonnes reprises des diapositives ;
+  PowerPoint d'une diapositive 841 × 1189 mm (blocs, tableaux natifs ; hauteur des tableaux estimée avec les retours à
+  la ligne, aucun bloc ne dépasse la page), PDF A0 réduit à l'échelle si besoin ; rendus contrôlés avec QuickLook.
+- Méta-analyse depuis la bibliographie (`references_test.dart`) : libellés « Auteur année » dédoublonnés, études à
+  extraire (source = clé de la référence), année gardée comme modérateur, grille CSV relue avec les colonnes attendues
+  par l'atelier, méta-analyse calculée une fois les valeurs saisies ; écran vérifié.
+- Mode tuteur (`tutor_test.dart`) : dix questions dans l'ordre des étapes, cinq tirées du projet (type du critère,
+  mesure d'effet selon plan et critère — différence de moyennes pour un critère quantitatif —, méthode recommandée,
+  conditions, portée causale), options distinctes, bonne réponse à des positions variées, distracteurs sans synonyme
+  de la bonne réponse ni méthode de génétique ; essais et réussite datée enregistrés ; écran (indice, explication,
+  progression) et fiche de progression PDF vérifiés.

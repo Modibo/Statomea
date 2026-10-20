@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
+import '../services/file_saver.dart';
 import '../state/app_state.dart';
+import '../widgets/calculators.dart';
 import '../widgets/common.dart';
 
 /// Bibliographie du projet : import RIS (Zotero, Mendeley, EndNote), BibTeX ou MEDLINE (PubMed), saisie manuelle ;
@@ -97,6 +99,33 @@ class _ReferencesScreenState extends State<ReferencesScreen> {
     await _save();
   }
 
+  Future<void> _meta(bool continuous) async {
+    if (p.studies.isNotEmpty) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(tr('Remplacer les études ?', 'Replace the studies?')),
+          content: Text(tr('Le projet contient déjà ${p.studies.length} étude(s) de méta-analyse ; elles seront remplacées par une étude par référence.', 'The project already has ${p.studies.length} meta-analysis study(ies); they will be replaced by one study per reference.')),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Annuler', 'Cancel'))),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(tr('Remplacer', 'Replace'))),
+          ],
+        ),
+      );
+      if (ok != true || !mounted) return;
+    }
+    p.studies = metaStudiesFromReferences(p.references, continuous: continuous);
+    await _save();
+    if (!mounted) return;
+    await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => Scaffold(
+                  appBar: AppBar(title: Text(tr('Méta-analyse', 'Meta-analysis'))),
+                  body: PageBody(children: [CalculatorPanel(project: p, initialMethod: continuous ? 'meta_continuous' : 'meta_binary')]),
+                )));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -115,6 +144,30 @@ class _ReferencesScreenState extends State<ReferencesScreen> {
           FilledButton.icon(icon: const Icon(Icons.file_upload_outlined), label: Text(tr('Importer (RIS, BibTeX, PubMed)', 'Import (RIS, BibTeX, PubMed)')), onPressed: _import),
           OutlinedButton.icon(icon: const Icon(Icons.add), label: Text(tr('Ajouter à la main', 'Add manually')), onPressed: _add),
         ]),
+        if (p.references.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(tr('Méta-analyse à partir de ces références', 'Meta-analysis from these references'), style: theme.textTheme.titleSmall),
+          Text(tr('Une étude par référence (« Auteur année »), valeurs à extraire de chaque article dans l\'atelier, ou hors ligne avec la grille d\'extraction (réimportable dans l\'atelier).',
+                  'One study per reference ("Author year"), values to extract from each article in the workshop, or offline with the extraction grid (re-importable in the workshop).'),
+              style: theme.textTheme.bodySmall),
+          const SizedBox(height: 6),
+          Wrap(spacing: 10, runSpacing: 8, children: [
+            for (final cont in [false, true])
+              OutlinedButton.icon(
+                icon: const Icon(Icons.stacked_bar_chart),
+                label: Text(cont ? tr('Méta-analyse (issue continue)', 'Meta-analysis (continuous outcome)') : tr('Méta-analyse (issue binaire)', 'Meta-analysis (binary outcome)')),
+                onPressed: () => _meta(cont),
+              ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.table_view_outlined),
+              label: Text(tr('Grille d\'extraction (CSV)', 'Extraction grid (CSV)')),
+              onPressed: () async {
+                final where = await saveFile('grille-extraction-${p.id}.csv', utf8.encode('\uFEFF${extractionGridCsv(p.references)}'), 'text/csv');
+                if (mounted) _snack(tr('Grille enregistrée : $where', 'Grid saved: $where'));
+              },
+            ),
+          ]),
+        ],
         const SizedBox(height: 12),
         if (p.references.isEmpty) Text(tr('Aucune référence pour l\'instant.', 'No references yet.'), style: theme.textTheme.bodyMedium),
         for (final r in sorted)

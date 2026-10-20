@@ -49,6 +49,22 @@ class ExportStep extends StatelessWidget {
           },
         ),
         OutlinedButton.icon(
+          icon: const Icon(Icons.dashboard_outlined),
+          label: Text(tr('Poster (PowerPoint)', 'Poster (PowerPoint)')),
+          onPressed: () async {
+            final where = await saveFile('poster-$_slug.pptx', posterPptx(p), 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(tr('Poster enregistré : $where', 'Poster saved: $where'))));
+          },
+        ),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: Text(tr('Poster (PDF A0)', 'Poster (PDF A0)')),
+          onPressed: () async {
+            final bytes = await buildPosterPdf(p);
+            await Printing.layoutPdf(onLayout: (_) async => bytes, name: 'poster-$_slug.pdf');
+          },
+        ),
+        OutlinedButton.icon(
           icon: const Icon(Icons.slideshow_outlined),
           label: Text(tr('Présentation (PowerPoint)', 'Presentation (PowerPoint)')),
           onPressed: () async {

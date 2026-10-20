@@ -527,3 +527,126 @@ Future<Uint8List> buildFlowPdf(Project p) async {
   ));
   return doc.save();
 }
+
+/// Poster A0 portrait en PDF : bandeau de titre, trois colonnes ; le contenu est réduit à l'échelle s'il dépasse la page.
+Future<Uint8List> buildPosterPdf(Project p) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final (title, authors, columns) = posterContent(p);
+  final format = PdfPageFormat(841 * PdfPageFormat.mm, 1189 * PdfPageFormat.mm);
+  final blue = PdfColor.fromHex('#1F4E79'), mid = PdfColor.fromHex('#2E75B6'), light = PdfColor.fromHex('#DDEBF7');
+  final todo = RegExp(r'\[(?:À compléter|To complete)[^\]]*\]');
+  pw.Widget rich(String t, double size, {bool b = false, PdfColor color = PdfColors.black}) {
+    final spans = <pw.TextSpan>[];
+    var i = 0;
+    for (final m in todo.allMatches(t)) {
+      if (m.start > i) spans.add(pw.TextSpan(text: t.substring(i, m.start)));
+      spans.add(pw.TextSpan(text: m.group(0), style: pw.TextStyle(color: PdfColor.fromHex('#C55A11'))));
+      i = m.end;
+    }
+    if (i < t.length) spans.add(pw.TextSpan(text: t.substring(i)));
+    return pw.RichText(text: pw.TextSpan(children: spans, style: pw.TextStyle(fontSize: size, fontWeight: b ? pw.FontWeight.bold : pw.FontWeight.normal, color: color)));
+  }
+
+  pw.Widget block(PosterBlock b) => pw.Container(
+        margin: const pw.EdgeInsets.only(bottom: 24),
+        child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+          pw.Container(padding: const pw.EdgeInsets.all(10), color: mid, child: pw.Text(b.title, style: pw.TextStyle(fontSize: 40, fontWeight: pw.FontWeight.bold, color: PdfColors.white))),
+          pw.SizedBox(height: 10),
+          for (final l in b.bullets) pw.Padding(padding: const pw.EdgeInsets.only(bottom: 8), child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [pw.Text('•  ', style: const pw.TextStyle(fontSize: 26)), pw.Expanded(child: rich(l, 26))])),
+          if (b.table != null) ...[
+            pw.Text(b.table!.title, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 6),
+            pw.TableHelper.fromTextArray(
+              headers: b.table!.header,
+              data: b.table!.rows,
+              headerStyle: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+              headerDecoration: pw.BoxDecoration(color: light),
+              cellStyle: const pw.TextStyle(fontSize: 20),
+              cellPadding: const pw.EdgeInsets.all(5),
+              columnWidths: {
+                for (var c = 0; c < b.table!.header.length; c++)
+                  c: b.table!.header[c] == 'p' ? const pw.FixedColumnWidth(70) : pw.FlexColumnWidth(c == 0 ? 3 : 2),
+              },
+            ),
+          ],
+          if (b.highlight != null)
+            pw.Container(padding: const pw.EdgeInsets.all(18), color: light, child: pw.Center(child: rich(b.highlight!, 36, b: true, color: blue))),
+        ]),
+      );
+  final doc = pw.Document(title: title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  final contentW = format.width - 2 * 40;
+  doc.addPage(pw.Page(
+    theme: theme,
+    pageFormat: format,
+    margin: const pw.EdgeInsets.all(40),
+    build: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [
+      pw.Container(
+        padding: const pw.EdgeInsets.all(30),
+        color: blue,
+        child: pw.Column(children: [
+          pw.Text(title, textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 76, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+          pw.SizedBox(height: 12),
+          for (final a in authors) rich(a, 34, color: PdfColors.white),
+        ]),
+      ),
+      pw.SizedBox(height: 30),
+      pw.Expanded(
+        child: pw.FittedBox(
+          fit: pw.BoxFit.scaleDown,
+          alignment: pw.Alignment.topCenter,
+          child: pw.SizedBox(
+            width: contentW,
+            child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+              for (var c = 0; c < columns.length; c++) ...[
+                if (c > 0) pw.SizedBox(width: 30),
+                pw.Expanded(child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.stretch, children: [for (final b in columns[c]) block(b)])),
+              ],
+            ]),
+          ),
+        ),
+      ),
+      pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text(tr('Poster préparé avec Statoméa — analyses validées contre R', 'Poster prepared with Statoméa — analyses validated against R'), style: const pw.TextStyle(fontSize: 18, color: PdfColors.grey600))),
+    ]),
+  ));
+  return doc.save();
+}
+
+/// Fiche de progression du mode tuteur (pour l'encadrant) : par étape, question posée, nombre d'essais, réussite et
+/// date.
+Future<Uint8List> buildTutorPdf(Project p, {required String generatedAt}) async {
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSans-Bold.ttf'));
+  final math = pw.Font.ttf(await rootBundle.load('assets/fonts/NotoSansMath-Regular.ttf'));
+  final theme = pw.ThemeData.withFont(base: regular, bold: bold, fontFallback: [math]);
+  final qs = tutorQuestions(p);
+  final prog = tutorProgress(p);
+  final solved = prog.where((x) => x.solved).length;
+  final doc = pw.Document(title: p.title, author: 'Statoméa', creator: '$engineName $engineVersion');
+  doc.addPage(pw.MultiPage(
+    theme: theme,
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(36),
+    build: (_) => [
+      pw.Text(tr('Mode tuteur — fiche de progression', 'Tutor mode — progress sheet'), style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+      pw.Header(level: 0, child: pw.Text(p.title, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold))),
+      pw.Text(tr('Établie le $generatedAt. Étapes comprises : $solved / ${qs.length}.', 'Prepared on $generatedAt. Steps understood: $solved / ${qs.length}.')),
+      pw.SizedBox(height: 10),
+      pw.TableHelper.fromTextArray(
+        headers: [tr('Étape', 'Step'), tr('Question', 'Question'), tr('Essais', 'Attempts'), tr('Comprise', 'Understood')],
+        data: [
+          for (var k = 0; k < qs.length; k++)
+            ['${k + 1}. ${stepLabel(qs[k].step)}', qs[k].prompt, '${prog[k].attempts}', prog[k].solved ? '${tr('oui', 'yes')} (${prog[k].date})' : (prog[k].attempts > 0 ? tr('pas encore', 'not yet') : '—')]
+        ],
+        headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 8.5),
+        columnWidths: {0: const pw.FixedColumnWidth(110), 1: const pw.FlexColumnWidth(), 2: const pw.FixedColumnWidth(45), 3: const pw.FixedColumnWidth(80)},
+      ),
+      pw.SizedBox(height: 10),
+      pw.Text(tr('À discuter avec l\'étudiant : les étapes qui ont demandé plusieurs essais.', 'To discuss with the student: the steps that needed several attempts.'), style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+    ],
+  ));
+  return doc.save();
+}

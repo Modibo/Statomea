@@ -694,4 +694,22 @@ void main() {
     }
     expectEnglish('presentation, reviewers', b.toString().replaceAll('urbain', '').replaceAll('rural', ''));
   });
+
+  test('tutor, poster, extraction grid', () {
+    final p = buildDemoAghbs(File('test/reference/aghbs_simule.csv').readAsStringSync());
+    final b = StringBuffer();
+    for (final q in [...tutorQuestions(p), ...tutorQuestions(Project(id: 'v', title: 'V', createdAt: ''))]) {
+      b.writeln('${q.prompt.replaceAll(p.question.outcome, '')}\n${q.options.join('\n')}\n${q.hint}\n${q.explanation}');
+    }
+    final (_, authors, cols) = posterContent(p);
+    b.writeln(authors.join(' '));
+    for (final c in cols) {
+      for (final bl in c) {
+        b.writeln(bl.title);
+      }
+    }
+    final refs = parseReferences('TY  - JOUR\nTI  - A\nAU  - Smith, John\nPY  - 2019\nER  - \n');
+    b.writeln(extractionGridCsv(refs).split('\r\n').first);
+    expectEnglish('tutor, poster', b.toString());
+  });
 }

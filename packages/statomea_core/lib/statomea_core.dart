@@ -62,6 +62,7 @@ export 'src/project/import.dart';
 export 'src/report/figures.dart';
 export 'src/report/report.dart';
 export 'src/pedagogy/lessons.dart';
+export 'src/pedagogy/tutor.dart';
 export 'src/pedagogy/checklists.dart';
 export 'src/project/demos.dart';
 export 'src/regression/firth_profile.dart';

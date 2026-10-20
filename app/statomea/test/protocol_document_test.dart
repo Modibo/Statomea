@@ -205,4 +205,28 @@ Les informations suivantes seront recueillies : le sexe, l'âge, la pression art
     expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
     await dir.delete(recursive: true);
   });
+
+  test('poster A0 : PowerPoint valide (une diapositive A0, blocs, tableaux) et PDF relu', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final p = buildDemoAghbs(File('../../packages/statomea_core/test/reference/aghbs_simule.csv').readAsStringSync());
+    final bytes = posterPptx(p);
+    final zip = ZipDecoder().decodeBytes(bytes);
+    String part(String n) => utf8.decode(zip.findFile(n)!.content as List<int>);
+    expect(part('ppt/presentation.xml'), contains('<p:sldSz cx="30276000" cy="42804000"/>'));
+    expect(zip.files.where((f) => RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(f.name)).length, 1);
+    final slide = part('ppt/slides/slide1.xml');
+    for (final t in ['Contexte', 'Méthodes', 'Résultats', 'Conclusion', 'Tableau 1. Caractéristiques des participants']) {
+      expect(slide, contains(t));
+    }
+    final offs = [for (final m in RegExp(r'<a:off x="(\d+)" y="(\d+)"/><a:ext cx="(\d+)" cy="(\d+)"/>').allMatches(slide)) (int.parse(m[2]!), int.parse(m[4]!))];
+    expect(offs.every((o) => o.$1 + o.$2 <= 42804000), isTrue, reason: 'aucun bloc ne dépasse le bas de la page');
+    final dir = await Directory.systemTemp.createTemp('statomea_poster');
+    final file = File('${dir.path}/p.pptx')..writeAsBytesSync(bytes);
+    final check = await Process.run('python3', ['-c', 'import sys,zipfile,xml.dom.minidom as m\nz=zipfile.ZipFile(sys.argv[1])\n[m.parseString(z.read(n)) for n in z.namelist()]\nprint("ok")', file.path]);
+    expect('${check.stdout}'.trim(), 'ok', reason: '${check.stderr}');
+    await dir.delete(recursive: true);
+    final pdf = pdfText(await buildPosterPdf(p)).replaceAll(RegExp(r'\s+'), ' ');
+    expect(pdf, contains('Résultat principal'));
+    expect(pdf, contains('Poster préparé avec Statoméa'));
+  });
 }

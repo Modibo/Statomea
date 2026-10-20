@@ -87,3 +87,53 @@ List<Slide> presentationSlides(Project p, {String date = ''}) {
     Slide(tr('Merci de votre attention', 'Thank you'), bullets: [_todo(tr('remerciements, contact', 'acknowledgements, contact'))], titleSlide: true),
   ];
 }
+
+/// Bloc d'un poster.
+class PosterBlock {
+  final String title;
+  final List<String> bullets;
+  final ResultTable? table;
+  final String? highlight;
+  const PosterBlock(this.title, {this.bullets = const [], this.table, this.highlight});
+}
+
+/// Poster de congrès (A0 portrait) : titre et auteurs, puis trois colonnes (contexte, objectif, méthodes ;
+/// participants et Tableau 1 ; résultats, résultat principal, conclusion, références). Repris des diapositives.
+(String title, List<String> authors, List<List<PosterBlock>> columns) posterContent(Project p) {
+  final s = presentationSlides(p);
+  Slide? find(String t) => s.where((x) => x.title == t).firstOrNull;
+  final ctx = find(tr('Contexte et justification', 'Background and rationale'));
+  final obj = find(tr('Objectif', 'Objective'));
+  final met = find(tr('Méthodes', 'Methods'));
+  final part = find(tr('Participants', 'Participants'));
+  final t1 = find(tr('Caractéristiques des participants', 'Participant characteristics'));
+  final res = s.where((x) => x.title == tr('Résultats', 'Results')).toList();
+  final key = find(tr('Résultat principal', 'Main result'));
+  final lim = find(tr('Limites', 'Limitations'));
+  final con = find(tr('Conclusion', 'Conclusion'));
+  final refs = find(tr('Références', 'References'));
+  return (
+    p.title,
+    s.first.bullets,
+    [
+      [
+        PosterBlock(tr('Contexte', 'Background'), bullets: ctx?.bullets ?? const []),
+        PosterBlock(tr('Objectif', 'Objective'), bullets: obj?.bullets ?? const []),
+        PosterBlock(tr('Méthodes', 'Methods'), bullets: met?.bullets ?? const []),
+      ],
+      [
+        if (part != null) PosterBlock(tr('Participants', 'Participants'), bullets: part.bullets, table: part.table),
+        if (t1 != null) PosterBlock(tr('Caractéristiques', 'Characteristics'), table: t1.table),
+        if (part == null && t1 == null) PosterBlock(tr('Participants', 'Participants'), bullets: [_todo(tr('effectifs et caractéristiques', 'numbers and characteristics'))]),
+      ],
+      [
+        for (final r in res) PosterBlock(tr('Résultats', 'Results'), table: r.table),
+        if (key != null) PosterBlock(tr('Résultat principal', 'Main result'), highlight: key.highlight),
+        if (res.isEmpty && key == null) PosterBlock(tr('Résultats', 'Results'), bullets: [_todo(tr('résultat principal avec IC à 95 %', 'main result with 95% CI'))]),
+        PosterBlock(tr('Limites', 'Limitations'), bullets: (lim?.bullets ?? const []).take(3).toList()),
+        PosterBlock(tr('Conclusion', 'Conclusion'), bullets: con?.bullets ?? const []),
+        if (refs != null) PosterBlock(tr('Références', 'References'), bullets: refs.bullets.take(4).toList()),
+      ],
+    ],
+  );
+}
