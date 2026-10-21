@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../screens/lesson_screen.dart';
+import '../services/background.dart';
 import '../services/file_saver.dart';
 import '../services/table_export.dart';
 import '../state/app_state.dart';
@@ -298,10 +299,29 @@ void run(BuildContext context, AnalysisResult Function() f, OnResult onResult, {
 List<double?> parseSeries(String s) =>
     [for (final t in s.split(RegExp(r'[\s;]+')).where((t) => t.trim().isNotEmpty)) parseNumber(t)];
 
-Widget _computeButton(BuildContext context, VoidCallback onPressed) => Padding(
+Widget _computeButton(BuildContext context, VoidCallback onPressed, {String? busy}) => Padding(
       padding: const EdgeInsets.only(top: 12),
-      child: Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: onPressed, icon: const Icon(Icons.calculate), label: Text(tr('Calculer', 'Compute')))),
+      child: busy != null
+          ? BusyLine(busy)
+          : Align(alignment: Alignment.centerLeft, child: FilledButton.icon(onPressed: onPressed, icon: const Icon(Icons.calculate), label: Text(tr('Calculer', 'Compute')))),
     );
+
+/// Comme [run], pour un calcul sur un jeu de données : en arrière-plan au-delà de 10 000 lignes ([busy] est appelé avec
+/// le texte à afficher pendant le calcul, puis avec null).
+Future<void> runOnData<A, R>(BuildContext context, R Function(A) f, A arg, Dataset ds, void Function(String?) busy, void Function(R) done) async {
+  final heavy = ds.rowCount >= backgroundRowThreshold;
+  if (heavy) busy(tr('Calcul en cours sur ${ds.rowCount} lignes…', 'Computing on ${ds.rowCount} rows…'));
+  try {
+    final r = await inBackground(f, arg, heavy: heavy);
+    if (context.mounted) done(r);
+  } on StatInputError catch (e) {
+    if (context.mounted) showError(context, e);
+  } catch (e) {
+    if (context.mounted) showError(context, tr('Calcul impossible : $e', 'Computation impossible: $e'));
+  } finally {
+    if (heavy && context.mounted) busy(null);
+  }
+}
 
 Widget _levelField(BuildContext context, TextEditingController c) {
   final expert = context.watch<AppState>().expertMode;
@@ -443,6 +463,7 @@ class Table1Calc extends StatefulWidget {
 class _Table1CalcState extends State<Table1Calc> {
   String? group;
   Table1? table;
+  String? busy;
 
   @override
   Widget build(BuildContext context) {
@@ -465,12 +486,11 @@ class _Table1CalcState extends State<Table1Calc> {
       Pick<String?>(tr('Comparer selon (facultatif)', 'Compare by (optional)'), group, [(null, tr('— aucun groupe —', '— no group —')), for (final g in groups) (g.$1, g.$2)],
           (v) => setState(() => group = v)),
       _computeButton(context, () {
-        run(context, () {
-          table = table1(ds, group: group);
-          setState(() {});
-          return table1Result(ds, group: group);
-        }, widget.onResult);
-      }),
+        runOnData(context, _table1, (ds, group), ds, (b) => setState(() => busy = b), (r) {
+          setState(() => table = r.$1);
+          widget.onResult(r.$2);
+        });
+      }, busy: busy),
       if (table != null)
         Wrap(spacing: 10, runSpacing: 8, children: [
           OutlinedButton.icon(
@@ -501,7 +521,7 @@ class Table2Calc extends StatefulWidget {
 }
 
 class _Table2CalcState extends State<Table2Calc> {
-  String? outcome, event, model;
+  String? outcome, event, model, busy;
   final selected = <String>{};
   ResultTable? table;
   List<String> notes = const [];
@@ -557,21 +577,22 @@ class _Table2CalcState extends State<Table2Calc> {
           FilterChip(label: Text(n), selected: selected.contains(n), onSelected: (v) => setState(() => v ? selected.add(n) : selected.remove(n))),
       ]),
       _computeButton(context, () {
-        run(context, () {
-          if (outcome == null) throw StatInputError('missing', tr('Choisir l\'issue.', 'Choose the outcome.'));
-          if (!outNumeric && event == null) throw StatInputError('missing', tr('Choisir la modalité « événement ».', 'Choose the "event" level.'));
-          final terms = [
-            for (final n in candidates)
-              if (selected.contains(n))
-                ds.dictionary[n]!.type == VarType.numeric ? TermSpec(n) : TermSpec(n, categorical: true, reference: (ds.dictionary[n]!.order ?? ds.levels(n)).first)
-          ];
-          final r = associationTable(ds, ModelFormula(outcome!, terms, eventLevel: outNumeric ? null : event), model: m, design: design);
-          table = r.tables.single;
-          notes = [for (final a in r.alerts) if (a.code == 'association_table_note') a.message];
-          setState(() {});
-          return r;
-        }, widget.onResult, options: {'model': m});
-      }),
+        if (outcome == null) return showError(context, StatInputError('missing', tr('Choisir l\'issue.', 'Choose the outcome.')));
+        if (!outNumeric && event == null) return showError(context, StatInputError('missing', tr('Choisir la modalité « événement ».', 'Choose the "event" level.')));
+        final terms = [
+          for (final n in candidates)
+            if (selected.contains(n))
+              ds.dictionary[n]!.type == VarType.numeric ? TermSpec(n) : TermSpec(n, categorical: true, reference: (ds.dictionary[n]!.order ?? ds.levels(n)).first)
+        ];
+        final f = ModelFormula(outcome!, terms, eventLevel: outNumeric ? null : event);
+        runOnData(context, _associationTable, (ds, f, m, design), ds, (b) => setState(() => busy = b), (r) {
+          setState(() {
+            table = r.tables.single;
+            notes = [for (final a in r.alerts) if (a.code == 'association_table_note') a.message];
+          });
+          widget.onResult(r, options: {'model': m});
+        });
+      }, busy: busy),
       if (table != null)
         Wrap(spacing: 10, runSpacing: 8, children: [
           OutlinedButton.icon(
@@ -2151,3 +2172,8 @@ class _BayesCalcState extends State<BayesCalc> {
         }),
       ]);
 }
+
+// Calculs des tableaux, transmissibles à un isolat (fonctions de premier niveau).
+(Table1, AnalysisResult) _table1((Dataset, String?) a) => (table1(a.$1, group: a.$2), table1Result(a.$1, group: a.$2));
+
+AnalysisResult _associationTable((Dataset, ModelFormula, String, StudyDesign) a) => associationTable(a.$1, a.$2, model: a.$3, design: a.$4);

@@ -3,12 +3,14 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../l10n/gen/app_localizations.dart';
 import '../services/document_text.dart';
+import '../services/example_project.dart';
 import '../services/file_saver.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
@@ -116,6 +118,11 @@ class ProjectsScreen extends StatelessWidget {
         ),
         TextButton.icon(icon: const Icon(Icons.save_alt_outlined), label: Text(tr('Sauvegarder tous les projets', 'Back up all projects')), onPressed: user.isEmpty ? null : () => _backup(context)),
         TextButton.icon(icon: const Icon(Icons.restore_outlined), label: Text(tr('Restaurer une sauvegarde', 'Restore a backup')), onPressed: () => _restore(context)),
+        TextButton.icon(
+          icon: const Icon(Icons.school_outlined),
+          label: Text(tr('Projet d\'exemple', 'Example project')),
+          onPressed: () => openExampleProject(context),
+        ),
         TextButton.icon(
           icon: const Icon(Icons.menu_book_outlined),
           label: Text(tr('Guide d\'utilisation (PDF)', 'User guide (PDF)')),
@@ -375,7 +382,7 @@ class _StepsGuide extends StatelessWidget {
 
 /// Protocole Word ou PDF : texte extrait, sections et caractéristiques déduites, aperçu, puis création du projet et
 /// ouverture de sa feuille de route (10 étapes, imprimable).
-Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, String name) async {
+Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, String name, {Dataset? data}) async {
   final ProtocolDraft d;
   try {
     d = protocolFromText(documentText(bytes, name));
@@ -433,9 +440,19 @@ Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, S
   if (d.sampleSize != null) p.inferred['plannedSampleSize'] = '${d.sampleSize}';
   p.protocol = Map.of(d.fullSections);
   p.inferred['analysisPlan'] = p.analysisPlan;
+  if (data != null) p.dataset = data;
   await state.save(p);
   if (context.mounted) await Navigator.push(context, MaterialPageRoute(builder: (_) => RoadmapScreen(p)));
   return p;
+}
+
+/// Projet d'exemple : protocole fictif (erreurs de méthode volontaires, à retrouver par la relecture) importé comme un
+/// protocole Word, avec ses données simulées déjà jointes pour parcourir les 10 étapes.
+Future<Project?> openExampleProject(BuildContext context) async {
+  final csv = await rootBundle.loadString('assets/demos/aghbs_simule.csv');
+  if (!context.mounted) return null;
+  final data = parseCsv(csv, source: tr('$exampleDataFileName (simulé)', '$exampleDataFileName (simulated)')).dataset;
+  return importProtocolDocument(context, exampleProtocolDocx(), exampleProtocolFileName, data: data);
 }
 
 String _sectionLabel(String k) => switch (k) {

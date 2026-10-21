@@ -2,6 +2,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../services/background.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 
 import '../../services/xlsx_import.dart';
@@ -21,6 +22,7 @@ class DataStep extends StatefulWidget {
 class DataStepState extends State<DataStep> {
   List<String> importWarnings = [];
   String? outcomeVar;
+  String? _busy; // fichier en cours de lecture (gros fichier lu en arrière-plan)
 
   AppState get state => context.read<AppState>();
   Dataset? get ds => widget.p.dataset;
@@ -44,7 +46,10 @@ class DataStepState extends State<DataStep> {
   /// et une feuille « dictionnaire » est appliquée automatiquement.
   Future<void> importFileBytes(String name, List<int> bytes, {String? sheet}) async {
     try {
-      var r = datasetFromFile(name, bytes, sheet: sheet);
+      final heavy = bytes.length > backgroundByteThreshold;
+      if (heavy) setState(() => _busy = tr('Lecture de « $name » en cours…', 'Reading "$name"…'));
+      var r = await inBackground(_readFile, (name, bytes, sheet), heavy: heavy);
+      if (mounted && heavy) setState(() => _busy = null);
       final wb = r.workbook;
       if (wb != null && sheet == null) {
         final dict = dictionarySheet(wb);
@@ -57,7 +62,7 @@ class DataStepState extends State<DataStep> {
             ]),
           );
           if (chosen == null) return;
-          r = datasetFromFile(name, bytes, sheet: chosen);
+          r = await inBackground(_readFile, (name, bytes, chosen), heavy: heavy);
         }
       }
       var d = r.dataset;
@@ -70,7 +75,10 @@ class DataStepState extends State<DataStep> {
       }
       _setDataset(d, w);
     } catch (e) {
-      if (mounted) showError(context, tr('Lecture impossible : $e', 'Reading failed: $e'));
+      if (mounted) {
+        setState(() => _busy = null);
+        showError(context, tr('Lecture impossible : $e', 'Reading failed: $e'));
+      }
     }
   }
 
@@ -194,6 +202,7 @@ class DataStepState extends State<DataStep> {
       ]),
       const SizedBox(height: 6),
       Text(tr('Préférez des données anonymisées (pas de nom ni d\'identifiant direct).', 'Prefer anonymized data (no name or direct identifier).'), style: Theme.of(context).textTheme.bodySmall),
+      if (_busy != null) BusyLine(_busy!),
       for (final w in importWarnings) Banner2(Severity.info, w),
       if (d == null && widget.p.studies.isNotEmpty)
         Banner2(Severity.info, tr('Projet de métaanalyse : le tableau d\'extraction se saisit dans l\'atelier de métaanalyse (étape 6).', 'Meta-analysis project: the extraction table is entered in the meta-analysis workshop (step 6).')),
@@ -243,16 +252,35 @@ class DataStepState extends State<DataStep> {
   }
 
   // Le contrôle de qualité parcourt toutes les lignes : il n'est refait que si les données, l'issue ou le dictionnaire
-  // changent, et non à chaque reconstruction de l'écran.
-  (Dataset, String)? _qualityKey;
+  // changent, et non à chaque reconstruction de l'écran ; au-delà de 10 000 lignes, il tourne en arrière-plan.
+  (Dataset, String)? _qualityKey, _qualityPending;
   QualityReport? _qualityReport;
 
   List<Widget> _quality(Dataset d) {
     final predictors = [for (final n in d.names) if (n != outcomeVar && d.dictionary[n]!.type != VarType.identifier) n];
     final sig = [outcomeVar, for (final n in d.names) [n, d.dictionary[n]!.type, d.dictionary[n]!.min, d.dictionary[n]!.max, d.dictionary[n]!.reference].join('|')].join('¦');
-    if (_qualityReport == null || !identical(_qualityKey!.$1, d) || _qualityKey!.$2 != sig) {
-      _qualityReport = checkQuality(d, outcome: outcomeVar, predictors: predictors);
-      _qualityKey = (d, sig);
+    bool same((Dataset, String)? k) => k != null && identical(k.$1, d) && k.$2 == sig;
+    if (_qualityReport == null || !same(_qualityKey)) {
+      if (d.rowCount < backgroundRowThreshold) {
+        _qualityReport = checkQuality(d, outcome: outcomeVar, predictors: predictors);
+        _qualityKey = (d, sig);
+      } else {
+        if (!same(_qualityPending)) {
+          final key = (d, sig);
+          _qualityPending = key;
+          inBackground(_checkQuality, (d, outcomeVar, predictors)).then((r) {
+            if (!mounted || !identical(_qualityPending, key)) return;
+            setState(() {
+              _qualityReport = r;
+              _qualityKey = key;
+              _qualityPending = null;
+            });
+          }, onError: (Object e) {
+            if (mounted && identical(_qualityPending, key)) showError(context, tr('Contrôle de qualité impossible : $e', 'Quality control failed: $e'));
+          });
+        }
+        return [BusyLine(tr('Contrôle de qualité en cours (${d.rowCount} lignes)…', 'Quality control in progress (${d.rowCount} rows)…'))];
+      }
     }
     final rep = _qualityReport!;
     if (rep.issues.isEmpty) return [Banner2(Severity.info, tr('Aucune anomalie détectée par les contrôles automatiques.', 'No anomaly detected by the automatic checks.'))];
@@ -374,3 +402,8 @@ class _VariableEditor extends StatelessWidget {
     );
   }
 }
+
+// Calculs lancés en arrière-plan (fonctions de premier niveau, transmissibles à un isolat).
+({Dataset dataset, List<String> warnings, XlsxWorkbook? workbook}) _readFile((String, List<int>, String?) a) => datasetFromFile(a.$1, a.$2, sheet: a.$3);
+
+QualityReport _checkQuality((Dataset, String?, List<String>) a) => checkQuality(a.$1, outcome: a.$2, predictors: a.$3);

@@ -42,6 +42,27 @@ IconData severityIcon(Severity s) => switch (s) {
     };
 
 /// Bandeau d'alerte (gravité, message, suggestion).
+/// Ligne « calcul en cours » : indicateur annoncé aux lecteurs d'écran et texte de ce qui se fait.
+class BusyLine extends StatelessWidget {
+  final String text;
+  const BusyLine(this.text, {super.key});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Semantics(
+          liveRegion: true,
+          label: text,
+          child: ExcludeSemantics(
+            child: Row(children: [
+              const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.5)),
+              const SizedBox(width: 12),
+              Expanded(child: Text(text)),
+            ]),
+          ),
+        ),
+      );
+}
+
 class Banner2 extends StatelessWidget {
   final Severity severity;
   final String message;

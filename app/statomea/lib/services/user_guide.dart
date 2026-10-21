@@ -86,6 +86,9 @@ Future<Uint8List> buildUserGuidePdf({Map<String, Uint8List> images = const {}}) 
       p(guideNewProject),
       h2(tr('Projet importé', 'Imported project')),
       p(guideImportedProject),
+      h2(tr('Projet d\'exemple', 'Example project')),
+      p(tr('Projets → « Projet d\'exemple » importe un protocole fictif (portage de l\'AgHBs chez les femmes enceintes) qui cache six erreurs de méthode, avec ses données simulées déjà jointes (640 femmes). Retrouvez les erreurs avec « Relire et corriger », puis parcourez les 10 étapes jusqu\'au poster. Le protocole Word et les données sont aussi téléchargeables sur statomea.komodi-labo.org (rubrique « Projet d\'exemple », avec la solution).',
+          'Projects → "Example project" imports a fictitious protocol (HBsAg carriage in pregnant women) hiding six methodological errors, with its simulated data already attached (640 women). Find the errors with "Review and correct", then walk through the 10 steps up to the poster. The Word protocol and the data can also be downloaded from statomea.komodi-labo.org ("Example project" section, with the solution).')),
       h1(tr('4. Le parcours en 10 étapes', '4. The 10-step pathway')),
       withShot([
         p(tr('Chaque étape conditionne la suivante : la méthode découle de la question et du plan, jamais du nom des variables. Marquez chaque étape « Terminée » ; on peut revenir à une étape à tout moment.',

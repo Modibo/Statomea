@@ -344,4 +344,43 @@ Test t de Student au seuil de 5 %.
     expect(sw.elapsedMilliseconds, lessThan(500));
     expect(d.title, 'Anémie des femmes enceintes');
   });
+
+  test('analyse intermédiaire : règle d\'arrêt et comité indépendant demandés, corrections, essai bien encadré reconnu', () {
+    const essai = """
+Titre du projet
+Acide tranexamique chez les blessés hémorragiques : essai randomisé
+Objectif principal
+Comparer la mortalité à J28 entre l'acide tranexamique et le placebo.
+Type d'étude
+Essai contrôlé randomisé en double aveugle, deux bras parallèles.
+Nombre de sujets nécessaires
+Pour détecter une baisse de la mortalité de 20 % à 12 % (puissance 80 %, alpha 5 %), il faut 329 patients par bras, 724 au total avec 10 % de perdus.
+Analyse statistique
+Analyse en intention de traiter ; comparaison des proportions par le test du khi-deux au seuil de 5 %. Une analyse intermédiaire sera réalisée à mi-parcours.
+""";
+    final p = imported(essai);
+    final r = reviewProject(p);
+    final rule = find(r, 'interim_without_rule')!;
+    expect(rule.level, ReviewLevel.warning);
+    expect(rule.evidence, contains('analyse intermédiaire sera réalisée à mi-parcours'));
+    expect(find(r, 'interim_without_dsmb')!.fix, isNotNull);
+    expect(applyAllCorrections(p, date: '2026-10-21').map((c) => c.id), containsAll(['interim_without_rule', 'interim_without_dsmb']));
+    // Bornes d'O'Brien-Fleming (dépense de Lan-DeMets, 2 analyses, 50 %) : z = 2,963 puis 1,969, soit p = 0,0031 et 0,0490
+    // (calculées dans R par intégration numérique de la loi normale bivariée, corrélation √0,5).
+    expect(p.analysisPlan, contains('p ≤ 0,003 à l\'analyse intermédiaire, analyse finale au seuil de 0,049'));
+    expect(p.analysisPlan, contains('comité indépendant de surveillance des données'));
+    final r2 = reviewProject(p);
+    expect(find(r2, 'interim_without_rule'), isNull);
+    expect(find(r2, 'interim_without_dsmb'), isNull);
+    expect(find(r2, 'interim_rule_ok')!.level, ReviewLevel.ok);
+    // Protocole déjà encadré : aucune remarque.
+    final ok = reviewProject(imported(essai.replaceFirst('à mi-parcours.',
+        'à mi-parcours, avec des bornes d\'arrêt d\'O\'Brien-Fleming ; un DSMB indépendant examinera les résultats.')));
+    expect(find(ok, 'interim_without_rule'), isNull);
+    expect(find(ok, 'interim_without_dsmb'), isNull);
+    expect(find(ok, 'interim_rule_ok'), isNotNull);
+    // Sans analyse intermédiaire, rien n'est demandé.
+    final none = reviewProject(imported(essai.replaceFirst(' Une analyse intermédiaire sera réalisée à mi-parcours.', '')));
+    expect(none.findings.where((f) => f.id.startsWith('interim')), isEmpty);
+  });
 }

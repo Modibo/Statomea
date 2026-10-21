@@ -430,7 +430,7 @@ const _sectionKeys = <String, String>{
   'outcome': r"^(criteres? de jugement( principal| primaire)?|critere principal|variable principale|(primary )?(outcome|endpoint)s?)\b",
   'design': r"^(schema|type (et (design|duree) )?(de l'|d')etude|type d'etude|design|methodologie|plan d'etude|methods?|study design)\b",
   'analysis': r"^(analyses? statistiques?|plan d'analyse|methodes? statistiques?|(gestion|saisie|traitement)( et analyse)? des donnees( et analyse statistique)?|analyse des donnees|statistical (analysis|methods)|analysis plan|data analysis)\b",
-  'variables': r"^(variables? (etudiees?|recueillies|cliniques|biologiques|d'interet|mesurees)|parametres (de l'etude|etudies|sociodemographiques|cliniques)|donnees (recueillies|collectees)|recueil des donnees|study variables|variables collected|data collected)\b",
+  'variables': r"^(variables? (etudiees?|recueillies|cliniques|biologiques|d'interet|mesurees)|parametres (de l'etude|etudies|sociodemographiques|cliniques)|donnees (recueillies|collectees)|recueil des donnees|study variables|variables collected|data collected)\b|^variables( studied| measured)?$",
   'labtests': r"^(examens? (de laboratoire|biologiques?|paracliniques?|complementaires)|dosages?( des| du| de)?|parametres biologiques|bilan biologique|analyses biologiques|methodes? de dosage|techniques? de dosage|laboratory (tests|methods|analyses)|biological (tests|analyses))\b",
   'period': r"^(periode( d'etude)?|duree( de l'etude)?|calendrier|chronogramme|deroulement|study period|timeline|duration)\b",
   'ethics': r"^(considerations? ethiques?|aspects? (ethiques?|reglementaires?)|ethique|comite d'ethique|ethics|ethical (considerations|aspects))\b",
@@ -532,7 +532,9 @@ ProtocolDraft protocolFromText(String raw) {
       current = key;
       // Une rubrique déjà ouverte mais presque vide (cellule d'un chronogramme, sommaire) est remplacée.
       // (Sauf la période : « Période d'étude : avril-décembre 2023 » de la page de garde reste valable.)
-      if (!buf.containsKey(key) || (key != 'period' && buf[key]!.join(' ').length < 120)) buf[key] = [];
+      // Les objectifs spécifiques ou secondaires complètent l'objectif principal, ils ne le remplacent pas.
+      final secondary = key == 'objective' && RegExp(r"^(objectifs? (specifiques?|secondaires?)|(specific|secondary) (objectives?|aims?))").hasMatch(n);
+      if (!buf.containsKey(key) || (key != 'period' && !(secondary && buf[key]!.isNotEmpty) && buf[key]!.join(' ').length < 120)) buf[key] = [];
       // Texte après le titre sur la même ligne (« Objectif : … »).
       final after = l.contains(':') ? l.substring(l.indexOf(':') + 1).trim() : '';
       if (after.isNotEmpty) buf[key]!.add(after);
@@ -555,7 +557,10 @@ ProtocolDraft protocolFromText(String raw) {
   final all = nonEmpty.join(' ');
   var q = RegExp(r"[^.?!]{15,}\?").firstMatch(all)?.group(0)?.trim();
   if (q != null && q.contains(':')) q = q.substring(q.lastIndexOf(':') + 1).trim();
-  final objectiveFirst = sections['objective'] == null ? null : RegExp(r"^[^.]+\.?").firstMatch(sections['objective']!)?.group(0);
+  // (Sans la numérotation d'une liste d'objectifs : « 1. Décrire… » ne donne pas la question « 1. ».)
+  final objectiveFirst = sections['objective'] == null
+      ? null
+      : RegExp(r"^[^.]+\.?").firstMatch(sections['objective']!.replaceFirst(RegExp(r"^\s*(\d{1,2}|[a-hA-H])[.)]\s+"), ''))?.group(0);
   // Titre : « Thème : … » ou « Titre du projet » s'il existe ; sinon la première ligne qui n'est pas une mention de page
   // de garde (auteur, ministère, université, « Protocole de … »).
   final boiler = RegExp(r"^(realise|presente|redige|soutenu|these (dirigee|realisee)|dirige|par\b|republique|ministere|universite|faculte|ecole|institut|departement|promotion|annee|protocole( de| d'|$)|version|code|date|\*+|un peuple)");

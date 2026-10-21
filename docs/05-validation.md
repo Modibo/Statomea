@@ -1324,3 +1324,32 @@ immuable) ; la lecture des nombres copiait chaque chaîne (raccourci pour les va
 résultat : `import_test.dart`) ; le contrôle de qualité était refait à chaque reconstruction de l'étape 4. Mesures sur
 ordinateur ; un téléphone modeste est 5 à 10 fois plus lent, ce qui laisse chaque opération sous la seconde pour
 5 000 lignes.
+
+## Calculs lourds en arrière-plan, analyses intermédiaires, projet d'exemple — 1.67.0
+
+Arrière-plan (`background_test.dart`) : au-delà de 10 000 lignes, le contrôle de qualité de l'étape 4 et les Tableaux 1
+et 2 sont calculés dans un isolat (sur le web, après une image) ; un fichier de plus de 1 Mo est lu de même. L'écran
+affiche « … en cours » (annoncé aux lecteurs d'écran) puis le résultat ; en deçà, le calcul reste immédiat. Vérifié :
+résultat identique en direct et en isolat, langue transmise, erreur de saisie relayée ; import d'un CSV de 40 000
+lignes puis contrôle en arrière-plan ; Tableaux 1 et 2 sur 20 000 lignes, résultats au journal.
+
+Analyses intermédiaires (`review_test.dart`) : une analyse intermédiaire sans règle d'arrêt est signalée (risque de
+faux positif ≈ 8 % pour deux analyses au seuil de 5 %, ≈ 11 % pour trois) ; la correction ajoute une règle
+d'O'Brien-Fleming par la fonction de dépense de Lan-DeMets (analyse à 50 % des inclusions : arrêt si p ≤ 0,003, analyse
+finale au seuil de 0,049). Bornes calculées dans R par intégration numérique de la loi normale bivariée (corrélation
+√0,5) : z = 2,9626 (p = 0,0031) puis z = 1,9686 (p = 0,0490), concordantes avec les valeurs publiées pour gsDesign. Une
+analyse intermédiaire sans comité indépendant de surveillance est également signalée, avec un paragraphe de correction.
+Un protocole déjà encadré (bornes, DSMB) est reconnu ; les mentions « revenu intermédiaire » ou « risque
+intermédiaire » des protocoles SDT2 et SPHC ne déclenchent rien.
+
+Projet d'exemple (`example_test.dart`, `example_project_test.dart`) : protocole fictif (portage de l'AgHBs chez les
+femmes enceintes, en français et en anglais) cohérent avec les données simulées (640 femmes, prévalence 8,4 %). La
+relecture y retrouve les six erreurs cachées : majoration pour les refus multipliée (453 × 1,1 = 498 au lieu de
+453 / 0,9 = 504), formulation causale, « incidence » en transversal, associations sans ajustement, normalité par
+Kolmogorov-Smirnov, données manquantes non prévues. Ouvert depuis l'écran Projets (données jointes) ou téléchargé depuis
+la page d'accueil (Word et CSV, solution repliée). L'essai a révélé deux défauts, corrigés :
+- des « Objectifs spécifiques » placés après un objectif principal court le remplaçaient, et la question retenue
+  devenait « 1. » : ils le complètent désormais et la numérotation est ignorée ;
+- la version anglaise ne recalculait pas l'effectif d'une prévalence (« margin of error » non reconnu) ni la rubrique
+  « Variables ».
+Question inférée et constats identiques avant et après sur les protocoles réels SDT2 et SPHC.

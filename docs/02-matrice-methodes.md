@@ -1,6 +1,6 @@
 # 02 — Matrice « question → données requises → méthode → conditions → diagnostics → résultat »
 
-Générée automatiquement depuis le registre du moteur (`lib/src/advisor/registry.dart`, statomea_core 1.66.0) : elle ne peut pas diverger du code. L'assistant de choix (`advisor.dart`) n'utilise que les caractéristiques déclarées de la question ; il demande les informations manquantes au lieu de supposer.
+Générée automatiquement depuis le registre du moteur (`lib/src/advisor/registry.dart`, statomea_core 1.67.0) : elle ne peut pas diverger du code. L'assistant de choix (`advisor.dart`) n'utilise que les caractéristiques déclarées de la question ; il demande les informations manquantes au lieu de supposer.
 
 | Question | Données requises | Méthode | Conditions | Diagnostics | Résultat | Statut | Référence de validation |
 |---|---|---|---|---|---|---|---|

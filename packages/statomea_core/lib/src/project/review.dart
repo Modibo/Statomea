@@ -300,7 +300,7 @@ ProjectReview reviewProject(Project p) {
       }
     }
     // b) Précision d'une proportion : n = z² p (1 − p) / i².
-    final marginM = RegExp(r"(?:marge d'erreur|precision|erreur (absolue|tolere)\w*|\bi\s*=)[^%]{0,40}?(\d{1,2}(?:[.,]\d+)?)\s*%").firstMatch(nSs);
+    final marginM = RegExp(r"(?:marge d'erreur|margin of error|precision|erreur (absolue|tolere)\w*|\bi\s*=)[^%]{0,40}?(\d{1,2}(?:[.,]\d+)?)\s*%").firstMatch(nSs);
     final propM = RegExp(r"(?:prevalence|proportion|frequence)[^%]{0,160}?(\d{1,2}(?:[.,]\d+)?)\s*%").firstMatch(nSs);
     if (marginM != null && propM != null) {
       final i = _num(marginM.group(2)!)! / 100, pr = _num(propM.group(1)!)! / 100;
@@ -314,7 +314,7 @@ ProjectReview reviewProject(Project p) {
       } else if (ints.isNotEmpty) {
         add(ReviewFinding('precision_mismatch', ReviewLevel.error, Step.analysisPlan, tr('Calcul de précision non reproductible', 'Precision calculation not reproducible'),
             tr('Avec les hypothèses citées ($formula), l\'effectif serait ${n0.ceil()} ; le protocole ne donne pas ce nombre.', 'With the stated assumptions ($formula), the sample size would be ${n0.ceil()}; the protocol does not give this number.'),
-            tr('Vérifier les hypothèses ou retenir n = ${n0.ceil()}.', 'Check the assumptions or use n = ${n0.ceil()}.'), evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size',
+            tr('Vérifier les hypothèses ou retenir n = ${n0.ceil()}.', 'Check the assumptions or use n = ${n0.ceil()}.'), evidence: _quote(ssText, RegExp(r"marge d'erreur|margin of error|precision")), calculator: 'sample_size',
             calculatorPresets: {'type': 'prop', 'p': _fmt(pr, 4), 'd': _fmt(i, 4)}));
       }
       final half = math.min(pr, 1 - pr) / 2;
@@ -326,7 +326,7 @@ ProjectReview reviewProject(Project p) {
             tr('Une marge de ± ${_fmt(i * 100, 1)} points autour de ${_fmt(pr * 100, 1)} % donne un intervalle de ${_fmt(math.max(0, pr - i) * 100, 1)} à ${_fmt((pr + i) * 100, 1)} % : l\'estimation resterait très imprécise (la marge dépasse la moitié de la proportion).',
                 'A margin of ± ${_fmt(i * 100, 1)} points around ${_fmt(pr * 100, 1)}% gives an interval from ${_fmt(math.max(0, pr - i) * 100, 1)} to ${_fmt((pr + i) * 100, 1)}%: the estimate would remain very imprecise (the margin exceeds half the proportion).'),
             tr('Viser une marge d\'environ un quart de la proportion : ± ${_fmt(i2 * 100, 1)} points → n = $n2 sujets (avant majoration pour les pertes).', 'Aim for a margin of about a quarter of the proportion: ± ${_fmt(i2 * 100, 1)} points → n = $n2 subjects (before adjustment for losses).'),
-            evidence: _quote(ssText, RegExp(r"marge d'erreur|precision")), calculator: 'sample_size',
+            evidence: _quote(ssText, RegExp(r"marge d'erreur|margin of error|precision")), calculator: 'sample_size',
             calculatorPresets: {'type': 'prop', 'p': _fmt(pr, 4), 'd': _fmt(i2, 4)}));
       }
       // c) Base du calcul incohérente avec l'objectif principal.
@@ -514,6 +514,37 @@ ProjectReview reviewProject(Project p) {
           tr('Tests bilatéraux, seuil de 5 %.', 'Two-sided tests, 5% level.'),
           fix: ReviewFix(tr('Seuil bilatéral de 5 % ajouté', 'Two-sided 5% level added'), (p) => _appendPlan(p, tr('seuil', 'significance level'),
               tr('Tous les tests sont bilatéraux, au seuil de 5 % ; les estimations sont accompagnées de leur IC à 95 %.', 'All tests are two-sided at the 5% level; estimates are given with their 95% CIs.')))));
+    }
+    // Analyses intermédiaires : règle d'arrêt (contrôle du risque alpha) et comité indépendant.
+    final interim = RegExp(r"analyses? intermediaires?|interim analys|analyses? (a mi-parcours|de mi-etude)|analyses? sequentielles? groupees?|group sequential");
+    if (interim.hasMatch(nAll)) {
+      final rule = RegExp(r"o'?brien|fleming|pocock|haybittle|peto\b|lan[- ]?demets|depense (du |de l')?(risque )?alpha|alpha[- ]?spending|spending function|regles? d'arret|stopping (rules?|boundar\w*|guidelines?)|(bornes?|limites?|seuils?) d'arret|futilite|futility|puissance conditionnelle|conditional power");
+      final ev = _quote(allText, interim);
+      if (!rule.hasMatch(nAll)) {
+        add(ReviewFinding('interim_without_rule', ReviewLevel.warning, Step.analysisPlan, tr('Analyse intermédiaire sans règle d\'arrêt', 'Interim analysis without a stopping rule'),
+            tr('Regarder les données en cours d\'étude et conclure à chaque fois au seuil de 5 % gonfle le risque de faux positif (≈ 8 % pour deux analyses, ≈ 11 % pour trois) ; un arrêt précoce surestime aussi l\'effet.',
+                'Looking at the data during the study and concluding each time at the 5% level inflates the false-positive risk (≈ 8% for two analyses, ≈ 11% for three); early stopping also overestimates the effect.'),
+            tr('Préciser le nombre et le moment des analyses intermédiaires, la règle d\'arrêt pour efficacité (bornes d\'O\'Brien-Fleming par la fonction de dépense de Lan-DeMets), éventuellement pour futilité, et le seuil de l\'analyse finale.',
+                'Specify the number and timing of interim analyses, the stopping rule for efficacy (O\'Brien-Fleming boundaries via the Lan-DeMets spending function), possibly for futility, and the significance level of the final analysis.'),
+            evidence: ev,
+            fix: ReviewFix(tr('Paragraphe « analyse intermédiaire » ajouté', '"Interim analysis" paragraph added'), (p) => _appendPlan(p, tr('analyse intermédiaire', 'interim analysis'),
+                tr('Une analyse intermédiaire est prévue après 50 % des inclusions (ou des événements attendus). Le risque alpha global de 5 % (bilatéral) est réparti par la fonction de dépense de Lan-DeMets de type O\'Brien-Fleming : arrêt pour efficacité si p ≤ 0,003 à l\'analyse intermédiaire, analyse finale au seuil de 0,049. Un arrêt pour futilité, non contraignant, est envisagé si la puissance conditionnelle est inférieure à 10 %. Après un arrêt précoce, l\'effet estimé est interprété avec prudence (surestimation possible).',
+                    'An interim analysis is planned after 50% of inclusions (or expected events). The overall two-sided 5% alpha is allocated with an O\'Brien-Fleming-type Lan-DeMets spending function: stopping for efficacy if p ≤ 0.003 at the interim analysis, final analysis at the 0.049 level. Non-binding stopping for futility is considered if conditional power is below 10%. After early stopping, the estimated effect is interpreted with caution (possible overestimation).')))));
+      } else {
+        add(ReviewFinding('interim_rule_ok', ReviewLevel.ok, Step.analysisPlan, tr('Analyse intermédiaire encadrée par une règle d\'arrêt', 'Interim analysis governed by a stopping rule'),
+            '', '', evidence: _quote(allText, rule)));
+      }
+      final dsmb = RegExp(r"comites? (independants? )?(de (surveillance|suivi|securite|monitorage)|independants?)|\bdsmb\b|\bidmc\b|\bdmc\b|data (and safety )?monitoring");
+      if (!dsmb.hasMatch(nAll)) {
+        add(ReviewFinding('interim_without_dsmb', ReviewLevel.warning, Step.studyPlan, tr('Analyse intermédiaire sans comité indépendant', 'Interim analysis without an independent committee'),
+            tr('Si les investigateurs voient les résultats intermédiaires, la suite de l\'étude peut en être influencée (recrutement, évaluation du critère) ; la décision d\'arrêter revient à un comité indépendant.',
+                'If investigators see interim results, the rest of the study may be influenced (recruitment, outcome assessment); the decision to stop belongs to an independent committee.'),
+            tr('Prévoir un comité indépendant de surveillance des données, sa composition, sa charte et les résultats qu\'il est seul à voir.', 'Plan an independent data monitoring committee, its membership, charter, and the results only it will see.'),
+            evidence: ev,
+            fix: ReviewFix(tr('Paragraphe « comité de surveillance » ajouté', '"Monitoring committee" paragraph added'), (p) => _appendPlan(p, tr('comité de surveillance', 'monitoring committee'),
+                tr('Un comité indépendant de surveillance des données (un clinicien, un méthodologiste-statisticien et un spécialiste de la sécurité, sans lien avec l\'étude) examine les données de sécurité et l\'analyse intermédiaire, seul à en connaître les résultats par groupe, selon une charte écrite avant la première inclusion ; il recommande la poursuite, la modification ou l\'arrêt de l\'étude.',
+                    'An independent data monitoring committee (a clinician, a methodologist-statistician and a safety specialist, unrelated to the study) reviews safety data and the interim analysis, being the only body to see results by group, according to a charter written before the first inclusion; it recommends continuing, modifying or stopping the study.')))));
+      }
     }
     if (RegExp(r"multicentri|multi-?center|multicenter|multicentre").hasMatch(nAll) && !plan(r"effet (du )?centre|centre (comme|en tant que|en) (effet|variable|strate)|aleatoire|mixte|stratifi\w*[^.]{0,40}centre|cluster|grappe|random effect|mixed model|interne-externe|internal-external|heterogeneite entre centres")) {
       final pred = q.objective == StudyObjective.predictive;
