@@ -41,4 +41,13 @@ void main() {
     expect(tutorProgress(p).where((x) => x.solved).length, 1);
     expect(Project.decode(p.encode()).tutor, p.tutor);
   });
+
+  test('modèle de prédiction : discrimination (AUC) et validation externe au lieu de la mesure d\'effet et de la causalité', () {
+    final p = Project(id: 'pr', title: 'Score', createdAt: '')
+      ..question = const ResearchQuestion(text: 'Peut-on prédire la mortalité à 28 jours ?', outcome: 'mortalité à 28 jours', outcomeType: OutcomeType.binary, design: StudyDesign.cohort, objective: StudyObjective.predictive);
+    final qs = tutorQuestions(p);
+    final plan = qs.firstWhere((q) => q.step == Step.studyPlan), interp = qs.firstWhere((q) => q.step == Step.interpretation);
+    expect(plan.options[plan.correct], startsWith('L\'aire sous la courbe ROC'));
+    expect(interp.options[interp.correct], startsWith('Pas encore : il faut une validation externe'));
+  });
 }

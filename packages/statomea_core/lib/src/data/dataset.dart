@@ -129,10 +129,23 @@ class Correction {
 /// Valeurs textuelles considérées comme manquantes à l'import.
 const Set<String> missingTokens = {'', 'na', 'n/a', 'nan', '.', '-', 'nd', 'null', '?', 'manquant', 'missing'};
 
-bool isMissingToken(String? s) => s == null || missingTokens.contains(s.trim().toLowerCase());
+bool isMissingToken(String? s) {
+  if (s == null) return true;
+  final t = s.trim();
+  // Raccourci : aucun code de manquant ne dépasse 8 caractères (« manquant »), ni ne commence par un chiffre.
+  if (t.length > 8 || (t.isNotEmpty && _isDigit(t.codeUnitAt(0)))) return false;
+  return missingTokens.contains(t.toLowerCase());
+}
+
+bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
 
 /// Lit un nombre en acceptant la virgule décimale. Null si non numérique.
 double? parseNumber(String? s) {
+  // Raccourci pour le cas courant (« 12.5 ») : même résultat que la lecture complète, sans copies de la chaîne.
+  if (s != null && s.isNotEmpty && _isDigit(s.codeUnitAt(0))) {
+    final x = double.tryParse(s);
+    if (x != null) return x;
+  }
   if (isMissingToken(s)) return null;
   var t = s!.trim().replaceAll(' ', '').replaceAll(' ', '');
   if (t.contains(',') && !t.contains('.')) t = t.replaceAll(',', '.');
@@ -226,13 +239,21 @@ class Dataset {
     return v;
   }
 
-  /// Colonne courante (corrigée) sous forme de texte.
-  List<String?> text(String name) => [
-        for (var i = 0; i < rowCount; i++) isMissingToken(cell(i, name)) ? null : cell(i, name)!.trim()
-      ];
+  // Colonnes calculées une seule fois par instance : les cellules et les corrections sont immuables (chaque correction
+  // crée un nouveau jeu), alors que contrôle de qualité, niveaux et calculs relisent les mêmes colonnes.
+  final Map<String, List<String?>> _rawCache = {}, _textCache = {};
+  final Map<String, List<double?>> _numericCache = {};
 
-  /// Colonne courante sous forme numérique (null si manquant ou non numérique).
-  List<double?> numeric(String name) => [for (var i = 0; i < rowCount; i++) parseNumber(cell(i, name))];
+  /// Cellules courantes (corrigées) d'une colonne, telles quelles (liste non modifiable).
+  List<String?> raw(String name) => _rawCache[name] ??= List.unmodifiable([for (var i = 0; i < rowCount; i++) cell(i, name)]);
+
+  /// Colonne courante (corrigée) sous forme de texte (liste non modifiable).
+  List<String?> text(String name) =>
+      _textCache[name] ??= List.unmodifiable([for (final v in raw(name)) isMissingToken(v) ? null : v!.trim()]);
+
+  /// Colonne courante sous forme numérique (null si manquant ou non numérique ; liste non modifiable).
+  List<double?> numeric(String name) =>
+      _numericCache[name] ??= List.unmodifiable([for (final v in raw(name)) parseNumber(v)]);
 
   /// Nouveau jeu de données incluant une correction supplémentaire ; les
   /// cellules d'origine restent intactes et la correction est journalisée.

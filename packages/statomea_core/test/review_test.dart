@@ -326,4 +326,22 @@ Test t de Student au seuil de 5 %.
     expect(find(r2, 'sample_attained_ok')!.level, ReviewLevel.ok);
     expect(find(r2, 'p_without_ci'), isNull);
   });
+
+  test('performance : un protocole de ~40 pages est lu et relu en moins de 0,5 s', () {
+    final b = StringBuffer('Titre du projet\nAnémie des femmes enceintes\nObjectif principal\nRechercher les facteurs associés à l\'anémie.\n');
+    for (var i = 0; i < 300; i++) {
+      b.writeln('Contexte $i. Les femmes enceintes de 18 ans ou plus seront incluses après consentement ; la prévalence attendue est de 40 % et le test du khi-deux sera utilisé au seuil de 5 %.');
+    }
+    final sw = Stopwatch()..start();
+    final d = protocolFromText(b.toString());
+    final p = Project(id: 'long', title: d.title, createdAt: '')
+      ..question = d.toQuestion()
+      ..protocol = Map.of(d.fullSections)
+      ..analysisPlan = d.sections['analysis'] ?? '';
+    reviewProject(p);
+    articleOutline(p);
+    // Avant 1.66.0 : ≈ 1,5 s (extraction PICO sur le texte entier quand il n'y a pas de question explicite).
+    expect(sw.elapsedMilliseconds, lessThan(500));
+    expect(d.title, 'Anémie des femmes enceintes');
+  });
 }

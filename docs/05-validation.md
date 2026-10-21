@@ -1287,3 +1287,40 @@ article, présentation, poster PowerPoint/PDF, projet). Défauts trouvés puis c
   (`article_test.dart`, « protocole importé et corrigé »).
 Guide d'utilisation (`guide_test.dart`) : douze chapitres, captures des maquettes, PDF relu ; publié avec la page
 d'accueil (`guide-statomea.pdf`) et ouvert depuis l'écran Projets.
+
+## Essai sur un second protocole réel (SPHC), accessibilité des nouveaux écrans, performance — 1.66.0
+
+Parcours complet sur le protocole SPHC (cohorte multicentrique pronostique, 550 blessés, mortalité à J28). Relecture :
+0 erreur, 6 points à revoir ; critères de Riley refaits et conformes (269 sujets minimum) ; 4 corrections appliquées ;
+grille TRIPOD 14/14 ; fiche de recueil de 25 champs ; chronogramme de 36 mois et budget pour 5 centres ; 13 documents
+produits. Défauts trouvés puis corrigés (tests ajoutés) :
+- le titre, long de plus de 160 caractères, était tronqué (limite portée à 300) ;
+- la « numération plaquettaire » des variables et les « plaquettes » des rubriques de dosage donnaient deux champs : un
+  examen n'est plus ajouté si une variable désigne déjà le même analyte (`crf_test.dart`) ;
+- pour un objectif prédictif, le mode tuteur posait des questions d'association (OR, causalité) : il interroge
+  désormais sur la discrimination (aire sous la courbe ROC) et sur la validation externe avant tout usage clinique
+  (`tutor_test.dart`).
+
+Accessibilité : les écrans ajoutés depuis 1.60 (feuille de route, relecture d'un protocole importé, mode tuteur,
+diagramme de flux, budget et chronogramme, tableau de bord encadrant, bibliographie, réponse aux relecteurs) passent
+les règles des tests d'accessibilité (cibles tactiles Android et iOS, libellés, contraste WCAG AA en clair et en
+sombre) et le texte agrandi à 200 % sans débordement à 390 px (`accessibility_test.dart`).
+
+Performance (banc `dart run tool/bench.dart`, garde-fous `perf_test.dart` et `review_test.dart`) :
+
+| Opération | Avant | 1.66.0 |
+|---|---|---|
+| Relecture d'un protocole de ≈ 40 pages | 680 ms | 61 ms |
+| Article prérédigé (même protocole) | 750 ms | 86 ms |
+| Contrôle de qualité, 50 000 lignes (AOT) | 300 ms | 200 ms, mémorisé dans l'écran |
+| Tableau 1, 50 000 lignes | — | 170 ms |
+| Tableau 2 logistique, 5 000 lignes | — | 120 ms |
+| Exports (poster, présentation, article, PDF) | — | ≤ 45 ms chacun |
+
+Causes corrigées : l'extraction PICO parcourait le texte entier d'un protocole sans phrase interrogative (limitée aux
+2 000 premiers caractères, où se trouvent question et objectif ; question inférée et constats identiques sur SDT2 et
+SPHC) ; les colonnes d'un jeu de données étaient recalculées à chaque lecture (mises en cache par instance, le jeu étant
+immuable) ; la lecture des nombres copiait chaque chaîne (raccourci pour les valeurs commençant par un chiffre, même
+résultat : `import_test.dart`) ; le contrôle de qualité était refait à chaque reconstruction de l'étape 4. Mesures sur
+ordinateur ; un téléphone modeste est 5 à 10 fois plus lent, ce qui laisse chaque opération sous la seconde pour
+5 000 lignes.

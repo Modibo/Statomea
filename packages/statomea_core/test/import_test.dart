@@ -87,4 +87,29 @@ void main() {
           throwsA(isA<StatInputError>().having((e) => e.message, 'message', contains('computation log'))));
     });
   });
+
+  test('lecture des nombres et des manquants : raccourcis sans changement de résultat', () {
+    expect(parseNumber('12.5'), 12.5);
+    expect(parseNumber(' 12,5 '), 12.5);
+    expect(parseNumber('1 000'), 1000);
+    expect(parseNumber('1,000.5'), isNull);
+    expect(parseNumber('12abc'), isNull);
+    expect(parseNumber('-3'), -3);
+    expect(parseNumber('NaN'), isNull);
+    expect(parseNumber('NA'), isNull);
+    expect(parseNumber('1e3'), 1000);
+    for (final m in ['', ' ', 'NA', 'n/a', '.', '-', 'Manquant', ' missing ', null]) {
+      expect(isMissingToken(m), isTrue, reason: '$m');
+    }
+    for (final v in ['0', '12', 'non renseigné', 'manquants', 'négatif']) {
+      expect(isMissingToken(v), isFalse, reason: v);
+    }
+    final ds = Dataset(['x'], [['1'], ['NA'], ['2,5']]);
+    expect(ds.numeric('x'), [1, null, 2.5]);
+    expect(identical(ds.numeric('x'), ds.numeric('x')), isTrue);
+    expect(() => ds.text('x').add('3'), throwsUnsupportedError);
+    final corrected = ds.applyCorrection(const Correction(id: 'c1', variable: 'x', action: 'set_missing', rows: [0], reason: 'test'));
+    expect(corrected.numeric('x'), [null, null, 2.5]);
+    expect(ds.numeric('x'), [1, null, 2.5]);
+  });
 }

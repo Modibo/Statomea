@@ -107,7 +107,8 @@ String _slug(String s) => _n(s).replaceAll(RegExp(r"[^a-z0-9]+"), '_').replaceAl
 class LabTest {
   final String code, label;
   final String? method; // méthode de dosage citée à proximité
-  const LabTest(this.code, this.label, this.method);
+  final String pattern; // motif de reconnaissance (texte normalisé)
+  const LabTest(this.code, this.label, this.method, [this.pattern = '']);
 }
 
 /// Analytes usuels : nom de colonne, libellé, motif de reconnaissance (texte normalisé).
@@ -165,7 +166,7 @@ List<LabTest> protocolLabTests(Project p) {
       if (method != null) break;
     }
     final m = ms.first;
-    found.add((m.start, LabTest(code, label(), method)));
+    found.add((m.start, LabTest(code, label(), method, re)));
   }
   found.sort((a, b) => a.$1.compareTo(b.$1));
   return [for (final f in found) f.$2];
@@ -219,7 +220,8 @@ List<CrfField> crfFields(Project p) {
       // Doublon : même nom de colonne, ou même premier mot (« glycemie » ↔ « glycemie_jeun ») ; l'hémoglobine (Hb) reste
       // distincte de l'hémoglobine glyquée (HbA1c).
       final stem = l.code.split('_').first;
-      if (out.any((f) => f.code == l.code || f.code.split('_').first == stem)) continue;
+      // … ou variable déjà décrite qui désigne le même analyte (« numération plaquettaire » ↔ « plaquettes »).
+      if (out.any((f) => f.code == l.code || f.code.split('_').first == stem || (l.pattern.isNotEmpty && RegExp(l.pattern).hasMatch(_n('${f.code} ${f.label}'))))) continue;
       add(_field(l.code, l.label));
     }
   }

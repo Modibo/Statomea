@@ -242,9 +242,19 @@ class DataStepState extends State<DataStep> {
     ]);
   }
 
+  // Le contrôle de qualité parcourt toutes les lignes : il n'est refait que si les données, l'issue ou le dictionnaire
+  // changent, et non à chaque reconstruction de l'écran.
+  (Dataset, String)? _qualityKey;
+  QualityReport? _qualityReport;
+
   List<Widget> _quality(Dataset d) {
     final predictors = [for (final n in d.names) if (n != outcomeVar && d.dictionary[n]!.type != VarType.identifier) n];
-    final rep = checkQuality(d, outcome: outcomeVar, predictors: predictors);
+    final sig = [outcomeVar, for (final n in d.names) [n, d.dictionary[n]!.type, d.dictionary[n]!.min, d.dictionary[n]!.max, d.dictionary[n]!.reference].join('|')].join('¦');
+    if (_qualityReport == null || !identical(_qualityKey!.$1, d) || _qualityKey!.$2 != sig) {
+      _qualityReport = checkQuality(d, outcome: outcomeVar, predictors: predictors);
+      _qualityKey = (d, sig);
+    }
+    final rep = _qualityReport!;
     if (rep.issues.isEmpty) return [Banner2(Severity.info, tr('Aucune anomalie détectée par les contrôles automatiques.', 'No anomaly detected by the automatic checks.'))];
     return [
       Text(tr('${rep.count(Severity.critical)} bloquante(s), ${rep.count(Severity.serious)} grave(s), ${rep.count(Severity.caution)} à surveiller, ${rep.count(Severity.info)} information(s).', '${rep.count(Severity.critical)} blocking, ${rep.count(Severity.serious)} serious, ${rep.count(Severity.caution)} to watch, ${rep.count(Severity.info)} information.')),

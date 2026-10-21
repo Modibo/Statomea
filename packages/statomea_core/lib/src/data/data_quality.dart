@@ -76,11 +76,13 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
   final excluded = ds.excludedRows;
   final rowsIdx = [for (var i = 0; i < ds.rowCount; i++) if (!excluded.contains(i)) i];
 
+  final cols = {for (final n in ds.names) n: ds.raw(n)};
+
   // Doublons de lignes complètes.
   final seen = <String, int>{};
   final dupRows = <int>[];
   for (final i in rowsIdx) {
-    final key = [for (final n in ds.names) if (ds.dictionary[n]?.type != VarType.identifier) ds.cell(i, n) ?? ''].join('\u0001');
+    final key = [for (final n in ds.names) if (ds.dictionary[n]?.type != VarType.identifier) cols[n]![i] ?? ''].join('\u0001');
     if (seen.containsKey(key)) {
       dupRows.add(i);
     } else {
@@ -99,7 +101,7 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
   if (idVar != null) {
     final counts = <String, List<int>>{};
     for (final i in rowsIdx) {
-      final v = ds.cell(i, idVar);
+      final v = cols[idVar]![i];
       if (v != null && !isMissingToken(v)) counts.putIfAbsent(v.trim(), () => []).add(i);
     }
     final rep = counts.entries.where((e) => e.value.length > 1).toList();
@@ -117,7 +119,8 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
 
   for (final name in ds.names) {
     final v = ds.dictionary[name]!;
-    final txt = [for (final i in rowsIdx) ds.cell(i, name)];
+    final col = cols[name]!;
+    final txt = [for (final i in rowsIdx) col[i]];
     final miss = [for (var k = 0; k < txt.length; k++) if (isMissingToken(txt[k])) rowsIdx[k]];
     final present = [for (final t in txt) if (!isMissingToken(t)) t!.trim()];
     summaries.add(VariableSummary(name, v.type, miss.length, present.toSet().length,
@@ -139,9 +142,10 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
       // Valeurs non numériques dans une colonne quantitative.
       final bad = <int>[];
       final badVals = <String>{};
+      final numbers = ds.numeric(name);
       for (var k = 0; k < txt.length; k++) {
         final t = txt[k];
-        if (!isMissingToken(t) && parseNumber(t) == null) {
+        if (!isMissingToken(t) && numbers[rowsIdx[k]] == null) {
           bad.add(rowsIdx[k]);
           badVals.add(t!.trim());
         }
@@ -157,7 +161,7 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
                 ? tr("Valeurs censurées (« < seuil ») : décider explicitement d'une règle (seuil, seuil/2, analyse adaptée) et la documenter.", 'Censored values ("< threshold"): decide an explicit rule (threshold, threshold/2, suitable analysis) and document it.')
                 : tr('Corriger à la source ou mettre en manquant de façon journalisée.', 'Correct at the source or set to missing with a logged entry.')));
       }
-      final nums = [for (var k = 0; k < txt.length; k++) (row: rowsIdx[k], x: parseNumber(txt[k]))]
+      final nums = [for (var k = 0; k < txt.length; k++) (row: rowsIdx[k], x: numbers[rowsIdx[k]])]
           .where((e) => e.x != null)
           .toList();
       // Bornes plausibles : dictionnaire, sinon connaissances par défaut.
@@ -310,7 +314,7 @@ QualityReport checkQuality(Dataset ds, {String? outcome, String? idVariable, Lis
     final start = dates.first, end = dates.last;
     final bad = <int>[];
     for (final i in rowsIdx) {
-      final a = _parseDate(ds.cell(i, start)), b = _parseDate(ds.cell(i, end));
+      final a = _parseDate(cols[start]![i]), b = _parseDate(cols[end]![i]);
       if (a != null && b != null && b.isBefore(a)) bad.add(i);
     }
     if (bad.isNotEmpty) {

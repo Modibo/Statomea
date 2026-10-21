@@ -18,7 +18,15 @@ import 'package:statomea/l10n/gen/app_localizations.dart';
 import 'package:statomea/main.dart';
 import 'package:statomea/screens/home_screen.dart';
 import 'package:statomea/screens/lesson_screen.dart';
+import 'package:statomea/screens/flow_screen.dart';
+import 'package:statomea/screens/planning_screen.dart';
 import 'package:statomea/screens/project_screen.dart';
+import 'package:statomea/screens/references_screen.dart';
+import 'package:statomea/screens/review_screen.dart';
+import 'package:statomea/screens/reviewer_screen.dart';
+import 'package:statomea/screens/roadmap_screen.dart';
+import 'package:statomea/screens/supervisor_screen.dart';
+import 'package:statomea/screens/tutor_screen.dart';
 import 'package:statomea/services/storage.dart';
 import 'package:statomea/state/app_state.dart';
 import 'package:statomea/widgets/calculators.dart';
@@ -56,7 +64,7 @@ Widget _app(AppState s, Widget home, {Brightness b = Brightness.light, double te
 
 void main() {
   late AppState state;
-  late Project demoAghbs, demoMeta, demoPred, rnaPlan, demoTb, demoGwas, demoPoly, demoMr, demoSurv;
+  late Project demoAghbs, demoMeta, demoPred, rnaPlan, demoTb, demoGwas, demoPoly, demoMr, demoSurv, imported;
   late AnalysisResult ldsc, rgResult, prsResult, glmmResult, mrResult;
 
   setUpAll(() async {
@@ -75,6 +83,31 @@ void main() {
     demoMr = buildDemoMr(File('assets/demos/mr_ldl_chd.csv').readAsStringSync());
     demoSurv = buildDemoSurvivalAdvanced(File('assets/demos/risques_concurrents_simule.csv').readAsStringSync());
     state.projects.addAll([demoMeta, demoAghbs]);
+    // Projet tiré d'un protocole (relecture avec grille, variables, bibliographie, relecteurs, flux, budget).
+    final d = protocolFromText('''Titre du projet
+Anémie des femmes enceintes : étude transversale
+Objectif principal
+Rechercher les facteurs associés à l'anémie chez les femmes enceintes.
+Type et durée de l'étude
+Étude transversale ; la durée totale de l'étude sera de douze mois.
+Population d'étude
+Femmes enceintes de 18 ans ou plus ; non-inclusion : refus de consentement.
+Nombre de sujets nécessaires
+Avec une prévalence attendue de 40 %, une marge d'erreur de 5 %, il faut 369 femmes ; en ajoutant 10 % pour les refus, nous inclurons 406 femmes.
+Variables étudiées
+Les informations suivantes seront recueillies : l'âge, le poids, la parité et l'hémoglobine.
+Analyse statistique
+Test du khi-deux au seuil de 5 %.
+''');
+    imported = Project(id: 'imp', title: d.title, createdAt: '')
+      ..question = d.toQuestion()
+      ..protocol = Map.of(d.fullSections)
+      ..analysisPlan = d.sections['analysis']!;
+    imported.inferred['plannedSampleSize'] = '${d.sampleSize}';
+    imported.references.addAll(parseReferences('TY  - JOUR\nTI  - Anaemia in pregnancy\nAU  - Diallo, Awa\nPY  - 2022\nJO  - BMC Pregnancy Childbirth\nER  - \n'));
+    imported.reviewerItems.addAll(analyseReviewerComments(imported, 'Reviewer 1\n1. Please report confidence intervals.\n2. How were missing data handled?'));
+    imported.flow.addAll({'assessed': '450', 'excluded_reasons': 'refus : 44', 'included': '406', 'analysed': '400'});
+    state.projects.add(imported);
     final ld = parsePlinkBed(File('assets/demos/genotypes_dl_simule.bed').readAsBytesSync(), File('assets/demos/genotypes_dl_simule.bim').readAsStringSync(),
         File('assets/demos/genotypes_dl_simule.fam').readAsStringSync());
     final ldDs = genotypeDataset(ld);
@@ -138,6 +171,15 @@ void main() {
         'leçon causalité': LessonScreen(state.lessons.firstWhere((l) => l.id == 'causal_mr')),
         for (final m in ['genetic_association', 'genotype_qc', 'mutation_phenotype', 'qpcr_relative', 'differential_expression', 'local_alignment', 'mendelian_randomization', 'mendelian_randomization_mv'])
           'atelier génomique — $m': Scaffold(body: SingleChildScrollView(child: CalculatorPanel(initialMethod: m))),
+        'feuille de route': RoadmapScreen(imported),
+        'relecture (démo)': ReviewScreen(demoAghbs),
+        'relecture (protocole importé)': ReviewScreen(imported),
+        'mode tuteur': TutorScreen(imported),
+        'diagramme de flux': FlowScreen(imported),
+        'budget et chronogramme': PlanningScreen(imported),
+        'tableau de bord encadrant': const SupervisorScreen(),
+        'bibliographie': ReferencesScreen(imported),
+        'réponse aux relecteurs': ReviewerScreen(imported),
         'atelier génomique — plan d\'expression (projet)': Scaffold(body: SingleChildScrollView(child: CalculatorPanel(project: rnaPlan, initialMethod: 'differential_expression'))),
       };
 

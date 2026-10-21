@@ -208,9 +208,11 @@ QuestionInference inferQuestion(String text) {
     reasons.add(Inference('timeVaryingExposure', tr('oui', 'yes'), tvEv));
   }
 
-  // PICO et horizon (première phrase interrogative, sinon tout le texte). Les motifs portent sur le texte normalisé
-  // (sans accents), le passage est repris dans le texte d'origine aux mêmes positions.
-  final sentence = RegExp(r"[^.?!\n]*\?").firstMatch(o)?.group(0) ?? o;
+  // PICO et horizon (première phrase interrogative, sinon le début du texte : la question et l'objectif viennent en
+  // tête, et les motifs à longueur bornée deviendraient lents sur un protocole entier). Les motifs portent sur le texte
+  // normalisé (sans accents), le passage est repris dans le texte d'origine aux mêmes positions.
+  final head = o.length > 2000 ? o.substring(0, 2000) : o;
+  final sentence = RegExp(r"[^.?!\n]*\?").firstMatch(head)?.group(0) ?? head;
   final ns = _norm(sentence);
   final sameLength = ns.length == sentence.length;
   String? grab(RegExp re, int group) {
@@ -559,7 +561,7 @@ ProtocolDraft protocolFromText(String raw) {
   final boiler = RegExp(r"^(realise|presente|redige|soutenu|these (dirigee|realisee)|dirige|par\b|republique|ministere|universite|faculte|ecole|institut|departement|promotion|annee|protocole( de| d'|$)|version|code|date|\*+|un peuple)");
   final firstText = nonEmpty.firstWhere((l) => l.length >= 15 && !boiler.hasMatch(_headingKey(l)), orElse: () => nonEmpty.first);
   final t0 = titleLine ?? firstText;
-  final title = t0.length > 160 ? '${t0.substring(0, 160)}…' : t0;
+  final title = t0.length > 300 ? '${t0.substring(0, 300)}…' : t0;
   final question = q ?? objectiveFirst ?? title;
   // Le titre dit souvent le plan (« Essai randomisé… », « Étude transversale… »).
   final basis = [question, ...[sections['objective'], sections['design'], sections['outcome'], sections['intervention'], sections['comparator']].whereType<String>(), ?titleLine].join('\n');

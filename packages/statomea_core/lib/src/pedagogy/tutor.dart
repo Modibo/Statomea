@@ -75,7 +75,13 @@ List<TutorQuestion> tutorQuestions(Project p) {
           StudyDesign.cohort || StudyDesign.rct => q.outcomeType == OutcomeType.timeToEvent ? measures[3] : measures[0],
           _ => null,
         };
-  if (right != null) {
+  if (q.objective == StudyObjective.predictive) {
+    out.add(_q(Step.studyPlan, tr('Votre objectif est de prédire « ${q.outcome.isEmpty ? 'l\'issue' : q.outcome} ». Quelle mesure décrit la capacité du modèle à distinguer les patients qui auront l\'événement de ceux qui ne l\'auront pas ?', 'Your aim is to predict "${q.outcome.isEmpty ? 'the outcome' : q.outcome}". Which measure describes the model\'s ability to separate patients who will have the event from those who will not?'),
+        tr('L\'aire sous la courbe ROC (statistique C)', 'The area under the ROC curve (C statistic)'),
+        [tr('Le risque relatif de chaque prédicteur', 'The relative risk of each predictor'), tr('La valeur de p du test global', 'The p-value of the global test'), tr('Le nombre de prédicteurs significatifs', 'The number of significant predictors')],
+        tr('On parle de discrimination : classer les patients à haut risque avant ceux à bas risque.', 'This is discrimination: ranking high-risk patients above low-risk ones.'),
+        tr('La discrimination se mesure par l\'AUC (statistique C) ; elle se complète par la calibration (risques prédits proches des risques observés).', 'Discrimination is measured by the AUC (C statistic); it is complemented by calibration (predicted risks close to observed risks).'), personalised: true));
+  } else if (right != null) {
     out.add(_q(Step.studyPlan, tr('Plan de votre étude : ${designLabel(q.design).toLowerCase()} ; critère ${types[q.outcomeType] ?? 'non précisé'}. Quelle mesure d\'association est la plus adaptée ?', 'Your study design: ${designLabel(q.design).toLowerCase()}; outcome ${types[q.outcomeType] ?? 'not specified'}. Which measure of association is most appropriate?'),
         right, [for (final m in [...measures, diff]) if (m != right) m],
         q.design == StudyDesign.caseControl
@@ -150,8 +156,14 @@ List<TutorQuestion> tutorQuestions(Project p) {
         tr('L\'issue est binaire : la normalité n\'a pas de sens.', 'The outcome is binary: normality is meaningless.'), tr('Trop peu d\'événements par variable rend les coefficients instables ; une variable continue non linéaire biaise l\'OR.', 'Too few events per variable makes coefficients unstable; a non-linear continuous variable biases the OR.')));
   }
 
-  // 8. Interprétation : portée causale.
-  if (q.design != StudyDesign.unknown) {
+  // 8. Interprétation : portée causale (ou, pour un modèle de prédiction, validité en dehors de l'échantillon).
+  if (q.objective == StudyObjective.predictive) {
+    out.add(_q(Step.interpretation, tr('Votre modèle a une bonne AUC après validation interne par bootstrap. Peut-on le recommander pour la pratique ?', 'Your model has a good AUC after internal bootstrap validation. Can it be recommended for practice?'),
+        tr('Pas encore : il faut une validation externe et une évaluation de l\'utilité clinique', 'Not yet: external validation and an assessment of clinical utility are needed'),
+        [tr('Oui, la validation interne suffit', 'Yes, internal validation is enough'), tr('Oui, si tous les prédicteurs sont significatifs', 'Yes, if all predictors are significant'), tr('Oui, si l\'effectif dépasse 500 patients', 'Yes, if the sample exceeds 500 patients')],
+        tr('La validation interne corrige l\'optimisme mais reste sur la même population.', 'Internal validation corrects optimism but stays within the same population.'),
+        tr('Un modèle doit être validé dans d\'autres centres ou périodes (validation externe), puis montrer un bénéfice clinique (courbe de décision) avant d\'être utilisé.', 'A model must be validated in other centres or periods (external validation), then show clinical benefit (decision curve) before use.'), personalised: true));
+  } else if (q.design != StudyDesign.unknown) {
     final rct = q.design == StudyDesign.rct;
     out.add(_q(Step.interpretation, tr('Plan de votre étude : ${designLabel(q.design).toLowerCase()}. Une association significative permet-elle de conclure à un effet causal ?', 'Your study design: ${designLabel(q.design).toLowerCase()}. Does a significant association allow a causal conclusion?'),
         rct ? tr('Oui pour la comparaison randomisée du critère principal ; non pour les analyses secondaires', 'Yes for the randomised comparison of the primary outcome; not for secondary analyses') : tr('Non : on conclut à une association, la confusion résiduelle restant possible', 'No: we conclude on an association, residual confounding remaining possible'),

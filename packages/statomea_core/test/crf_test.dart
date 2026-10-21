@@ -106,4 +106,18 @@ Les données seront analysées avec R.
     expect(lab.quantity, 500);
     expect(p.protocol['analysis'], contains('analysées avec R'), reason: 'la rubrique d\'examens se ferme à la rubrique suivante');
   });
+
+  test('un analyte décrit dans les variables n\'est pas répété depuis la rubrique d\'examens (numération plaquettaire ↔ plaquettes)', () {
+    final p = _imported("""
+Titre du projet
+Hémostase
+Variables étudiées
+Pour l'hémostase, il s'agissait de l'INR, du fibrinogène et de la numération plaquettaire.
+Examens de laboratoire
+Numération des plaquettes et de l'hémoglobine sur automate d'hématologie ; créatinine.
+""");
+    final codes = crfFields(p).map((f) => f.code).toList();
+    expect(codes.where((c) => c.contains('plaquet')).length, 1);
+    expect(codes, containsAll(['hemoglobine', 'creatinine']));
+  });
 }
