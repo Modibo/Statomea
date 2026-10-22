@@ -1,0 +1,20 @@
+{
+  "n": 240,
+  "cured_zinc": 82,
+  "cured_placebo": 62,
+  "n_required": 151.868862473957,
+  "power_120": 0.701089959370678,
+  "itt_props": [0.516666666666667, 0.683333333333333],
+  "per_protocol_n": 207,
+  "_meta": {
+    "R": "R version 4.2.3 (2023-03-15)",
+    "generated": "2026-10-22",
+    "packages": [
+      "metafor 5.2.1",
+      "logistf 1.26.0",
+      "pROC 1.19.0.1",
+      "sandwich 3.1.0",
+      "car 3.1.3"
+    ]
+  }
+}

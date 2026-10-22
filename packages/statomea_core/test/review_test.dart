@@ -292,8 +292,8 @@ Test t de Student au seuil de 5 %.
     expect(sp.missing.map((i) => i.code), containsAll(['2', '16a', '16b', '17', '20', '22', '24', '26']));
     applyAllCorrections(rct);
     final sp2 = protocolChecklist(rct)!;
-    expect(['16a', '16b', '17', '20'].every((k) => has(sp2, k)), isTrue);
-    expect(sp2.missing.map((i) => i.code), containsAll(['2', '22', '24', '26']), reason: 'enregistrement, événements indésirables, éthique : à rédiger par le chercheur');
+    expect(['2', '16a', '16b', '17', '20'].every((k) => has(sp2, k)), isTrue, reason: 'l\'enregistrement est proposé en correction depuis 1.68.0');
+    expect(sp2.missing.map((i) => i.code), containsAll(['22', '24', '26']), reason: 'événements indésirables, éthique : à rédiger par le chercheur');
     expect(protocolChecklist(Project(id: 'u', title: 'U', createdAt: '')), isNull, reason: 'plan non précisé : pas de grille');
   });
 
@@ -382,5 +382,60 @@ Analyse en intention de traiter ; comparaison des proportions par le test du khi
     // Sans analyse intermédiaire, rien n'est demandé.
     final none = reviewProject(imported(essai.replaceFirst(' Une analyse intermédiaire sera réalisée à mi-parcours.', '')));
     expect(none.findings.where((f) => f.id.startsWith('interim')), isEmpty);
+  });
+
+  test('essais : effectif à deux bras refait (R), enregistrement, non-infériorité, sous-groupes', () {
+    const base = """
+Titre du projet
+Acide tranexamique chez les blessés hémorragiques : essai randomisé
+Objectif principal
+Comparer la mortalité à J28 entre l'acide tranexamique et le placebo.
+Type d'étude
+Essai contrôlé randomisé en double aveugle, randomisation par liste informatisée en blocs, allocation centralisée.
+Nombre de sujets nécessaires
+Pour détecter une baisse de la mortalité de 20 % à 12 % (puissance 80 %, alpha 5 %), il faut 250 patients par bras.
+Analyse statistique
+Analyse en intention de traiter ; comparaison des proportions par le test du khi-deux au seuil de 5 %. Des analyses en sous-groupes selon le sexe et l'âge seront réalisées.
+""";
+    final p = imported(base);
+    final r = reviewProject(p);
+    // power.prop.test(p1 = 0,2, p2 = 0,12, power = 0,8) : n = 328,47 → 329 ; avec n = 250 : puissance 0,685.
+    final short = find(r, 'rct_sample_size_short')!;
+    expect(short.level, ReviewLevel.error);
+    expect(short.problem, allOf(contains('n = 329 par bras'), contains('puissance de 69 %')));
+    expect(short.evidence, contains('250 patients par bras'));
+    expect(short.calculatorPresets, {'type': 'two_props', 'p1': '0,2', 'p2': '0,12', 'alpha': '0,05', 'power': '0,8'});
+    expect(find(r, 'trial_registration')!.level, ReviewLevel.missing);
+    expect(find(r, 'subgroup_interaction')!.evidence, contains('sous-groupes selon le sexe'));
+    expect(find(r, 'noninferiority_pp'), isNull, reason: 'essai de supériorité');
+    applyAllCorrections(p, date: '2026-10-22');
+    expect(p.inferred['plannedSampleSize'], '658');
+    expect(p.analysisPlan, allOf(contains('PACTR'), contains('test d\'interaction')));
+    final r2 = reviewProject(p);
+    for (final id in ['rct_sample_size_short', 'trial_registration', 'subgroup_interaction']) {
+      expect(find(r2, id), isNull, reason: id);
+    }
+    // Effectif conforme, enregistrement cité, interaction prévue : rien à redire.
+    final good = reviewProject(imported(base
+        .replaceFirst('250 patients par bras', '329 patients par bras')
+        .replaceFirst('allocation centralisée.', 'allocation centralisée. L\'essai sera enregistré sur ClinicalTrials.gov.')
+        .replaceFirst('seront réalisées.', 'seront réalisées, avec un test d\'interaction.')));
+    expect(find(good, 'rct_sample_size_ok')!.title, 'Effectif de l\'essai refait : 329 par bras');
+    for (final id in ['rct_sample_size_short', 'trial_registration', 'subgroup_interaction']) {
+      expect(find(good, id), isNull, reason: id);
+    }
+    // Deux moyennes : power.t.test(delta = 5, sd = 12, power = 0,9) : n = 122,01 → 123 ; avec 100 par bras : 0,834.
+    final means = reviewProject(imported(base.replaceFirst(
+        'Pour détecter une baisse de la mortalité de 20 % à 12 % (puissance 80 %, alpha 5 %), il faut 250 patients par bras.',
+        'Pour détecter une différence de 5 mmHg de pression artérielle (écart-type 12 mmHg), avec une puissance de 90 % et un risque alpha de 5 %, il faut 100 patients par groupe.')));
+    expect(find(means, 'rct_sample_size_short')!.problem, allOf(contains('n = 123 par bras'), contains('power.t.test'), contains('puissance de 83 %')));
+    // Non-infériorité sans marge ni per protocole.
+    final ni = reviewProject(imported(base.replaceFirst('Comparer la mortalité', 'Montrer la non-infériorité de la mortalité')));
+    expect(find(ni, 'noninferiority_margin')!.level, ReviewLevel.missing);
+    expect(find(ni, 'noninferiority_pp')!.fix, isNotNull);
+    final ni2 = reviewProject(imported(base.replaceFirst('Comparer la mortalité', 'Montrer la non-infériorité, avec une marge de 5 points, de la mortalité')
+        .replaceFirst('intention de traiter ;', 'intention de traiter et per protocole ;')));
+    expect(find(ni2, 'noninferiority_margin'), isNull);
+    expect(find(ni2, 'noninferiority_pp'), isNull);
   });
 }

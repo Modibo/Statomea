@@ -8,6 +8,7 @@ import '../app_version.dart';
 import '../services/update/update_check.dart';
 import 'package:statomea_core/statomea_core.dart' show tr;
 import '../state/app_state.dart';
+import '../widgets/common.dart' show showModesHelp;
 import 'calculators_screen.dart';
 import 'learn_screen.dart';
 import 'projects_screen.dart';
@@ -71,13 +72,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Widget modeSwitch({bool expanded = false}) => SegmentedButton<bool>(
           expandedInsets: expanded ? EdgeInsets.zero : null,
           segments: [
-            ButtonSegment(value: false, label: Text(t.modeGuided), icon: Icon(Icons.lightbulb_rounded, color: dark ? Colors.amber.shade300 : Colors.amber.shade800)),
-            ButtonSegment(value: true, label: Text(t.modeExpert), icon: Icon(Icons.science_rounded, color: dark ? const Color(0xFF5FD3A6) : const Color(0xFF0B8A60))),
+            ButtonSegment(value: false, label: Text(t.modeGuided), tooltip: tr('Résultats essentiels, réglages courants choisis pour vous', 'Essential results, usual settings chosen for you'), icon: Icon(Icons.lightbulb_rounded, color: dark ? Colors.amber.shade300 : Colors.amber.shade800)),
+            ButtonSegment(value: true, label: Text(t.modeExpert), tooltip: tr('Tous les résultats, formules et réglages avancés', 'All results, formulas and advanced settings'), icon: Icon(Icons.science_rounded, color: dark ? const Color(0xFF5FD3A6) : const Color(0xFF0B8A60))),
           ],
           selected: {state.expertMode},
           showSelectedIcon: false,
           onSelectionChanged: (s) => state.setExpert(s.first),
         );
+    final modesHelp = IconButton(
+      icon: const Icon(Icons.info_outline),
+      tooltip: tr('Que changent les modes ?', 'What do the modes change?'),
+      onPressed: () => showModesHelp(context),
+    );
     void switchLang(String code) {
       if (code == state.localeCode) return;
       state.setLocale(code);
@@ -132,9 +138,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Flexible(child: Text(t.appTitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
         ]),
         titleSpacing: 16,
-        actions: [if (c.maxWidth >= 600) ...[modeSwitch(), const SizedBox(width: 12)], langMenu],
+        actions: [if (c.maxWidth >= 600) ...[modeSwitch(), modesHelp, const SizedBox(width: 4)], langMenu],
         bottom: c.maxWidth < 600
-            ? PreferredSize(preferredSize: const Size.fromHeight(56), child: Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: modeSwitch(expanded: true)))
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(padding: const EdgeInsets.fromLTRB(16, 0, 4, 8), child: Row(children: [Expanded(child: modeSwitch(expanded: true)), modesHelp])))
             : null,
       );
       if (!state.loaded) return const Scaffold(body: Center(child: CircularProgressIndicator()));

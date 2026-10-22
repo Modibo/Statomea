@@ -1353,3 +1353,32 @@ la page d'accueil (Word et CSV, solution repliée). L'essai a révélé deux dé
 - la version anglaise ne recalculait pas l'effectif d'une prévalence (« margin of error » non reconnu) ni la rubrique
   « Variables ».
 Question inférée et constats identiques avant et après sur les protocoles réels SDT2 et SPHC.
+
+## Modes Guidé et Expert expliqués, relecture des essais, second projet d'exemple — 1.68.0
+
+Modes (`modes_test.dart`) : bulles d'aide sur les deux boutons du sélecteur, bouton (i) « Que changent les modes ? »
+(liste des différences, rappel que les calculs sont identiques), et, en mode Guidé, ligne « Réglages avancés (…) en
+mode Expert » avec un bouton de bascule dans les résultats, l'atelier de régression, l'atelier de prédiction,
+l'import de génotypes et le dictionnaire des variables. Même texte dans le guide (chapitre 2).
+
+Relecture des essais (`review_test.dart`) :
+- effectif d'un essai à deux bras refait à partir des hypothèses du protocole, par les calculs exacts déjà validés
+  (`sampleSizeTwoProportions` = power.prop.test, `sampleSizeTwoMeans` = power.t.test) ; un effectif par bras
+  insuffisant est une erreur, avec la puissance réelle (20 % → 12 %, 250 par bras : 69 %, R 0,685 ; différence 5,
+  ÉT 12, puissance 90 % : 123 par bras, R 122,01 ; 100 par bras : 83 %, R 0,834) et le calculateur prérempli ;
+- enregistrement de l'essai (PACTR, ClinicalTrials.gov) avant la première inclusion ;
+- non-infériorité ou équivalence : marge fixée à l'avance, analyse per protocole en plus de l'intention de traiter ;
+- sous-groupes annoncés sans test d'interaction (toutes études).
+Aucun de ces constats ne se déclenche sur les protocoles réels SDT2 et SPHC.
+
+Deux défauts anciens trouvés en route et corrigés : les pourcentages entiers des constats perdaient leur zéro final
+(« 80 % » affiché « 8 % », dont la part de l'effectif atteint) ; un objectif anglais contenant « cure » (4 lettres)
+faisait échouer la relecture.
+
+Second projet d'exemple (`example_test.dart`, `example_project_test.dart`) : essai randomisé fictif (zinc et SRO dans
+la diarrhée aiguë de l'enfant, FR et EN) et données simulées par `validation/r/58_demo_zinc.R` (240 enfants 1:1,
+guérison à J5 : 62/120 sous placebo, 82/120 sous zinc ; observance incomplète). La relecture retrouve ses sept erreurs
+cachées : 120 enfants par bras au lieu de 152 (power.prop.test 151,87 ; puissance réelle 0,701), essai non enregistré,
+randomisation non décrite, analyse des seuls observants, analyse intermédiaire sans règle d'arrêt ni comité,
+sous-groupes sans interaction. L'écran Projets propose le choix entre les deux exemples ; la page d'accueil offre les
+deux protocoles Word et leurs données, avec les solutions.

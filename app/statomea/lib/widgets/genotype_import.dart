@@ -526,6 +526,7 @@ class GenotypeImportToolState extends State<GenotypeImportTool> {
       if (covariateTable != null)
         Text(tr('Covariables : $covariateName (${covariateTable!.names.skip(1).join(', ')})', 'Covariates: $covariateName (${covariateTable!.names.skip(1).join(', ')})'),
             style: Theme.of(context).textTheme.bodySmall),
+      ExpertHint(tr('seuils du contrôle de qualité', 'quality-control thresholds')),
       if (expert) ...[
         const SizedBox(height: 10),
         Wrap(spacing: 12, runSpacing: 12, children: [

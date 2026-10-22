@@ -92,6 +92,7 @@ class ResultView extends StatelessWidget {
             SectionLabel(tr('Hypothèses et diagnostics', 'Assumptions and diagnostics'), icon: Icons.fact_check_outlined),
             for (final c in r.checks) CheckTile(c, detailed: expert),
           ],
+          ExpertHint(tr('toutes les estimations et tableaux, formule, journal de calcul', 'all estimates and tables, formula, computation log')),
           if (expert) ...[
             const SizedBox(height: 8),
             ExpansionTile(

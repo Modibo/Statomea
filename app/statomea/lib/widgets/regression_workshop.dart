@@ -336,6 +336,7 @@ class _RegressionWorkshopState extends State<RegressionWorkshop> {
             terms = l;
             interactions = [for (final i in interactions) if (l.any((t) => t.variable == i.$1) && l.any((t) => t.variable == i.$2)) i];
           }), exclude: {?outcome, if (surv) ?status, if (model == 'mixed' || model == 'gee' || model == 'glmm') ?subjectCol, if (model == 'counts') ?exposureCol}),
+      ExpertHint(tr('transformations, interactions, options des modèles', 'transformations, interactions, model options')),
       if (expert && terms.length >= 2) ...[
         const SizedBox(height: 6),
         Text('Interactions', style: Theme.of(context).textTheme.titleSmall),

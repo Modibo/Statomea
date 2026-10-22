@@ -18,6 +18,9 @@ import 'dart:math' as math;
 import '../advisor/advisor.dart';
 import '../audit/audit.dart' show foldAccents;
 import '../i18n.dart';
+import '../model/result.dart' show AnalysisResult, StatInputError;
+import '../inference/power.dart' show powerTwoMeansD, powerTwoProportionsN;
+import '../inference/sample_size.dart' show sampleSizeTwoMeans, sampleSizeTwoProportions;
 import '../model/design.dart';
 import '../prediction/performance.dart' show rileySampleSize;
 import 'project.dart';
@@ -89,7 +92,9 @@ String? _quote(String original, RegExp re) {
 double? _num(String s) => double.tryParse(s.replaceAll(',', '.'));
 
 String _fmt(double v, [int d = 2]) {
-  final s = v.toStringAsFixed(d).replaceFirst(RegExp(r'\.?0+$'), '');
+  // Zéros de fin ôtés seulement après la virgule (80 reste 80, et non 8).
+  var s = v.toStringAsFixed(d);
+  if (s.contains('.')) s = s.replaceFirst(RegExp(r'\.?0+$'), '');
   return currentLang == Lang.fr ? s.replaceAll('.', ',') : s;
 }
 
@@ -160,7 +165,7 @@ ProjectReview reviewProject(Project p) {
   final nPrimary = _n(primary);
   final words = <String, String>{};
   for (final m in RegExp(_outcomeWords).allMatches(nPrimary)) {
-    final stem = m.group(0)!.substring(0, 5);
+    final w = m.group(0)!, stem = w.substring(0, math.min(5, w.length)); // « cure » n'a que 4 lettres
     if (words.containsKey(stem)) continue;
     final rest = primary.length == nPrimary.length ? primary.substring(m.start) : m.group(0)!;
     words[stem] = RegExp(r"^[^,;.]{3,60}?(?=\s+et\s+|\s+and\s+|[,;.]|$)").firstMatch(rest)?.group(0)?.trim() ?? m.group(0)!;
@@ -573,6 +578,19 @@ ProjectReview reviewProject(Project p) {
     }
   }
 
+  // Sous-groupes annoncés au plan sans test d'interaction.
+  final subRe = RegExp(r"sous-groupes?|subgroups?|analyses? stratifiees? (selon|par)|stratified analys");
+  if (subRe.hasMatch(nPlan) && !plan(r"interaction|heterogeneite de l'effet|effect modification|modification de l'effet")) {
+    add(ReviewFinding('subgroup_interaction', ReviewLevel.warning, Step.analysisPlan, tr('Sous-groupes sans test d\'interaction', 'Subgroups without an interaction test'),
+        tr('Comparer la valeur de p d\'un sous-groupe à l\'autre (« significatif chez les hommes, pas chez les femmes ») n\'établit pas que l\'effet diffère ; multiplier les sous-groupes produit des faux positifs.',
+            'Comparing p-values between subgroups ("significant in men, not in women") does not show that the effect differs; multiplying subgroups produces false positives.'),
+        tr('Limiter les sous-groupes à quelques-uns, annoncés avec le sens attendu, et les juger par un test d\'interaction ; les présenter comme exploratoires.', 'Limit subgroups to a few, pre-specified with the expected direction, and judge them by an interaction test; present them as exploratory.'),
+        evidence: _quote(planText, subRe),
+        fix: ReviewFix(tr('Paragraphe « sous-groupes » ajouté', '"Subgroups" paragraph added'), (p) => _appendPlan(p, tr('sous-groupes', 'subgroups'),
+            tr('Les analyses en sous-groupes, limitées à celles annoncées ici avec le sens attendu, sont jugées par un test d\'interaction (terme produit dans le modèle) et présentées en forest plot avec leurs IC à 95 % ; elles sont exploratoires.',
+                'Subgroup analyses, limited to those pre-specified here with the expected direction, are judged by an interaction test (product term in the model) and shown in a forest plot with their 95% CIs; they are exploratory.')))));
+  }
+
   // ---- 4 bis. Essai randomisé : randomisation, dissimulation, aveugle, intention de traiter ----
   if (q.design == StudyDesign.rct) {
     bool any(String re) => RegExp(re).hasMatch(nAll);
@@ -603,6 +621,89 @@ ProjectReview reviewProject(Project p) {
           tr('Analyse principale en intention de traiter (tous les randomisés dans leur bras) ; analyse per protocole en sensibilité.', 'Primary analysis by intention to treat (all randomised in their arm); per-protocol analysis as sensitivity.'),
           fix: ReviewFix(tr('Paragraphe « intention de traiter » ajouté', '"Intention to treat" paragraph added'), (p) => _appendPlan(p, tr('population d\'analyse', 'analysis population'),
               tr('L\'analyse principale porte sur tous les patients randomisés, dans le bras attribué (intention de traiter), les données manquantes étant imputées ; une analyse per protocole est présentée en sensibilité.', 'The primary analysis includes all randomised patients in their allocated arm (intention to treat), with missing data imputed; a per-protocol analysis is presented as sensitivity.')))));
+    }
+    // Effectif d'un essai à deux bras, refait à partir des hypothèses du protocole (calcul exact : power.prop.test,
+    // power.t.test).
+    if (ssText.isNotEmpty) {
+      final powM = RegExp(r"(?:puissance|power)\D{0,15}(\d{2}(?:[.,]\d+)?)\s*%").firstMatch(nSs);
+      final alphaM = RegExp(r"(?:alpha|α|risque de premiere espece|type i error|seuil)\D{0,15}(\d(?:[.,]\d+)?)\s*%").firstMatch(nSs);
+      final pw = powM == null ? 0.8 : _num(powM.group(1)!)! / 100, al = alphaM == null ? 0.05 : _num(alphaM.group(1)!)! / 100;
+      final armM = RegExp(r"(?<![\d.,])(\d{2,5})\s+(?:[a-z]+\s+)?(?:par (?:bras|groupe)|per (?:arm|group))").firstMatch(nSs);
+      final propM = RegExp(r"(?<![\d.,])(\d{1,2}(?:[.,]\d+)?)\s*% (?:a|vs\.?|versus|contre|to) (\d{1,2}(?:[.,]\d+)?)\s*%").firstMatch(nSs);
+      final meanM = propM != null
+          ? null
+          : RegExp(r"difference[^.;\d]{0,60}?(\d+(?:[.,]\d+)?)[^.;]{0,80}?(?:ecart[- ]type|standard deviation|\bsd\b)[^\d.;]{0,15}(\d+(?:[.,]\d+)?)").firstMatch(nSs);
+      AnalysisResult? r;
+      try {
+        if (propM != null) {
+          r = sampleSizeTwoProportions(p1: _num(propM.group(1)!)! / 100, p2: _num(propM.group(2)!)! / 100, alpha: al, power: pw);
+        } else if (meanM != null) {
+          r = sampleSizeTwoMeans(delta: _num(meanM.group(1)!)!, sd: _num(meanM.group(2)!)!, alpha: al, power: pw);
+        }
+      } on StatInputError {
+        r = null;
+      }
+      if (r != null && pw > 0.5 && pw < 1 && al > 0 && al < 0.2) {
+        final need = r.statistics['n_per_group']!.round();
+        final stated = armM == null ? null : int.parse(armM.group(1)!);
+        final hyp = propM != null
+            ? '${_fmt(_num(propM.group(1)!)!, 1)} % ${tr('contre', 'vs')} ${_fmt(_num(propM.group(2)!)!, 1)} %'
+            : '${tr('différence', 'difference')} ${_fmt(_num(meanM!.group(1)!)!)}, ${tr('écart-type', 'SD')} ${_fmt(_num(meanM.group(2)!)!)}';
+        final calc = tr('$hyp, α = ${_fmt(al)}, puissance ${_fmt(pw * 100, 0)} % : n = $need par bras (${propM != null ? 'power.prop.test' : 'power.t.test'})',
+            '$hyp, α = ${_fmt(al)}, power ${_fmt(pw * 100, 0)}%: n = $need per arm (${propM != null ? 'power.prop.test' : 'power.t.test'})');
+        final presets = propM != null
+            ? {'type': 'two_props', 'p1': _fmt(_num(propM.group(1)!)! / 100, 4), 'p2': _fmt(_num(propM.group(2)!)! / 100, 4), 'alpha': _fmt(al), 'power': _fmt(pw)}
+            : {'type': 'two_means', 'delta': _fmt(_num(meanM!.group(1)!)!), 'sd': _fmt(_num(meanM.group(2)!)!), 'alpha': _fmt(al), 'power': _fmt(pw)};
+        if (stated == null || stated >= need) {
+          add(ReviewFinding('rct_sample_size_ok', ReviewLevel.ok, Step.analysisPlan, tr('Effectif de l\'essai refait : $need par bras', 'Trial sample size redone: $need per arm'),
+              stated == null ? '$calc.' : tr('$calc ; le protocole en prévoit $stated, conforme.', '$calc; the protocol plans $stated, consistent.'), ''));
+        } else {
+          final real = propM != null
+              ? powerTwoProportionsN(stated.toDouble(), _num(propM.group(1)!)! / 100, _num(propM.group(2)!)! / 100, alpha: al)
+              : powerTwoMeansD(stated.toDouble(), stated.toDouble(), _num(meanM!.group(1)!)! / _num(meanM.group(2)!)!, alpha: al);
+          add(ReviewFinding('rct_sample_size_short', ReviewLevel.error, Step.analysisPlan, tr('Effectif par bras insuffisant', 'Sample size per arm insufficient'),
+              tr('Avec les hypothèses du protocole ($calc), $stated sujets par bras ne donnent qu\'une puissance de ${_fmt(real * 100, 0)} % : un vrai effet de cette taille serait manqué une fois sur ${_fmt(1 / (1 - real), 1)}.',
+                  'With the protocol assumptions ($calc), $stated subjects per arm give only ${_fmt(real * 100, 0)}% power: a true effect of this size would be missed one time in ${_fmt(1 / (1 - real), 1)}.'),
+              tr('Prévoir $need sujets par bras (${2 * need} au total), avant majoration pour les pertes.', 'Plan $need subjects per arm (${2 * need} in total), before adjustment for losses.'),
+              evidence: _quote(ssText, RegExp('(?<![\\d.,])$stated(?![\\d]|[.,]\\d)')),
+              calculator: 'sample_size',
+              calculatorPresets: presets,
+              fix: ReviewFix(tr('Effectif recalculé : $need par bras', 'Sample size recomputed: $need per arm'), (p) {
+                final planned = int.tryParse(p.inferred['plannedSampleSize'] ?? '');
+                if (planned == null || planned < 2 * need) p.inferred['plannedSampleSize'] = '${2 * need}';
+                _appendPlan(p, tr('effectif de l\'essai', 'trial sample size'),
+                    tr('$calc, soit ${2 * need} sujets au total avant majoration pour les pertes (et non $stated par bras, qui ne donnent qu\'une puissance de ${_fmt(real * 100, 0)} %).',
+                        '$calc, i.e. ${2 * need} subjects in total before adjustment for losses (not $stated per arm, which give only ${_fmt(real * 100, 0)}% power).'));
+              })));
+        }
+      }
+    }
+    // Enregistrement de l'essai avant la première inclusion.
+    if (!any(r"clinicaltrials|pactr|isrctn|ictrp|eudract|ctis\b|enregistr\w*[^.]{0,40}(registre|plateforme|essais)|registre (des|d') ?essais|trial regist\w*|registered (in|on|with|at)|registry")) {
+      add(ReviewFinding('trial_registration', ReviewLevel.missing, Step.studyPlan, tr('Enregistrement de l\'essai non prévu', 'Trial registration not planned'),
+          tr('Un essai doit être enregistré dans un registre public avant la première inclusion (déclaration d\'Helsinki, ICMJE) : sans numéro d\'enregistrement, la plupart des revues refusent l\'article, et le critère principal peut être changé après coup sans trace.',
+              'A trial must be registered in a public registry before the first inclusion (Declaration of Helsinki, ICMJE): without a registration number, most journals refuse the article, and the primary outcome can be changed afterwards without trace.'),
+          tr('Enregistrer l\'essai (PACTR pour l\'Afrique, ClinicalTrials.gov ou un registre primaire de l\'OMS) avant la première inclusion, en y déclarant le critère principal.', 'Register the trial (PACTR for Africa, ClinicalTrials.gov or a WHO primary registry) before the first inclusion, declaring the primary outcome.'),
+          fix: ReviewFix(tr('Paragraphe « enregistrement » ajouté', '"Registration" paragraph added'), (p) => _appendPlan(p, tr('enregistrement', 'registration'),
+              tr('L\'essai sera enregistré dans le registre panafricain des essais cliniques (PACTR) ou sur ClinicalTrials.gov avant la première inclusion ; le critère de jugement principal, l\'effectif et le plan d\'analyse y seront déclarés, et le numéro d\'enregistrement sera cité dans toute publication.',
+                  'The trial will be registered in the Pan African Clinical Trials Registry (PACTR) or on ClinicalTrials.gov before the first inclusion; the primary outcome, sample size and analysis plan will be declared there, and the registration number will be cited in every publication.')))));
+    }
+    // Non-infériorité : marge justifiée et analyse per protocole en plus de l'intention de traiter.
+    if (any(r"non[- ]?inferiorit|non[- ]?inferior|equivalence")) {
+      final eq = !any(r"non[- ]?inferior");
+      if (!any(r"marge|margin|\bdelta\b|δ|borne (de non|d'equivalence)")) {
+        add(ReviewFinding('noninferiority_margin', ReviewLevel.missing, Step.analysisPlan, tr('Marge de ${eq ? 'd\'équivalence' : 'non-infériorité'} non précisée', '${eq ? 'Equivalence' : 'Non-inferiority'} margin not specified'),
+            tr('Sans marge fixée à l\'avance, « non inférieur » ne veut rien dire : c\'est elle qui détermine l\'effectif et la conclusion.', 'Without a margin fixed in advance, "non-inferior" means nothing: it determines the sample size and the conclusion.'),
+            tr('Fixer la marge (perte d\'efficacité acceptable), la justifier par les essais antérieurs contre placebo et le jugement clinique, et conclure sur la borne de l\'IC à 95 %.', 'Fix the margin (acceptable loss of efficacy), justify it from previous placebo-controlled trials and clinical judgement, and conclude on the bound of the 95% CI.')));
+      }
+      if (!any(r"per[- ]?protocole?|per-protocol|perprotocol")) {
+        add(ReviewFinding('noninferiority_pp', ReviewLevel.warning, Step.analysisPlan, tr('${eq ? 'Équivalence' : 'Non-infériorité'} sans analyse per protocole', '${eq ? 'Equivalence' : 'Non-inferiority'} without per-protocol analysis'),
+            tr('En ${eq ? 'équivalence' : 'non-infériorité'}, l\'intention de traiter seule est anticonservatrice : les écarts au protocole rapprochent les bras et favorisent la conclusion recherchée.', 'In ${eq ? 'equivalence' : 'non-inferiority'}, intention to treat alone is anti-conservative: protocol deviations bring the arms closer and favour the desired conclusion.'),
+            tr('Conclure seulement si les analyses en intention de traiter et per protocole concordent.', 'Conclude only if the intention-to-treat and per-protocol analyses agree.'),
+            fix: ReviewFix(tr('Paragraphe « intention de traiter et per protocole » ajouté', '"Intention to treat and per protocol" paragraph added'), (p) => _appendPlan(p, tr('populations d\'analyse', 'analysis populations'),
+                tr('La ${eq ? 'l\'équivalence' : 'non-infériorité'} est conclue si la borne de l\'IC à 95 % de la différence respecte la marge à la fois en intention de traiter et en per protocole (patients ayant reçu le traitement attribué sans écart majeur) ; une discordance est discutée.',
+                    '${eq ? 'Equivalence' : 'Non-inferiority'} is concluded if the bound of the 95% CI of the difference respects the margin in both the intention-to-treat and per-protocol (patients who received the allocated treatment without major deviation) analyses; any discrepancy is discussed.')))));
+      }
     }
   }
 

@@ -224,6 +224,7 @@ class DataStepState extends State<DataStep> {
         const SizedBox(height: 12),
         Text(tr('Dictionnaire des variables', 'Variable dictionary'), style: Theme.of(context).textTheme.titleMedium),
         Text(tr('Déclarez le type, l\'unité, les bornes plausibles et la catégorie de référence : ces déclarations priment sur l\'inférence automatique.', 'Declare the type, unit, plausible bounds and reference category: these declarations take precedence over automatic inference.')),
+        ExpertHint(tr('bornes plausibles de chaque variable', 'plausible bounds of each variable')),
         for (final n in d.names) _VariableEditor(d, n, onChanged: () => setState(() => state.save(widget.p)), expert: expert),
         const SizedBox(height: 12),
         Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [

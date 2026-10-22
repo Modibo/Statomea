@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'modes.dart';
 import 'package:statomea_core/statomea_core.dart' hide Step;
 import 'package:statomea_core/statomea_core.dart' as core show Step;
 
@@ -81,14 +82,23 @@ Future<Uint8List> buildUserGuidePdf({Map<String, Uint8List> images = const {}}) 
       bullet(tr('Navigateur (ordinateur, tablette, téléphone) : https://statomea.komodi-labo.org/app/ — sur iPhone, « Partager → Sur l\'écran d\'accueil ».', 'Browser (computer, tablet, phone): https://statomea.komodi-labo.org/app/ — on iPhone, "Share → Add to Home Screen".')),
       bullet(tr('Android : télécharger l\'APK depuis la page d\'accueil et autoriser l\'installation depuis cette source.', 'Android: download the APK from the home page and allow installation from this source.')),
       bullet(tr('L\'application signale les nouvelles versions ; « Recharger » installe la mise à jour.', 'The app reports new versions; "Reload" installs the update.')),
+      h2(tr('Modes Guidé et Expert', 'Guided and Expert modes')),
+      p(tr('Le sélecteur en haut de l\'écran règle le niveau de détail (bouton (i) : « Que changent les modes ? »). En mode Guidé, une ligne signale les réglages avancés masqués.',
+          'The selector at the top of the screen sets the level of detail ((i) button: "What do the modes change?"). In Guided mode, a line points out hidden advanced settings.')),
+      p(tr('Guidé :', 'Guided:')),
+      for (final pt in guidedModePoints) bullet(pt),
+      p('Expert :'),
+      for (final pt in expertModePoints) bullet(pt),
+      p(modesSameEngine),
       h1(tr('3. Démarrer un projet', '3. Start a project')),
       h2(tr('Nouveau projet', 'New project')),
       p(guideNewProject),
       h2(tr('Projet importé', 'Imported project')),
       p(guideImportedProject),
-      h2(tr('Projet d\'exemple', 'Example project')),
-      p(tr('Projets → « Projet d\'exemple » importe un protocole fictif (portage de l\'AgHBs chez les femmes enceintes) qui cache six erreurs de méthode, avec ses données simulées déjà jointes (640 femmes). Retrouvez les erreurs avec « Relire et corriger », puis parcourez les 10 étapes jusqu\'au poster. Le protocole Word et les données sont aussi téléchargeables sur statomea.komodi-labo.org (rubrique « Projet d\'exemple », avec la solution).',
-          'Projects → "Example project" imports a fictitious protocol (HBsAg carriage in pregnant women) hiding six methodological errors, with its simulated data already attached (640 women). Find the errors with "Review and correct", then walk through the 10 steps up to the poster. The Word protocol and the data can also be downloaded from statomea.komodi-labo.org ("Example project" section, with the solution).')),
+      h2(tr('Projets d\'exemple', 'Example projects')),
+      p(tr('Projets → « Projet d\'exemple » propose deux protocoles fictifs qui cachent des erreurs de méthode, avec leurs données simulées déjà jointes. Retrouvez les erreurs avec « Relire et corriger », puis parcourez les 10 étapes jusqu\'au poster. Les protocoles Word et les données sont aussi téléchargeables sur statomea.komodi-labo.org (rubrique « Projets d\'exemple », avec les solutions).',
+          'Projects → "Example project" offers two fictitious protocols hiding methodological errors, with their simulated data already attached. Find the errors with "Review and correct", then walk through the 10 steps up to the poster. The Word protocols and the data can also be downloaded from statomea.komodi-labo.org ("Example projects" section, with the solutions).')),
+      for (final e in exampleProjects) bullet('${e.label} — ${e.summary}'),
       h1(tr('4. Le parcours en 10 étapes', '4. The 10-step pathway')),
       withShot([
         p(tr('Chaque étape conditionne la suivante : la méthode découle de la question et du plan, jamais du nom des variables. Marquez chaque étape « Terminée » ; on peut revenir à une étape à tout moment.',

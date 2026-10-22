@@ -255,6 +255,7 @@ class _PredictionWorkshopState extends State<PredictionWorkshop> {
             ),
         ]);
       }),
+      ExpertHint(tr('graine des tirages, équation du modèle', 'random seed, model equation')),
       if (expert) ...[
         const SizedBox(height: 8),
         TextField(

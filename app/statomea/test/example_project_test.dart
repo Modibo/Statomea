@@ -17,25 +17,25 @@ import 'package:statomea_core/statomea_core.dart' hide Step;
 void main() {
   tearDown(() => setLang(Lang.fr));
 
-  test('Word d\'exemple (FR et EN) : relu comme un protocole importé, six erreurs cachées retrouvées', () {
-    for (final lang in Lang.values) {
-      setLang(lang);
-      final docx = exampleProtocolDocx();
-      final text = documentText(docx, exampleProtocolFileName);
-      final d = protocolFromText(text);
-      expect(d.title, startsWith(lang == Lang.fr ? 'Portage de l\'antigène HBs' : 'Hepatitis B surface antigen'));
-      expect(d.sampleSize, 498);
-      final p = Project(id: 'e', title: d.title, createdAt: '')
-        ..question = d.toQuestion()
-        ..protocol = Map.of(d.fullSections)
-        ..analysisPlan = d.sections['analysis'] ?? '';
-      p.inferred['plannedSampleSize'] = '${d.sampleSize}';
-      final ids = reviewProject(p).findings.map((f) => f.id).toSet();
-      expect(ids, containsAll(exampleProtocolErrors), reason: lang.name);
-      final out = Platform.environment['EXAMPLE_OUT'];
-      if (out != null) {
-        File('$out/$exampleProtocolFileName').writeAsBytesSync(docx);
-        File('assets/demos/aghbs_simule.csv').copySync('$out/$exampleDataFileName');
+  test('Word des projets d\'exemple (FR et EN) : relus comme des protocoles importés, erreurs cachées retrouvées', () {
+    for (final e in exampleProjects) {
+      for (final lang in Lang.values) {
+        setLang(lang);
+        final docx = exampleProtocolDocx(e);
+        final d = protocolFromText(documentText(docx, e.protocolFileName));
+        expect(d.title, e.text.split('\n')[1]);
+        final p = Project(id: e.id, title: d.title, createdAt: '')
+          ..question = d.toQuestion()
+          ..protocol = Map.of(d.fullSections)
+          ..analysisPlan = d.sections['analysis'] ?? '';
+        if (d.sampleSize != null) p.inferred['plannedSampleSize'] = '${d.sampleSize}';
+        final ids = reviewProject(p).findings.map((f) => f.id).toSet();
+        expect(ids, containsAll(e.errors), reason: '${e.id} ${lang.name}');
+        final out = Platform.environment['EXAMPLE_OUT'];
+        if (out != null) {
+          File('$out/${e.protocolFileName}').writeAsBytesSync(docx);
+          File('assets/demos/${e.dataAsset}').copySync('$out/${e.dataFileName}');
+        }
       }
     }
   });
@@ -53,6 +53,9 @@ void main() {
             home: Scaffold(body: ProjectsScreen()))));
     await t.pumpAndSettle();
     await t.tap(find.text('Projet d\'exemple'));
+    await t.pumpAndSettle();
+    expect(find.text(exampleProjects.last.label), findsOneWidget);
+    await t.tap(find.text(exampleProjects.first.label));
     await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 300))); // lecture de l'asset
     await t.pumpAndSettle();
     expect(find.text('Projet depuis « protocole-exemple-aghbs.docx »'), findsOneWidget);

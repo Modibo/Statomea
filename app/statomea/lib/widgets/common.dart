@@ -2,7 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:provider/provider.dart';
 import 'package:statomea_core/statomea_core.dart';
+
+import '../services/modes.dart';
+import '../state/app_state.dart';
 
 class StatusChip extends StatelessWidget {
   final MethodStatus status;
@@ -42,6 +46,48 @@ IconData severityIcon(Severity s) => switch (s) {
     };
 
 /// Bandeau d'alerte (gravité, message, suggestion).
+/// Que changent les modes Guidé et Expert (fenêtre ouverte depuis le sélecteur).
+Future<void> showModesHelp(BuildContext context) => showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('Que changent les modes ?', 'What do the modes change?')),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (final (title, points) in [(tr('Guidé', 'Guided'), guidedModePoints), ('Expert', expertModePoints)]) ...[
+                Text(title, style: Theme.of(ctx).textTheme.titleSmall),
+                for (final pt in points) Padding(padding: const EdgeInsets.only(top: 4, left: 4), child: Text('• $pt')),
+                const SizedBox(height: 12),
+              ],
+              Text(modesSameEngine, style: Theme.of(ctx).textTheme.bodySmall),
+            ]),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(tr('Fermer', 'Close')))],
+      ),
+    );
+
+/// En mode Guidé, signale les réglages avancés masqués ([what]) et propose de passer en mode Expert ; rien en mode Expert.
+class ExpertHint extends StatelessWidget {
+  final String what;
+  const ExpertHint(this.what, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    if (state.expertMode) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 4, children: [
+        Icon(Icons.science_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        Text(tr('Réglages avancés ($what) en mode Expert.', 'Advanced settings ($what) in Expert mode.'), style: theme.textTheme.bodySmall),
+        TextButton(onPressed: () => state.setExpert(true), child: Text(tr('Passer en mode Expert', 'Switch to Expert mode'))),
+      ]),
+    );
+  }
+}
+
 /// Ligne « calcul en cours » : indicateur annoncé aux lecteurs d'écran et texte de ce qui se fait.
 class BusyLine extends StatelessWidget {
   final String text;

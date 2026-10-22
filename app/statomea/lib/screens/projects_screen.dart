@@ -446,13 +446,32 @@ Future<Project?> importProtocolDocument(BuildContext context, Uint8List bytes, S
   return p;
 }
 
-/// Projet d'exemple : protocole fictif (erreurs de méthode volontaires, à retrouver par la relecture) importé comme un
-/// protocole Word, avec ses données simulées déjà jointes pour parcourir les 10 étapes.
+/// Projets d'exemple : protocole fictif (erreurs de méthode volontaires, à retrouver par la relecture) importé comme un
+/// protocole Word, avec ses données simulées déjà jointes pour parcourir les 10 étapes. Le choix est proposé d'abord.
 Future<Project?> openExampleProject(BuildContext context) async {
-  final csv = await rootBundle.loadString('assets/demos/aghbs_simule.csv');
+  final e = await showDialog<ExampleProject>(
+    context: context,
+    builder: (ctx) => SimpleDialog(
+      title: Text(tr('Projet d\'exemple', 'Example project')),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+          child: Text(tr('Un protocole fictif qui cache des erreurs de méthode, avec ses données simulées : retrouvez-les avec « Relire et corriger ».',
+              'A fictitious protocol hiding methodological errors, with its simulated data: find them with "Review and correct".')),
+        ),
+        for (final x in exampleProjects)
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, x),
+            child: ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.school_outlined), title: Text(x.label), subtitle: Text(x.summary)),
+          ),
+      ],
+    ),
+  );
+  if (e == null || !context.mounted) return null;
+  final csv = await rootBundle.loadString('assets/demos/${e.dataAsset}');
   if (!context.mounted) return null;
-  final data = parseCsv(csv, source: tr('$exampleDataFileName (simulé)', '$exampleDataFileName (simulated)')).dataset;
-  return importProtocolDocument(context, exampleProtocolDocx(), exampleProtocolFileName, data: data);
+  final data = parseCsv(csv, source: tr('${e.dataFileName} (simulé)', '${e.dataFileName} (simulated)')).dataset;
+  return importProtocolDocument(context, exampleProtocolDocx(e), e.protocolFileName, data: data);
 }
 
 String _sectionLabel(String k) => switch (k) {
