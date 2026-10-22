@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statoméa — statistique biomédicale et formation à la recherche</title>
+<meta name="description" content="Statoméa guide de la question de recherche à une analyse statistique justifiée, vérifiable et correctement interprétée. 79 méthodes validées contre R, hors connexion, en français et en anglais.">
+<meta name="theme-color" content="#0B2A5E">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta property="og:title" content="Statoméa">
+<meta property="og:description" content="De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée.">
+<meta property="og:image" content="statomea-logo.png">
+<style>
+  :root {
+    --navy: #0B2A5E; --blue: #1677C9; --green: #0B8A60; --amber: #B4610A;
+    --bg: #ffffff; --soft: #f3f6fb; --ink: #14213a; --muted: #4a5a72; --line: #dfe6f0; --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --navy: #9cc0ff; --blue: #6fb2ff; --green: #5fd3a6; --amber: #f2b45c;
+      --bg: #10141b; --soft: #161c26; --ink: #e8eefb; --muted: #a9b6c9; --line: #2a3445; --card: #161c26; }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  a { color: var(--blue); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  header.top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 14px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 750; font-size: 20px; }
+  .brand img { width: 36px; height: 36px; background: #fff; border-radius: 9px; padding: 2px; }
+  nav.links { display: flex; gap: 18px; margin-left: auto; }
+  nav.links a { color: var(--muted); text-decoration: none; font-size: 15px; }
+  nav.links a:hover { color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 20px; border-radius: 999px; font-weight: 650; text-decoration: none; border: 1px solid transparent; cursor: pointer; font-size: 15px; }
+  .btn.primary { background: var(--navy); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { background: #2f6fd6; } }
+  .btn.ghost { border-color: var(--line); color: var(--ink); background: var(--card); }
+  .btn.lang { min-height: 40px; padding: 0 14px; border-color: var(--line); background: var(--card); color: var(--ink); font-weight: 700; }
+  .hero { padding: 56px 0 36px; background: linear-gradient(180deg, var(--soft), var(--bg)); }
+  .hero .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: center; }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+  h1 { font-size: clamp(30px, 4.4vw, 48px); line-height: 1.12; margin: 0 0 16px; color: var(--navy); }
+  .lead { font-size: 18px; color: var(--muted); margin: 0 0 24px; max-width: 620px; }
+  .ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 14px; }
+  .facts span::before { content: "✓ "; color: var(--green); font-weight: 700; }
+  .phone { justify-self: center; width: min(300px, 80vw); border-radius: 34px; padding: 10px; background: #0d1626; box-shadow: 0 24px 60px rgba(11,42,94,.25); }
+  .phone img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; border-radius: 26px; }
+  section { padding: 56px 0; }
+  section.alt { background: var(--soft); }
+  h2 { font-size: clamp(24px, 3vw, 32px); margin: 0 0 8px; color: var(--navy); }
+  .sub { color: var(--muted); margin: 0 0 28px; max-width: 760px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .stat b { display: block; font-size: 30px; color: var(--navy); line-height: 1.1; }
+  .stat span { color: var(--muted); font-size: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .card h3 { margin: 10px 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .card p.small { font-size: 13px; color: var(--green); min-height: 1em; }
+  .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: color-mix(in srgb, var(--blue) 14%, transparent); color: var(--blue); font-size: 22px; }
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  ol.steps li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 14px; }
+  ol.steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px; margin-right: 8px; }
+  @media (prefers-color-scheme: dark) { ol.steps li::before { background: #2f6fd6; } }
+  ol.steps li b { font-weight: 700; }
+  ol.steps li .sd { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  .howto { margin-top: 18px; display: grid; gap: 6px; color: var(--muted); font-size: 15px; }
+  .howto p { margin: 0; } .howto strong { color: var(--ink); }
+  .shots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .shots figure { margin: 0; }
+  .shots img { display: block; width: 100%; height: auto; aspect-ratio: 390 / 844; object-fit: contain; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(11,42,94,.12); }
+  .shots figcaption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .demos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .demo.wide { grid-column: span 2; }
+  .demo { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .demo b { display: block; margin-bottom: 4px; }
+  .demo span { color: var(--muted); font-size: 14px; }
+  .dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .dl .card { display: flex; flex-direction: column; gap: 10px; }
+  .dl .card .btn { margin-top: auto; align-self: flex-start; }
+  .warn { border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent); border-radius: 16px; padding: 18px 20px; background: color-mix(in srgb, var(--amber) 7%, var(--card)); }
+  .warn b { color: var(--amber); }
+  .credit { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
+  .credit img { width: 44px; height: 44px; background: #fff; border-radius: 10px; padding: 3px; }
+  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 24px; justify-content: space-between; }
+  @media (max-width: 980px) {
+    .hero .grid { grid-template-columns: 1fr; } .phone { width: min(280px, 78vw); }
+    .cards, .dl { grid-template-columns: repeat(2, 1fr); } .demos { grid-template-columns: repeat(2, 1fr); }
+    ol.steps { grid-template-columns: repeat(2, 1fr); } .shots { grid-template-columns: repeat(4, 1fr); }
+    .stats { grid-template-columns: repeat(2, 1fr); } nav.links { display: none; }
+  }
+  @media (max-width: 600px) {
+    .cards, .dl, .demos, ol.steps { grid-template-columns: 1fr; } .demo.wide { grid-column: auto; } .shots { grid-template-columns: repeat(2, 1fr); }
+    .hero { padding-top: 32px; } .bar .open { display: none; } .ctas .btn { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="#"><img src="statomea-embleme.png" alt="">Statoméa</a>
+    <nav class="links">
+      <a href="#protocole" data-fr="Protocole" data-en="Protocol">Protocole</a>
+      <a href="#publication" data-fr="Publication" data-en="Publication">Publication</a>
+      <a href="#parcours" data-fr="Parcours" data-en="Pathway">Parcours</a>
+      <a href="#fonctions" data-fr="Fonctionnalités" data-en="Features">Fonctionnalités</a>
+      <a href="#demos" data-fr="Démonstrations" data-en="Demonstrations">Démonstrations</a>
+      <a href="#telecharger" data-fr="Télécharger" data-en="Download">Télécharger</a>
+    </nav>
+    <button class="btn lang" id="lang" type="button" aria-label="Passer en anglais">🌐 FR</button>
+    <a class="btn primary open" href="app/" data-fr="Ouvrir Statoméa" data-en="Open Statoméa">Ouvrir Statoméa</a>
+  </div>
+</header>
+
+<main>
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <span class="eyebrow" data-fr="Statistique biomédicale · formation à la recherche" data-en="Biomedical statistics · research training">Statistique biomédicale · formation à la recherche</span>
+      <h1 data-fr="De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée." data-en="From the research question to a justified, verifiable and correctly interpreted analysis.">De la question de recherche à une analyse justifiée, vérifiable et correctement interprétée.</h1>
+      <p class="lead" data-fr="Statoméa accompagne chercheurs, biologistes et étudiants du protocole à la publication : importer ou rédiger le protocole, le faire relire et corriger, recueillir et contrôler les données, choisir la bonne méthode, calculer, faire auditer l'interprétation, puis préparer l'article, la soutenance et la réponse aux relecteurs." data-en="Statoméa guides researchers, laboratory scientists and students from protocol to publication: import or write the protocol, have it reviewed and corrected, collect and check the data, choose the right method, compute, have the interpretation audited, then prepare the article, the defence and the response to reviewers.">Statoméa accompagne chercheurs, biologistes et étudiants du protocole à la publication : importer ou rédiger le protocole, le faire relire et corriger, recueillir et contrôler les données, choisir la bonne méthode, calculer, faire auditer l'interprétation, puis préparer l'article, la soutenance et la réponse aux relecteurs.</p>
+      <div class="ctas">
+        <a class="btn primary" href="app/" data-fr="Ouvrir l'application" data-en="Open the app">Ouvrir l'application</a>
+        <a class="btn ghost" href="#telecharger" data-fr="Télécharger pour Android" data-en="Download for Android">Télécharger pour Android</a>
+      </div>
+      <div class="facts">
+        <span data-fr="Gratuit" data-en="Free">Gratuit</span>
+        <span data-fr="Hors connexion" data-en="Works offline">Hors connexion</span>
+        <span data-fr="Aucune donnée ne quitte l'appareil" data-en="No data leaves the device">Aucune donnée ne quitte l'appareil</span>
+        <span data-fr="Français et anglais" data-en="French and English">Français et anglais</span>
+      </div>
+    </div>
+    <div class="phone"><img src="captures/mobile-01-accueil.png?v=22" alt="Écran d'accueil de Statoméa sur téléphone" width="390" height="844"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><b>79</b><span data-fr="méthodes validées contre R" data-en="methods validated against R">méthodes validées contre R</span></div>
+      <div class="stat"><b>621</b><span data-fr="tests du moteur, tolérances écrites" data-en="engine tests, written tolerances">tests du moteur, tolérances écrites</span></div>
+      <div class="stat"><b>24</b><span data-fr="leçons avec exercices corrigés" data-en="lessons with corrected exercises">leçons avec exercices corrigés</span></div>
+      <div class="stat"><b>10</b><span data-fr="démonstrations complètes" data-en="complete demonstrations">démonstrations complètes</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="protocole">
+  <div class="wrap">
+    <h2 data-fr="Du protocole au projet, relu et corrigé" data-en="From protocol to project, reviewed and corrected">Du protocole au projet, relu et corrigé</h2>
+    <p class="sub" data-fr="Importez votre protocole ou écrivez votre question : Statoméa en déduit les étapes, repère les erreurs de méthode et propose leurs corrections." data-en="Import your protocol or write your question: Statoméa infers the steps, spots methodological errors and proposes their corrections.">Importez votre protocole ou écrivez votre question : Statoméa en déduit les étapes, repère les erreurs de méthode et propose leurs corrections.</p>
+    <div class="cards">
+      <div class="card"><div class="ic">📄</div><h3 data-fr="Importer un protocole Word ou PDF" data-en="Import a Word or PDF protocol">Importer un protocole Word ou PDF</h3><p data-fr="Statoméa lit le titre, la question, la population, le schéma, le critère de jugement, l'effectif prévu et le plan d'analyse, montre ce qu'il a compris, puis crée le projet." data-en="Statoméa reads the title, question, population, design, outcome, planned sample size and analysis plan, shows what it understood, then creates the project.">Statoméa lit le titre, la question, la population, le schéma, le critère de jugement, l'effectif prévu et le plan d'analyse, montre ce qu'il a compris, puis crée le projet.</p></div>
+      <div class="card"><div class="ic">✎</div><h3 data-fr="Une question, et le reste est proposé" data-en="One question, the rest is proposed">Une question, et le reste est proposé</h3><p data-fr="Dès la question écrite : plan d'étude, objectif, type d'issue, éléments PICO, plan d'analyse et calcul d'effectif adapté, marqués « proposé » pour être vérifiés." data-en="As soon as the question is written: study design, aim, outcome type, PICO elements, analysis plan and the appropriate sample-size calculation, marked “proposed” to be checked.">Dès la question écrite : plan d'étude, objectif, type d'issue, éléments PICO, plan d'analyse et calcul d'effectif adapté, marqués « proposé » pour être vérifiés.</p></div>
+      <div class="card"><div class="ic">✓</div><h3 data-fr="Relecture et corrections" data-en="Review and corrections">Relecture et corrections</h3><p data-fr="Erreurs, points à revoir et manques, avec le passage en cause : effectif recalculé (précision, critères de Riley), majoration pour les pertes, ajustement, validation d'un modèle prédictif, tests, multiplicité, effet centre, analyses intermédiaires, effectif et enregistrement des essais… Corrections appliquées d'un appui et tracées." data-en="Errors, points to review and gaps, quoting the passage concerned: sample size recomputed (precision, Riley criteria), adjustment for losses, confounding, validation of a prediction model, tests, multiplicity, centre effect, interim analyses, trial sample size and registration… Corrections applied in one tap and logged.">Erreurs, points à revoir et manques, avec le passage en cause : effectif recalculé (précision, critères de Riley), majoration pour les pertes, ajustement, validation d'un modèle prédictif, tests, multiplicité, effet centre, analyses intermédiaires, effectif et enregistrement des essais… Corrections appliquées d'un appui et tracées.</p></div>
+      <div class="card"><div class="ic">🗺</div><h3 data-fr="Feuille de route imprimable" data-en="Printable roadmap">Feuille de route imprimable</h3><p data-fr="Les 10 étapes dans l'ordre, ce qui est fait, proposé ou à faire, avec le bon calculateur d'effectif ; impression en PDF." data-en="The 10 steps in order, what is done, proposed or to do, with the right sample-size calculator; printable as PDF.">Les 10 étapes dans l'ordre, ce qui est fait, proposé ou à faire, avec le bon calculateur d'effectif ; impression en PDF.</p></div>
+      <div class="card"><div class="ic">📝</div><h3 data-fr="Protocole prérédigé" data-en="Pre-drafted protocol">Protocole prérédigé</h3><p data-fr="13 rubriques au format d'un comité d'éthique, en Word et en PDF ; ce qui reste à écrire est surligné « à compléter »." data-en="13 sections in ethics-committee format, in Word and PDF; what remains to be written is highlighted “to complete”.">13 rubriques au format d'un comité d'éthique, en Word et en PDF ; ce qui reste à écrire est surligné « à compléter ».</p></div>
+      <div class="card"><div class="ic">🔒</div><h3 data-fr="Vos documents restent chez vous" data-en="Your documents stay with you">Vos documents restent chez vous</h3><p data-fr="Lecture et relecture se font sur l'appareil, par des règles explicites et documentées : aucun envoi, aucun modèle de langage." data-en="Reading and review happen on the device, by explicit, documented rules: nothing is sent, no language model.">Lecture et relecture se font sur l'appareil, par des règles explicites et documentées : aucun envoi, aucun modèle de langage.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="publication">
+  <div class="wrap">
+    <h2 data-fr="Du projet à la publication" data-en="From project to publication">Du projet à la publication</h2>
+    <p class="sub" data-fr="Les données recueillies, les tableaux, l'article, la soutenance et la réponse aux relecteurs sont préparés à partir du même projet : rien n'est ressaisi." data-en="Collected data, tables, article, defence and response to reviewers are all prepared from the same project: nothing is re-typed.">Les données recueillies, les tableaux, l'article, la soutenance et la réponse aux relecteurs sont préparés à partir du même projet : rien n'est ressaisi.</p>
+    <div class="cards">
+      <div class="card"><div class="ic">📋</div><h3 data-fr="Fiche de recueil et masque de saisie" data-en="Case report form and data-entry template">Fiche de recueil et masque de saisie</h3><p data-fr="Tirés des variables et des examens du protocole : fiche PDF à imprimer, masque Excel avec listes déroulantes et bornes, dictionnaire relu à l'import." data-en="Drawn from the protocol's variables and tests: printable PDF form, Excel template with drop-down lists and bounds, dictionary read back at import.">Tirés des variables et des examens du protocole : fiche PDF à imprimer, masque Excel avec listes déroulantes et bornes, dictionnaire relu à l'import.</p></div>
+      <div class="card"><div class="ic">🗓</div><h3 data-fr="Budget et chronogramme" data-en="Budget and timeline">Budget et chronogramme</h3><p data-fr="Diagramme de Gantt et budget prévisionnel calculés depuis l'effectif, le rythme de recrutement et les examens ; repris dans le protocole." data-en="Gantt chart and provisional budget computed from sample size, recruitment rate and tests; included in the protocol.">Diagramme de Gantt et budget prévisionnel calculés depuis l'effectif, le rythme de recrutement et les examens ; repris dans le protocole.</p></div>
+      <div class="card"><div class="ic">▦</div><h3 data-fr="Tableaux 1 et 2" data-en="Tables 1 and 2">Tableaux 1 et 2</h3><p data-fr="Caractéristiques des participants et associations brutes et ajustées (OR, RR, β), identiques à R, exportables en Word et Excel." data-en="Participant characteristics and crude and adjusted associations (OR, RR, β), identical to R, exportable to Word and Excel.">Caractéristiques des participants et associations brutes et ajustées (OR, RR, β), identiques à R, exportables en Word et Excel.</p></div>
+      <div class="card"><div class="ic">⤵</div><h3 data-fr="Diagramme de flux" data-en="Flow diagram">Diagramme de flux</h3><p data-fr="CONSORT ou STROBE : éligibles, exclus et motifs, inclus, analysés, avec contrôle des effectifs ; imprimable et inséré dans l'article." data-en="CONSORT or STROBE: eligible, excluded with reasons, included, analysed, with consistency checks; printable and inserted in the article.">CONSORT ou STROBE : éligibles, exclus et motifs, inclus, analysés, avec contrôle des effectifs ; imprimable et inséré dans l'article.</p></div>
+      <div class="card"><div class="ic">📰</div><h3 data-fr="Article prérédigé et bibliographie" data-en="Pre-drafted article and bibliography">Article prérédigé et bibliographie</h3><p data-fr="Article IMRaD en Word (méthodes, tableaux, résultats, limites) ; références importées de Zotero ou PubMed, citées au style de Vancouver, et transformées en grille d'extraction pour une méta-analyse." data-en="IMRaD article in Word (methods, tables, results, limitations); references imported from Zotero or PubMed, cited in Vancouver style, and turned into an extraction grid for a meta-analysis.">Article IMRaD en Word (méthodes, tableaux, résultats, limites) ; références importées de Zotero ou PubMed, citées au style de Vancouver, et transformées en grille d'extraction pour une méta-analyse.</p></div>
+      <div class="card"><div class="ic">🎤</div><h3 data-fr="Soutenance, poster et relecteurs" data-en="Defence, poster and reviewers">Soutenance, poster et relecteurs</h3><p data-fr="Diaporama PowerPoint et poster A0 (PowerPoint, PDF) tirés du projet ; commentaires des relecteurs découpés, réponses proposées à partir des analyses, lettre en Word." data-en="PowerPoint deck and A0 poster (PowerPoint, PDF) drawn from the project; reviewers' comments split, responses proposed from the analyses, letter in Word.">Diaporama PowerPoint et poster A0 (PowerPoint, PDF) tirés du projet ; commentaires des relecteurs découpés, réponses proposées à partir des analyses, lettre en Word.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="parcours">
+  <div class="wrap">
+    <h2 data-fr="Un parcours en 10 étapes" data-en="A 10-step pathway">Un parcours en 10 étapes</h2>
+    <p class="sub" data-fr="Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables." data-en="Each step conditions the next: the method follows from the question and the study design, never from variable names.">Chaque étape conditionne la suivante : la méthode découle de la question et du plan d'étude, jamais du nom des variables.</p>
+    <ol class="steps">
+      <li><b data-fr="Question biomédicale" data-en="Biomedical question">Question biomédicale</b><span class="sd" data-fr="Formuler la question (population, exposition, comparateur, critère) et déclarer le type de l&#x27;issue et de l&#x27;exposition." data-en="State the question (population, exposure, comparator, outcome) and declare the type of the outcome and the exposure.">Formuler la question (population, exposition, comparateur, critère) et déclarer le type de l&#x27;issue et de l&#x27;exposition.</span></li>
+      <li><b data-fr="Plan d&#x27;étude" data-en="Study design">Plan d&#x27;étude</b><span class="sd" data-fr="Essai, cohorte, cas-témoins ou transversal, et l&#x27;objectif : ils fixent les mesures d&#x27;effet légitimes." data-en="Trial, cohort, case-control or cross-sectional, and the aim: they set the legitimate effect measures.">Essai, cohorte, cas-témoins ou transversal, et l&#x27;objectif : ils fixent les mesures d&#x27;effet légitimes.</span></li>
+      <li><b data-fr="Plan d&#x27;analyse" data-en="Analysis plan">Plan d&#x27;analyse</b><span class="sd" data-fr="Écrire avant les résultats l&#x27;analyse principale, les ajustements et les analyses de sensibilité." data-en="Write before the results the main analysis, the adjustments and the sensitivity analyses.">Écrire avant les résultats l&#x27;analyse principale, les ajustements et les analyses de sensibilité.</span></li>
+      <li><b data-fr="Contrôle des données" data-en="Data control">Contrôle des données</b><span class="sd" data-fr="Importer CSV ou Excel (et un dictionnaire), repérer les anomalies, corriger avec justification." data-en="Import CSV or Excel (and a dictionary), spot anomalies, correct with a justification.">Importer CSV ou Excel (et un dictionnaire), repérer les anomalies, corriger avec justification.</span></li>
+      <li><b data-fr="Choix de la méthode" data-en="Choice of method">Choix de la méthode</b><span class="sd" data-fr="L&#x27;assistant propose les méthodes adaptées à la question, avec leurs conditions." data-en="The assistant proposes the methods suited to the question, with their conditions.">L&#x27;assistant propose les méthodes adaptées à la question, avec leurs conditions.</span></li>
+      <li><b data-fr="Calcul" data-en="Computation">Calcul</b><span class="sd" data-fr="Lancer la méthode ; chaque résultat entre au journal du projet." data-en="Run the method; each result enters the project log.">Lancer la méthode ; chaque résultat entre au journal du projet.</span></li>
+      <li><b data-fr="Diagnostics" data-en="Diagnostics">Diagnostics</b><span class="sd" data-fr="Vérifier les conditions d&#x27;application et lire les alertes." data-en="Check the conditions of application and read the alerts.">Vérifier les conditions d&#x27;application et lire les alertes.</span></li>
+      <li><b data-fr="Interprétation" data-en="Interpretation">Interprétation</b><span class="sd" data-fr="Rédiger ce que le résultat permet de conclure, et ce qu&#x27;il ne permet pas." data-en="Write what the result allows you to conclude, and what it does not.">Rédiger ce que le résultat permet de conclure, et ce qu&#x27;il ne permet pas.</span></li>
+      <li><b data-fr="Audit contradictoire" data-en="Adversarial audit">Audit contradictoire</b><span class="sd" data-fr="Faire relire le texte : OR lu comme un RR, langage causal, p mal interprétée…" data-en="Have the text reviewed: OR read as an RR, causal language, misread p-value…">Faire relire le texte : OR lu comme un RR, langage causal, p mal interprétée…</span></li>
+      <li><b data-fr="Rapport PDF / HTML" data-en="PDF / HTML report">Rapport PDF / HTML</b><span class="sd" data-fr="Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver." data-en="Export the report, the log and the project file (.json) to share or archive.">Exporter le rapport, le journal et le fichier du projet (.json) à partager ou archiver.</span></li>
+    </ol>
+    <div class="howto">
+      <p><strong data-fr="Nouveau projet" data-en="New project">Nouveau projet</strong> — <span data-fr="créer le projet et écrire la question : plan, objectif, issue, plan d&#x27;analyse et calcul d&#x27;effectif sont proposés aussitôt ; suivre ensuite les étapes 1 à 10, les données s&#x27;importent à l&#x27;étape 4." data-en="create the project and write the question: design, aim, outcome, analysis plan and sample-size calculation are proposed at once; then follow steps 1 to 10, data are imported at step 4.">créer le projet et écrire la question : plan, objectif, issue, plan d&#x27;analyse et calcul d&#x27;effectif sont proposés aussitôt ; suivre ensuite les étapes 1 à 10, les données s&#x27;importent à l&#x27;étape 4.</span></p>
+      <p><strong data-fr="Projet importé" data-en="Imported project">Projet importé</strong> — <span data-fr="choisir un protocole Word (.docx) ou PDF : Statoméa en tire le projet et ouvre la feuille de route des 10 étapes ; ou un fichier de projet (.json) exporté depuis Statoméa, restauré après un contrôle d&#x27;intégrité." data-en="choose a Word (.docx) or PDF protocol: Statoméa builds the project from it and opens the roadmap of the 10 steps; or a project file (.json) exported from Statoméa, restored after an integrity check.">choisir un protocole Word (.docx) ou PDF : Statoméa en tire le projet et ouvre la feuille de route des 10 étapes ; ou un fichier de projet (.json) exporté depuis Statoméa, restauré après un contrôle d&#x27;intégrité.</span></p>
+      <p><strong data-fr="Relire et corriger" data-en="Review and correct">Relire et corriger</strong> — <span data-fr="depuis la feuille de route ou l&#x27;étape 1 : erreurs, points à revoir et manques, corrections appliquées d&#x27;un appui, rapport de relecture en PDF." data-en="from the roadmap or step 1: errors, points to review and gaps, corrections applied in one tap, review report as PDF.">depuis la feuille de route ou l&#x27;étape 1 : erreurs, points à revoir et manques, corrections appliquées d&#x27;un appui, rapport de relecture en PDF.</span></p>
+    </div>
+  </div>
+</section>
+
+<section id="fonctions">
+  <div class="wrap">
+    <h2 data-fr="Ce que fait Statoméa" data-en="What Statoméa does">Ce que fait Statoméa</h2>
+    <p class="sub" data-fr="Un moteur de calcul déterministe, séparé des interprétations, validé méthode par méthode contre R et des logiciels de référence." data-en="A deterministic computation engine, separate from the interpretations, validated method by method against R and reference software.">Un moteur de calcul déterministe, séparé des interprétations, validé méthode par méthode contre R et des logiciels de référence.</p>
+    <div class="cards">
+      <div class="card"><div class="ic">∑</div><h3 data-fr="Analyses fondamentales et régressions" data-en="Core analyses and regressions">Analyses fondamentales et régressions</h3><p data-fr="Proportions exactes, tests, linéaire, logistique, Poisson robuste, Firth, splines, survie et Cox, score de propension, laboratoire (comparaison de méthodes, intervalles de référence, fidélité)." data-en="Exact proportions, tests, linear, logistic, robust Poisson, Firth, splines, survival and Cox, propensity score, laboratory (method comparison, reference intervals, precision).">Proportions exactes, tests, linéaire, logistique, Poisson robuste, Firth, splines, survie et Cox, score de propension, laboratoire (comparaison de méthodes, intervalles de référence, fidélité).</p></div>
+      <div class="card"><div class="ic">▤</div><h3 data-fr="Métaanalyse" data-en="Meta-analysis">Métaanalyse</h3><p data-fr="Effets fixes et aléatoires (REML, Hartung-Knapp), forest plot, méta-régression, métaanalyse diagnostique." data-en="Fixed and random effects (REML, Hartung-Knapp), forest plot, meta-regression, diagnostic meta-analysis.">Effets fixes et aléatoires (REML, Hartung-Knapp), forest plot, méta-régression, métaanalyse diagnostique.</p></div>
+      <div class="card"><div class="ic">◔</div><h3 data-fr="Modèles de prédiction" data-en="Prediction models">Modèles de prédiction</h3><p data-fr="Développement, validation interne par bootstrap, calibration, courbe de décision, validation externe." data-en="Development, bootstrap internal validation, calibration, decision curve, external validation.">Développement, validation interne par bootstrap, calibration, courbe de décision, validation externe.</p></div>
+      <div class="card"><div class="ic">🧬</div><h3 data-fr="Génomique et GWAS" data-en="Genomics and GWAS">Génomique et GWAS</h3><p data-fr="VCF/PLINK, contrôle de qualité, parenté, ACP, modèles mixtes, régression LD score, scores polygéniques, RNA-seq, alignement." data-en="VCF/PLINK, quality control, relatedness, PCA, mixed models, LD score regression, polygenic scores, RNA-seq, alignment.">VCF/PLINK, contrôle de qualité, parenté, ACP, modèles mixtes, régression LD score, scores polygéniques, RNA-seq, alignement.</p></div>
+      <div class="card"><div class="ic">⇢</div><h3 data-fr="Causalité" data-en="Causality">Causalité</h3><p data-fr="Randomisation mendélienne (IVW, MR-Egger, médiane, mode, multivariée), test de Steiger et MR inverse." data-en="Mendelian randomization (IVW, MR-Egger, median, mode, multivariable), Steiger test and reverse MR.">Randomisation mendélienne (IVW, MR-Egger, médiane, mode, multivariée), test de Steiger et MR inverse.</p></div>
+      <div class="card"><div class="ic">⚖</div><h3 data-fr="Audit contradictoire et formation" data-en="Adversarial audit and training">Audit contradictoire et formation</h3><p data-fr="Repère dans vos textes les conclusions causales abusives, OR lus comme des risques, p mal interprétées ; 24 leçons ; mode tuteur (une question par étape, tirée du projet, avec fiche de progression pour l'encadrant)." data-en="Spots unjustified causal claims, ORs read as risks and misread p-values in your text; 24 lessons; tutor mode (one question per step, drawn from the project, with a progress sheet for the supervisor).">Repère dans vos textes les conclusions causales abusives, OR lus comme des risques, p mal interprétées ; 24 leçons ; mode tuteur (une question par étape, tirée du projet, avec fiche de progression pour l'encadrant).</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <h2 data-fr="Aperçu" data-en="Preview">Aperçu</h2>
+    <p class="sub" data-fr="Captures de l'application réelle, sur téléphone." data-en="Screenshots of the real app, on a phone.">Captures de l'application réelle, sur téléphone.</p>
+    <div class="shots">
+      <figure><img loading="lazy" src="captures/mobile-15-relecture.png?v=22" alt="Relecture et corrections" width="390" height="844"><figcaption data-fr="Relecture et corrections" data-en="Review and corrections">Relecture et corrections</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-14-feuille-de-route.png?v=22" alt="Feuille de route" width="390" height="844"><figcaption data-fr="Feuille de route" data-en="Roadmap">Feuille de route</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-05-forest.png?v=22" alt="Forest plot" width="390" height="844"><figcaption data-fr="Métaanalyse" data-en="Meta-analysis">Métaanalyse</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-11-survie.png?v=22" alt="Incidence cumulée" width="390" height="844"><figcaption data-fr="Risques concurrents" data-en="Competing risks">Risques concurrents</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-09-gwas.png?v=22" alt="Manhattan plot" width="390" height="844"><figcaption data-fr="GWAS" data-en="GWAS">GWAS</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-10-causalite.png?v=22" alt="Randomisation mendélienne" width="390" height="844"><figcaption data-fr="Causalité" data-en="Causality">Causalité</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-07-audit.png?v=22" alt="Audit" width="390" height="844"><figcaption data-fr="Audit" data-en="Audit">Audit</figcaption></figure>
+      <figure><img loading="lazy" src="captures/mobile-08-lecon.png?v=22" alt="Leçon" width="390" height="844"><figcaption data-fr="Leçon" data-en="Lesson">Leçon</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="demos">
+  <div class="wrap">
+    <h2 data-fr="Dix démonstrations complètes" data-en="Ten complete demonstrations">Dix démonstrations complètes</h2>
+    <p class="sub" data-fr="De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger." data-en="From the question to the report, with a deliberately flawed draft that the audit must correct.">De la question au rapport, avec un brouillon volontairement erroné que l'audit doit corriger.</p>
+    <div class="demos">
+      <div class="demo"><b data-fr="AgHBs et événements rares" data-en="HBsAg and rare events">AgHBs et événements rares</b><span data-fr="Proportions exactes, séparation, Firth" data-en="Exact proportions, separation, Firth">Proportions exactes, séparation, Firth</span></div>
+      <div class="demo"><b data-fr="Métaanalyse du BCG" data-en="BCG meta-analysis">Métaanalyse du BCG</b><span data-fr="13 essais publiés, REML, forest plot" data-en="13 published trials, REML, forest plot">13 essais publiés, REML, forest plot</span></div>
+      <div class="demo"><b data-fr="Risque cardiométabolique" data-en="Cardiometabolic risk">Risque cardiométabolique</b><span data-fr="Développement, bootstrap, calibration" data-en="Development, bootstrap, calibration">Développement, bootstrap, calibration</span></div>
+      <div class="demo"><b data-fr="Tuberculose résistante" data-en="Resistant tuberculosis">Tuberculose résistante</b><span data-fr="Génotypage, kappa, alignement" data-en="Genotyping, kappa, alignment">Génotypage, kappa, alignement</span></div>
+      <div class="demo"><b data-fr="Étude pangénomique" data-en="Genome-wide study">Étude pangénomique</b><span data-fr="QC, parenté, ACP, Manhattan" data-en="QC, relatedness, PCA, Manhattan">QC, parenté, ACP, Manhattan</span></div>
+      <div class="demo"><b data-fr="Polygénie ou confusion ?" data-en="Polygenicity or confounding?">Polygénie ou confusion ?</b><span data-fr="Régression LD score, corrélation génétique" data-en="LD score regression, genetic correlation">Régression LD score, corrélation génétique</span></div>
+      <div class="demo"><b data-fr="Causalité : LDL, HDL et cœur" data-en="Causality: LDL, HDL and the heart">Causalité : LDL, HDL et cœur</b><span data-fr="Randomisation mendélienne sur 28 variants publiés" data-en="Mendelian randomization on 28 published variants">Randomisation mendélienne sur 28 variants publiés</span></div>
+      <div class="demo"><b data-fr="Survie avancée" data-en="Advanced survival">Survie avancée</b><span data-fr="Risques concurrents, temps immortel" data-en="Competing risks, immortal time">Risques concurrents, temps immortel</span></div>
+      <div class="demo"><b data-fr="Laboratoire : plasma ou sérum ?" data-en="Laboratory: plasma or serum?">Laboratoire : plasma ou sérum ?</b><span data-fr="Passing-Bablok, Bland-Altman, Deming" data-en="Passing-Bablok, Bland-Altman, Deming">Passing-Bablok, Bland-Altman, Deming</span></div>
+      <div class="demo"><b data-fr="Santé publique" data-en="Public health">Santé publique</b><span data-fr="Une politique a-t-elle réduit les admissions ? Séries chronologiques interrompues" data-en="Did a policy reduce admissions? Interrupted time series">Une politique a-t-elle réduit les admissions ? Séries chronologiques interrompues</span></div>
+      <div class="demo wide"><b data-fr="Et vos propres protocoles et données" data-en="And your own protocols and data">Et vos propres protocoles et données</b><span data-fr="Word, PDF, CSV, Excel, VCF, PLINK, FASTA, statistiques résumées" data-en="Word, PDF, CSV, Excel, VCF, PLINK, FASTA, summary statistics">Word, PDF, CSV, Excel, VCF, PLINK, FASTA, statistiques résumées</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="telecharger">
+  <div class="wrap">
+    <h2 data-fr="Utiliser Statoméa" data-en="Use Statoméa">Utiliser Statoméa</h2>
+    <p class="sub" data-fr="Les mêmes fonctions partout ; l'application prévient quand une nouvelle version est disponible." data-en="The same features everywhere; the app tells you when a new version is available.">Les mêmes fonctions partout ; l'application prévient quand une nouvelle version est disponible.</p>
+    <div class="dl">
+      <div class="card"><div class="ic">🌐</div><h3 data-fr="Dans le navigateur" data-en="In the browser">Dans le navigateur</h3><p data-fr="Ordinateur, tablette ou téléphone, sans installation. Sur iPhone : Partager → Sur l'écran d'accueil." data-en="Computer, tablet or phone, no installation. On iPhone: Share → Add to Home Screen.">Ordinateur, tablette ou téléphone, sans installation. Sur iPhone : Partager → Sur l'écran d'accueil.</p><p class="small" id="webv"></p><a class="btn primary" href="app/" data-fr="Ouvrir l'application" data-en="Open the app">Ouvrir l'application</a></div>
+      <div class="card"><div class="ic">🤖</div><h3 data-fr="Android (la plupart des téléphones)" data-en="Android (most phones)">Android (la plupart des téléphones)</h3><p data-fr="APK arm64, environ 30 Mo. Autoriser l'installation depuis cette source si Android le demande." data-en="arm64 APK, about 30 MB. Allow installation from this source if Android asks.">APK arm64, environ 30 Mo. Autoriser l'installation depuis cette source si Android le demande.</p><p class="small" id="apkv"></p><a class="btn primary" href="telecharger/statomea-arm64-v8a.apk" data-fr="Télécharger l'APK" data-en="Download the APK">Télécharger l'APK</a></div>
+      <div class="card"><div class="ic">📱</div><h3 data-fr="Anciens téléphones Android (32 bits)" data-en="Older Android phones (32-bit)">Anciens téléphones Android (32 bits)</h3><p data-fr="APK armv7, environ 28 Mo, si l'APK arm64 ne s'installe pas." data-en="armv7 APK, about 28 MB, if the arm64 APK does not install.">APK armv7, environ 28 Mo, si l'APK arm64 ne s'installe pas.</p><p class="small"></p><a class="btn ghost" href="telecharger/statomea-armeabi-v7a.apk" data-fr="Télécharger l'APK 32 bits" data-en="Download the 32-bit APK">Télécharger l'APK 32 bits</a></div>
+    </div>
+    <p class="sub" style="margin-top:18px"><a href="guide-statomea.pdf" data-fr="📘 Guide d'utilisation (PDF, 1 Mo) : installation, parcours en 10 étapes, outils, relecture, publication, formation, encadrants." data-en="📘 User guide (PDF, 1 MB): installation, 10-step pathway, tools, review, publication, training, supervisors.">📘 Guide d'utilisation (PDF, 1 Mo) : installation, parcours en 10 étapes, outils, relecture, publication, formation, encadrants.</a></p>
+  </div>
+</section>
+
+<section id="exemple">
+  <div class="wrap">
+    <h2 data-fr="Projets d'exemple" data-en="Example projects">Projets d'exemple</h2>
+    <p class="sub" data-fr="Deux protocoles fictifs qui cachent des erreurs de méthode, avec leurs données simulées : de quoi s'entraîner sur tout le chemin, de la relecture au poster. Dans l'application : Projets → « Projet d'exemple »." data-en="Two fictitious protocols hiding methodological errors, with their simulated data: practise the whole path, from review to poster. In the app: Projects → “Example project”.">Deux protocoles fictifs qui cachent des erreurs de méthode, avec leurs données simulées : de quoi s'entraîner sur tout le chemin, de la relecture au poster. Dans l'application : Projets → « Projet d'exemple ».</p>
+    <div class="dl">
+      <div class="card"><div class="ic">📄</div><h3 data-fr="Étude transversale : AgHBs et grossesse" data-en="Cross-sectional study: HBsAg in pregnancy">Étude transversale : AgHBs et grossesse</h3><p data-fr="Six erreurs cachées ; 640 femmes enceintes simulées (âge, résidence, parité, AgHBs, AgHBe, enfant)." data-en="Six hidden errors; 640 simulated pregnant women (age, residence, parity, HBsAg, HBeAg, child).">Six erreurs cachées ; 640 femmes enceintes simulées (âge, résidence, parité, AgHBs, AgHBe, enfant).</p><a class="btn primary" href="exemple/protocole-exemple-aghbs.docx" download>Protocole (français)</a><a class="btn ghost" href="exemple/example-protocol-hbsag.docx" download>Protocol (English)</a><a class="btn ghost" href="exemple/exemple-donnees-aghbs.csv" download data-fr="Données simulées (CSV)" data-en="Simulated data (CSV)">Données simulées (CSV)</a></div>
+      <div class="card"><div class="ic">💊</div><h3 data-fr="Essai randomisé : zinc et diarrhée de l'enfant" data-en="Randomised trial: zinc and childhood diarrhoea">Essai randomisé : zinc et diarrhée de l'enfant</h3><p data-fr="Sept erreurs cachées ; 240 enfants randomisés simulés (bras, âge, sexe, déshydratation, observance, guérison à J5)." data-en="Seven hidden errors; 240 simulated randomised children (arm, age, sex, dehydration, adherence, cure on day 5).">Sept erreurs cachées ; 240 enfants randomisés simulés (bras, âge, sexe, déshydratation, observance, guérison à J5).</p><a class="btn primary" href="exemple/protocole-exemple-zinc.docx" download>Protocole (français)</a><a class="btn ghost" href="exemple/example-protocol-zinc.docx" download>Protocol (English)</a><a class="btn ghost" href="exemple/exemple-donnees-zinc.csv" download data-fr="Données simulées (CSV)" data-en="Simulated data (CSV)">Données simulées (CSV)</a></div>
+      <div class="card"><div class="ic">🧭</div><h3 data-fr="Parcours conseillé" data-en="Suggested path">Parcours conseillé</h3><ol style="margin:0;padding-left:20px;color:var(--muted);font-size:15px"><li data-fr="Projets → « Projet d'exemple » (ou importer le Word téléchargé) : vérifier ce que Statoméa a compris." data-en="Projects → “Example project” (or import the downloaded Word file): check what Statoméa understood.">Projets → « Projet d'exemple » (ou importer le Word téléchargé) : vérifier ce que Statoméa a compris.</li><li data-fr="Feuille de route → « Relire et corriger » : trouver les erreurs cachées, puis appliquer les corrections." data-en="Roadmap → “Review and correct”: find the hidden errors, then apply the corrections.">Feuille de route → « Relire et corriger » : trouver les erreurs cachées, puis appliquer les corrections.</li><li data-fr="Fiche de recueil et masque Excel, budget et chronogramme." data-en="Case report form and Excel template, budget and timeline.">Fiche de recueil et masque Excel, budget et chronogramme.</li><li data-fr="Étape 4 : les données simulées sont déjà jointes ; contrôle de qualité." data-en="Step 4: the simulated data are already attached; quality control.">Étape 4 : les données simulées sont déjà jointes ; contrôle de qualité.</li><li data-fr="Étapes 5 à 8 : Tableau 1, Tableau 2, interprétation guidée." data-en="Steps 5 to 8: Table 1, Table 2, guided interpretation.">Étapes 5 à 8 : Tableau 1, Tableau 2, interprétation guidée.</li><li data-fr="Communication : article prérédigé, diagramme de flux, présentation, poster." data-en="Communication: pre-drafted article, flow diagram, presentation, poster.">Communication : article prérédigé, diagramme de flux, présentation, poster.</li></ol></div>
+    </div>
+    <details style="margin-top:18px"><summary style="cursor:pointer;font-weight:650" data-fr="Les erreurs cachées (solutions)" data-en="The hidden errors (solutions)">Les erreurs cachées (solutions)</summary>
+      <h3 data-fr="Étude transversale (AgHBs)" data-en="Cross-sectional study (HBsAg)">Étude transversale (AgHBs)</h3><ul style="color:var(--muted)"><li data-fr="Majoration pour les refus calculée en multipliant (453 × 1,1 = 498) au lieu de diviser : 453 / 0,9 = 504." data-en="Adjustment for refusals computed by multiplying (453 × 1.1 = 498) instead of dividing: 453 / 0.9 = 504.">Majoration pour les refus calculée en multipliant (453 × 1,1 = 498) au lieu de diviser : 453 / 0,9 = 504.</li><li data-fr="« Effet » de la résidence : formulation causale pour une étude observationnelle." data-en="“Effect” of residence: causal wording for an observational study.">« Effet » de la résidence : formulation causale pour une étude observationnelle.</li><li data-fr="« Incidence » dans une étude transversale, qui ne mesure qu'une prévalence." data-en="“Incidence” in a cross-sectional study, which only measures prevalence.">« Incidence » dans une étude transversale, qui ne mesure qu'une prévalence.</li><li data-fr="Facteurs associés étudiés par le seul khi-deux, sans ajustement sur les facteurs de confusion." data-en="Associated factors studied with the chi-square test alone, without adjustment for confounders.">Facteurs associés étudiés par le seul khi-deux, sans ajustement sur les facteurs de confusion.</li><li data-fr="Normalité jugée par le test de Kolmogorov-Smirnov." data-en="Normality judged by the Kolmogorov-Smirnov test.">Normalité jugée par le test de Kolmogorov-Smirnov.</li><li data-fr="Données manquantes non prévues." data-en="Missing data not planned for.">Données manquantes non prévues.</li></ul>
+      <h3 data-fr="Essai randomisé (zinc)" data-en="Randomised trial (zinc)">Essai randomisé (zinc)</h3><ul style="color:var(--muted)"><li data-fr="120 enfants par bras au lieu de 152 (60 % contre 75 %, puissance 80 %) : la puissance réelle n'est que de 70 %." data-en="120 children per arm instead of 152 (60% vs 75%, 80% power): actual power is only 70%.">120 enfants par bras au lieu de 152 (60 % contre 75 %, puissance 80 %) : la puissance réelle n'est que de 70 %.</li><li data-fr="Aucun enregistrement de l'essai (PACTR, ClinicalTrials.gov) avant la première inclusion." data-en="No trial registration (PACTR, ClinicalTrials.gov) before the first inclusion.">Aucun enregistrement de l'essai (PACTR, ClinicalTrials.gov) avant la première inclusion.</li><li data-fr="« Randomisé » sans méthode de génération de la séquence." data-en="“Randomised” without a sequence generation method.">« Randomisé » sans méthode de génération de la séquence.</li><li data-fr="Seuls les enfants ayant pris tout le traitement sont analysés : pas d'intention de traiter." data-en="Only children who took the full treatment are analysed: no intention to treat.">Seuls les enfants ayant pris tout le traitement sont analysés : pas d'intention de traiter.</li><li data-fr="Analyse intermédiaire sans règle d'arrêt (risque de faux positif gonflé)." data-en="Interim analysis without a stopping rule (inflated false-positive risk).">Analyse intermédiaire sans règle d'arrêt (risque de faux positif gonflé).</li><li data-fr="Analyse intermédiaire sans comité indépendant de surveillance." data-en="Interim analysis without an independent monitoring committee.">Analyse intermédiaire sans comité indépendant de surveillance.</li><li data-fr="Sous-groupes (âge, sexe) sans test d'interaction." data-en="Subgroups (age, sex) without an interaction test.">Sous-groupes (âge, sexe) sans test d'interaction.</li></ul></details>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="warn">
+      <b data-fr="⚠ Avertissement — Outil d'aide et de formation — pas un dispositif médical." data-en="⚠ Disclaimer — Support and training tool — not a medical device.">⚠ Avertissement — Outil d'aide et de formation — pas un dispositif médical.</b>
+      <span data-fr="Statoméa aide à formuler la question de recherche, à choisir, vérifier et interpréter une analyse statistique. Il ne remplace ni le jugement du chercheur, ni la relecture par un méthodologiste ou un statisticien, ni la validation clinique. Les démonstrations reposent sur des données simulées ou publiées et ne décrivent aucune population réelle. Vérifiez tout résultat avant une publication ou une décision." data-en="Statoméa helps to formulate the research question and to choose, check and interpret a statistical analysis. It replaces neither the researcher's judgement, nor review by a methodologist or a statistician, nor clinical validation. The demonstrations rely on simulated or published data and describe no real population. Check every result before a publication or a decision.">Statoméa aide à formuler la question de recherche, à choisir, vérifier et interpréter une analyse statistique. Il ne remplace ni le jugement du chercheur, ni la relecture par un méthodologiste ou un statisticien, ni la validation clinique. Les démonstrations reposent sur des données simulées ou publiées et ne décrivent aucune population réelle. Vérifiez tout résultat avant une publication ou une décision.</span>
+    </div>
+    <div class="credit">
+      <img src="statomea-embleme.png" alt="">
+      <div data-fr="Conçu par le Dr. Modibo Mouctar COULIBALY — PharmD, CLMS, PhD · Maître de Recherche, Hôpital Sominé DOLO de Mopti (Mali)" data-en="Designed by Dr. Modibo Mouctar COULIBALY — PharmD, CLMS, PhD · Senior Researcher, Sominé DOLO Hospital, Mopti (Mali)"><b>Conçu par le Dr. Modibo Mouctar COULIBALY</b> — PharmD, CLMS, PhD · Maître de Recherche, Hôpital Sominé DOLO de Mopti (Mali)</div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Statoméa <span id="footv"></span></span>
+    <span><a href="https://github.com/Modibo/Statomea" data-fr="Code source et rapport de validation" data-en="Source code and validation report">Code source et rapport de validation</a></span>
+  </div>
+</footer>
+
+<script>
+  // Ancienne application servie à la racine (avant /app/) : son service worker pourrait encore répondre ; on le retire.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => { if (new URL(r.scope).pathname === '/') { r.unregister(); if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k))); } }));
+  }
+  // Langue : FR par défaut, EN si choisi (mémorisé) ou si le navigateur est en anglais.
+  const btn = document.getElementById('lang');
+  let lang = localStorage.getItem('statomea.landing.lang') || ((navigator.language || 'fr').startsWith('en') ? 'en' : 'fr');
+  function apply() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-fr]').forEach(e => { e.textContent = e.dataset[lang]; });
+    btn.textContent = '🌐 ' + lang.toUpperCase();
+    btn.setAttribute('aria-label', lang === 'fr' ? 'Passer en anglais' : 'Switch to French');
+    document.title = lang === 'fr' ? 'Statoméa — statistique biomédicale et formation à la recherche' : 'Statoméa — biomedical statistics and research training';
+    showVersions();
+  }
+  btn.addEventListener('click', () => { lang = lang === 'fr' ? 'en' : 'fr'; try { localStorage.setItem('statomea.landing.lang', lang); } catch (_) {} apply(); });
+  // Versions publiées (lues sur le serveur).
+  let webV = null, apkV = null;
+  function showVersions() {
+    const t = (fr, en) => lang === 'fr' ? fr : en;
+    if (webV) { document.getElementById('webv').textContent = t('Version en ligne : ', 'Online version: ') + webV; document.getElementById('footv').textContent = webV; }
+    if (apkV) document.getElementById('apkv').textContent = t('Version : ', 'Version: ') + apkV;
+  }
+  fetch('app/version.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => { if (j) { webV = j.version; showVersions(); } }).catch(() => {});
+  fetch('android.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(j => {
+    if (!j) return;
+    apkV = j.version; showVersions();
+    // Liens nommés avec la version (évite de rouvrir un ancien fichier homonyme déjà téléchargé).
+    if (j.urls) document.querySelectorAll('a[href^="telecharger/statomea-arm"]').forEach(a => {
+      const abi = a.getAttribute('href').includes('armeabi-v7a') ? 'armeabi-v7a' : 'arm64-v8a';
+      if (j.urls[abi]) a.setAttribute('href', j.urls[abi]);
+    });
+  }).catch(() => {});
+  apply();
+</script>
+</body>
+</html>
